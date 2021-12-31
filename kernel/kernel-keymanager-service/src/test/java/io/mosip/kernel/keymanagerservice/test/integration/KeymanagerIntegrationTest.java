@@ -44,7 +44,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
@@ -126,7 +125,8 @@ public class KeymanagerIntegrationTest {
 
 	@Before
 	public void init() {
-		mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+		mapper = new ObjectMapper();
+		mapper.registerModule(new AfterburnerModule());
 		keyalias = new ArrayList<>();
 		keyPolicy = Optional.empty();
 		dbKeyStore = Optional.empty();

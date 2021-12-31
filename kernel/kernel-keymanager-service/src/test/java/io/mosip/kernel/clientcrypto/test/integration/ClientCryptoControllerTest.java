@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
@@ -43,7 +42,8 @@ public class ClientCryptoControllerTest {
 
 	@Before
 	public void init() {
-		mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+		mapper = new ObjectMapper();
+		mapper.registerModule(new AfterburnerModule());
 		mapper.registerModule(new JavaTimeModule());
 		mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 	}

@@ -31,7 +31,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
@@ -107,7 +106,8 @@ public class CryptographicServiceIntegrationTest {
 
 	@Before
 	public void setUp() {
-		objectMapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+		objectMapper = new ObjectMapper();
+		objectMapper.registerModule(new AfterburnerModule());
 		objectMapper.registerModule(new JavaTimeModule());
 
 		keyPair = generator.getAsymmetricKey();

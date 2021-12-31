@@ -35,7 +35,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
@@ -92,7 +91,8 @@ public class CryptographicServiceIntegrationExceptionTest {
 
 	@Before
 	public void setUp() {
-		mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+		mapper = new ObjectMapper();
+		mapper.registerModule(new AfterburnerModule());
 		mapper.registerModule(new JavaTimeModule());
 
 		requestWrapper = new RequestWrapper<>();

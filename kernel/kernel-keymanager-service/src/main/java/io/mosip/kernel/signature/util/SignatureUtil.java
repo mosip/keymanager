@@ -9,7 +9,6 @@ import java.util.Date;
 import java.util.Objects;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 import io.mosip.kernel.core.logger.spi.Logger;
@@ -28,7 +27,10 @@ import io.mosip.kernel.signature.constant.SignatureConstant;
 public class SignatureUtil {
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
-	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+	private static ObjectMapper mapper = new ObjectMapper();
+	static {
+		mapper.registerModule(new AfterburnerModule());
+	}
 
 	public static boolean isDataValid(String anyData) {
 		return anyData != null && !anyData.trim().isEmpty();
