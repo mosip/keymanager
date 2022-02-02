@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JWTSignatureRequestDto {
+public class JWSSignatureRequestDto {
 
     @NotBlank
     @ApiModelProperty(notes = "Base64 encoded JSON Data to sign", example = "ewogICAiYW55S2V5IjogIlRlc3QgSnNvbiIKfQ", required = true)
@@ -59,4 +59,21 @@ public class JWTSignatureRequestDto {
 	@ApiModelProperty(notes = "Flag to include certificate URL in  JWT Signature Header.", required = false)
 	private String certificateUrl;
 
+	/**
+	 * Validate inputted JSON to be valid JSON 
+	 */
+	@ApiModelProperty(notes = "Flag to validate inputted JSON to be a valid JSON.", required = false)
+	private Boolean validateJson;
+
+	/**
+	 * Flag to determine the inputted data to be Base64URL encoded in signature process.  
+	 */
+	@ApiModelProperty(notes = "Flag to determine the inputted data to be Base64URL encoded in signature process", required = false)
+	private Boolean b64JWSHeaderParam;
+
+	/**
+	 * JWS Algorithm to use for data signing. Current supported Algorithm PS256
+	 */
+	@ApiModelProperty(notes = "JWS Algorithm to use for data signing. Current supported Algorithm PS256.", required = false)
+	private String signAlgorithm;
 }

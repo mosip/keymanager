@@ -1,16 +1,29 @@
 package io.mosip.kernel.signature.util;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Objects;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.util.Base64;
+import com.nimbusds.jose.util.Base64URL;
+
+import org.apache.commons.codec.digest.DigestUtils;
 
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.DateUtils;
@@ -59,8 +72,8 @@ public class SignatureUtil {
 			x509Cert.checkValidity(currentDate);
 			return true;
 		} catch (CertificateExpiredException | CertificateNotYetValidException exp) {
-			LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Exception thrown when certificate dates are not valid.");
+			LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate dates are not valid.");
 		}
 		try {
 			// Checking both system default timezone & UTC Offset timezone. Issue found in
@@ -68,10 +81,78 @@ public class SignatureUtil {
 			x509Cert.checkValidity();
 			return true;
 		} catch (CertificateExpiredException | CertificateNotYetValidException exp) {
-			LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Exception thrown when certificate dates are not valid.");
+			LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate dates are not valid.");
 		}
 		return false;
+	}
+
+	public static JWSHeader getJWSHeader(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificate, 
+			boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate) {
+
+		JWSAlgorithm jwsAlgorithm;
+		switch (signAlgorithm) {
+			case "RS256":
+				jwsAlgorithm = JWSAlgorithm.RS256; 
+				break;
+			case "PS256":
+				jwsAlgorithm = JWSAlgorithm.PS256;
+				break;
+			default:
+				jwsAlgorithm = JWSAlgorithm.PS256; 
+				break;
+		}
+		
+		JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
+
+		if (!b64JWSHeaderParam) 
+			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
+								.criticalParams(Collections.singleton(SignatureConstant.B64));
+
+		if (includeCertificate) {
+			try {
+				Base64 signCert = Base64.encode(x509Certificate.getEncoded());
+				List<Base64> x5c = new ArrayList<>();
+				x5c.add(signCert);
+				jwsHeaderBuilder = jwsHeaderBuilder.x509CertChain(x5c);
+			} catch (CertificateEncodingException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate not able to parse while adding to jws header.");
+			}
+		}
+		
+		if (includeCertHash) {
+			try {
+				jwsHeaderBuilder = jwsHeaderBuilder.x509CertSHA256Thumbprint(Base64URL.encode(DigestUtils.sha256(x509Certificate.getEncoded())));
+			} catch (CertificateEncodingException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate not able to parse while adding to jws header.");
+			}
+		}
+
+		if (Objects.nonNull(certificateUrl)) {
+			try {
+				jwsHeaderBuilder.x509CertURL(new URI(certificateUrl));
+			} catch (URISyntaxException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate URI not able to parse while adding to jws header.");
+			}
+		}
+
+		return jwsHeaderBuilder.build();
+	}
+
+	public static byte[] buildSignData(JWSHeader jwsHeader, byte[] actualDataToSign) {
+
+		byte[] jwsHeaderBytes = jwsHeader.toBase64URL().toString().getBytes(StandardCharsets.UTF_8);
+		byte[] jwsSignData = new byte[jwsHeaderBytes.length + actualDataToSign.length + 1];
+		System.arraycopy(jwsHeaderBytes, 0, jwsSignData, 0, jwsHeaderBytes.length);
+		jwsSignData[jwsHeaderBytes.length] = (byte) '.';
+		System.arraycopy(actualDataToSign, 0, jwsSignData, jwsHeaderBytes.length + 1, actualDataToSign.length);
+		return jwsSignData;
 	}
 
 }

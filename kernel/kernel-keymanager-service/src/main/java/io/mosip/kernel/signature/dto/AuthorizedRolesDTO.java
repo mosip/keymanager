@@ -25,4 +25,6 @@ public class AuthorizedRolesDTO
 	private List<String> postjwtsign;
 	
 	private List<String> postjwtverify;
+
+	private List<String> postjwssign;
 }

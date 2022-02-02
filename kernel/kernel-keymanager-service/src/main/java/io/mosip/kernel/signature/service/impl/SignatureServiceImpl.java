@@ -3,6 +3,7 @@ package io.mosip.kernel.signature.service.impl;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -14,12 +15,15 @@ import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 import javax.crypto.SecretKey;
+
+import com.nimbusds.jose.JWSHeader;
 
 import org.apache.commons.codec.binary.Base64;
 import org.jose4j.jws.JsonWebSignature;
@@ -28,7 +32,6 @@ import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.logger.spi.Logger;
@@ -55,6 +58,7 @@ import io.mosip.kernel.partnercertservice.dto.CertificateTrustResponeDto;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
+import io.mosip.kernel.signature.dto.JWSSignatureRequestDto;
 import io.mosip.kernel.signature.dto.JWTSignatureRequestDto;
 import io.mosip.kernel.signature.dto.JWTSignatureResponseDto;
 import io.mosip.kernel.signature.dto.JWTSignatureVerifyRequestDto;
@@ -69,6 +73,7 @@ import io.mosip.kernel.signature.exception.CertificateNotValidException;
 import io.mosip.kernel.signature.exception.PublicKeyParseException;
 import io.mosip.kernel.signature.exception.RequestException;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
+import io.mosip.kernel.signature.service.SignatureProvider;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.mosip.kernel.signature.util.SignatureUtil;
 
@@ -102,6 +107,9 @@ public class SignatureServiceImpl implements SignatureService {
 	@Value("${mosip.kernel.crypto.sign-algorithm-name:RS256}")
 	private String signAlgorithm;
 
+	@Value("${mosip.kernel.keymanager.jwtsign.validate.json:true}")
+	private boolean confValidateJson;
+
 	/**
 	 * Utility to generate Metadata
 	 */
@@ -119,6 +127,13 @@ public class SignatureServiceImpl implements SignatureService {
 
 	@Autowired
 	CryptomanagerUtils cryptomanagerUtil;
+
+	private static Map<String, SignatureProvider> SIGNATURE_PROVIDER = new HashMap<>();
+
+	static {
+		SIGNATURE_PROVIDER.put(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST, new PS256SIgnatureProviderImpl());
+		SIGNATURE_PROVIDER.put(SignatureConstant.JWS_RS256_SIGN_ALGO_CONST, new RS256SignatureProviderImpl());
+	}
 
 	@Override
 	public SignatureResponse sign(SignRequestDto signRequestDto) {
@@ -230,7 +245,7 @@ public class SignatureServiceImpl implements SignatureService {
 		}
 
 		String decodedDataToSign = new String(CryptoUtil.decodeBase64(reqDataToSign));
-		if (!SignatureUtil.isJsonValid(decodedDataToSign)) {
+		if (confValidateJson && !SignatureUtil.isJsonValid(decodedDataToSign)) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 					"Provided Data to sign value is invalid JSON.");
 			throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
@@ -428,4 +443,88 @@ public class SignatureServiceImpl implements SignatureService {
 		}
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
+
+	@Override
+	public JWTSignatureResponseDto jwsSign(JWSSignatureRequestDto jwsSignRequestDto) {
+		// TODO Code is duplicated from jwtSign method. Duplicate code will be removed later when VC verification is implementation.
+		// Code duplicated because now does not want to make any change to existing code which is well tested.
+		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+				"JWS Signature Request.");
+
+		boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(jwsSignRequestDto.getApplicationId());
+		if (!hasAcccess) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+							"Signing Data is not allowed for the authenticated user for the provided application id.");
+			throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+				SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
+		}
+
+		String reqDataToSign = jwsSignRequestDto.getDataToSign();
+		if (!SignatureUtil.isDataValid(reqDataToSign)) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Provided Data to sign value is invalid.");
+			throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+					SignatureErrorCode.INVALID_INPUT.getErrorMessage());
+		}
+
+		Boolean validateJson = jwsSignRequestDto.getValidateJson();
+		byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
+		if (validateJson && !SignatureUtil.isJsonValid(new String(dataToSign))) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Provided Data to sign value is invalid JSON.");
+			throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+					SignatureErrorCode.INVALID_JSON.getErrorMessage());
+		}
+
+		String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String applicationId = jwsSignRequestDto.getApplicationId();
+		String referenceId = jwsSignRequestDto.getReferenceId();
+		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+			applicationId = signApplicationid;
+			referenceId = signRefid;
+		}
+
+		boolean includePayload = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludePayload());
+		boolean includeCertificate = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludeCertificate());
+		boolean includeCertHash = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludeCertHash());
+		String certificateUrl = SignatureUtil.isDataValid(
+								jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
+		boolean b64JWSHeaderParam = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getB64JWSHeaderParam());
+		String signAlgorithm = SignatureUtil.isDataValid(jwsSignRequestDto.getSignAlgorithm()) ? 
+									jwsSignRequestDto.getSignAlgorithm(): SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		
+		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
+									Optional.of(referenceId), timestamp);
+		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+									DateUtils.parseUTCToDate(timestamp));
+		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
+		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
+		String providerName = certificateResponse.getProviderName();
+		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signAlgorithm, b64JWSHeaderParam, includeCertificate, 
+					includeCertHash, certificateUrl, x509Certificate);
+		
+		if (b64JWSHeaderParam) {
+			dataToSign = reqDataToSign.getBytes(StandardCharsets.UTF_8);
+		}
+		byte[] jwsSignData = SignatureUtil.buildSignData(jwsHeader, dataToSign);
+		
+		SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
+		if (Objects.isNull(signatureProvider)) {
+			signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
+		} 
+		String signature = signatureProvider.sign(privateKey, jwsSignData, providerName);
+
+		StringBuilder signedData = new StringBuilder().append(jwsHeader.toBase64URL().toString())
+														 .append(".")
+														 .append(includePayload? reqDataToSign: "")
+														 .append(".")
+														 .append(signature);
+														 
+		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
+		responseDto.setJwtSignedData(signedData.toString());
+		responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		return responseDto;
+	}
+
+	
 }

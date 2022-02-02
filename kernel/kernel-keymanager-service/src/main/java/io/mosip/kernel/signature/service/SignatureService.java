@@ -1,6 +1,7 @@
 package io.mosip.kernel.signature.service;
 
 import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
+import io.mosip.kernel.signature.dto.JWSSignatureRequestDto;
 import io.mosip.kernel.signature.dto.JWTSignatureRequestDto;
 import io.mosip.kernel.signature.dto.JWTSignatureResponseDto;
 import io.mosip.kernel.signature.dto.JWTSignatureVerifyRequestDto;
@@ -34,7 +35,7 @@ public interface SignatureService {
 	public SignatureResponseDto signPDF(PDFSignatureRequestDto request);
 
 	/**
-	 * JWT Signature.
+	 * JSON Web Signature(JWS) for the inputted data using RS256 algorithm
 	 *
 	 * @param jwtSignRequestDto the jwtSignRequestDto
 	 * @return the JWTSignatureResponseDto
@@ -48,5 +49,14 @@ public interface SignatureService {
 	 * @return the JWTSignatureVerifyResponseDto
 	 */
 	public JWTSignatureVerifyResponseDto jwtVerify(JWTSignatureVerifyRequestDto jwtSignatureVerifyRequestDto);
+
+
+	/**
+	 * JSON Web Signature(JWS) for the inputted data using inputted algorithm
+	 *
+	 * @param jwsSignRequestDto the JWSSignatureRequestDto
+	 * @return the JWTSignatureResponseDto
+	 */
+	public JWTSignatureResponseDto jwsSign(JWSSignatureRequestDto jwsSignRequestDto);
 
 }
