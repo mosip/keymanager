@@ -2,6 +2,7 @@ package io.mosip.kernel.keymanagerservice.repository;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +24,7 @@ public interface DataEncryptKeystoreRepository extends JpaRepository<DataEncrypt
 	 * @param id the id
 	 * @return the string
 	 */
+	@Cacheable(value="zkdataencryptedkeystorecache", key="#id")
 	@Query("SELECT d.key from DataEncryptKeystore d where d.id = :id")
 	String findKeyById(@Param("id") Integer id);
 
