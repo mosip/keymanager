@@ -11,6 +11,7 @@ ALTER TABLE keymgr.key_policy_def ADD COLUMN access_allowed character varying(10
 
 insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('ADMIN_SERVICES',1095,TRUE,'mosipadmin',now(),60,'NA');
 insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('RESIDENT',1095,TRUE,'mosipadmin',now(),60,'NA');
+insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('COMPLIANCE_TOOLKIT',1095,TRUE,'mosipadmin',now(),60,'NA');
 
 
 -- updating default values for pre_expire_days & access_allowed columns
