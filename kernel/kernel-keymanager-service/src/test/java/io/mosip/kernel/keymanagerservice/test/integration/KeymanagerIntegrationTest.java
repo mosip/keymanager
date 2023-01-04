@@ -336,7 +336,7 @@ public class KeymanagerIntegrationTest {
 		ResponseWrapper<SignatureResponseDto> responseWrapper = objectMapper.readValue(
 				result.getResponse().getContentAsString(), new TypeReference<ResponseWrapper<SignatureResponseDto>>() {
 				});
-		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMS-003"));
+		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMA-005"));
 	}
 
 	@WithUserDetails("reg-processor")
@@ -369,7 +369,7 @@ public class KeymanagerIntegrationTest {
 		ResponseWrapper<SignatureResponseDto> responseWrapper = objectMapper.readValue(
 				result.getResponse().getContentAsString(), new TypeReference<ResponseWrapper<SignatureResponseDto>>() {
 				});
-		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMS-003"));
+		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMA-005"));
 	}
 
 }
