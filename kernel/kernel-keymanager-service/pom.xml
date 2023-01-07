@@ -146,7 +146,7 @@
 		<springdoc.version>1.5.10</springdoc.version>
 		<jacoco.maven.plugin.version>0.8.5</jacoco.maven.plugin.version>
 		<com.nimbusds.nimbus-jose-jwt.version>9.14</com.nimbusds.nimbus-jose-jwt.version>
-		<com.fasterxml.jackson.core.version>2.12.0</com.fasterxml.jackson.core.version>
+		<com.fasterxml.jackson.core.version>2.12.7.1</com.fasterxml.jackson.core.version>
 	</properties>
 
 	<dependencies>
