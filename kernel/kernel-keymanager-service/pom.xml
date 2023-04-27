@@ -269,6 +269,11 @@
 			<artifactId>jackson-module-afterburner</artifactId>
 			<version>${fasterxml.jackson.module.afterburner.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-core</artifactId>
+			<version>3.1.7.RELEASE</version>
+		</dependency>
 	</dependencies>
 	
 <distributionManagement>

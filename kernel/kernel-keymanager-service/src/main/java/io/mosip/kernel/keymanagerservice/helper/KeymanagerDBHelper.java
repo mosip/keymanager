@@ -42,6 +42,10 @@ public class KeymanagerDBHelper {
 
     private static final Logger LOGGER = KeymanagerLogger.getLogger(KeymanagerDBHelper.class);
 
+    /** The sign applicationid. */
+	@Value("${mosip.sign.applicationid:KERNEL}")
+	private String signApplicationId;
+
     @Value("${mosip.sign-certificate-refid:SIGN}")
 	private String signRefId;
     /**
@@ -257,11 +261,11 @@ public class KeymanagerDBHelper {
         List<KeyAlias> allKeyAliases = keyAliasRepository.findAll();
         allKeyAliases.stream().filter(keyAlias -> ((Objects.isNull(keyAlias.getCertThumbprint()) || 
                                                     keyAlias.getCertThumbprint().equals(KeymanagerConstant.EMPTY)) && 
-                                                    !keyAlias.getApplicationId().equals(KeymanagerConstant.KERNEL_APP_ID) &&
+                                                    !keyAlias.getApplicationId().equals(signApplicationId) &&
                                                     !keyAlias.getReferenceId().equals(KeymanagerConstant.KERNEL_IDENTIFY_CACHE)))
                                 .forEach(keyAlias -> {
                                     if (keyAlias.getReferenceId().isEmpty() || 
-                                        (keyAlias.getApplicationId().equals(KeymanagerConstant.KERNEL_APP_ID) &&
+                                        (keyAlias.getApplicationId().equals(signApplicationId) &&
                                             keyAlias.getReferenceId().equals(signRefId))) {
                                         X509Certificate x509Cert = (X509Certificate) keyStore.getCertificate(keyAlias.getAlias());
                                         String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(x509Cert);
