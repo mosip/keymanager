@@ -87,6 +87,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
     @Value("${mosip.kernel.partner.truststore.cache.expire.inMins:120}")
     private long cacheExpireInMins;
+
+    @Value("${mosip.kernel.partner.issuer.certificate.allowed.grace.duration:30}")
+    private int gracePeriod;
         
     /**
      * Utility to generate Metadata
@@ -293,15 +296,26 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         if (certExist) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
                     PartnerCertManagerConstants.EMPTY, "Partner certificate already exists in Store.");
-            throw new PartnerCertManagerException(
+            // Commented below throw clause because renewal of certificate should be allowed for existing certificates.
+            // Added one more condition to check certificate validity is in allowed date range.
+            /*throw new PartnerCertManagerException(
                     PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorCode(),
-                    PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorMessage());
+                    PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorMessage()); */
         }
 
         boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
         if (!validDates) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
                     PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
+                    PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
+        }
+
+        boolean validDuration = PartnerCertificateManagerUtil.isCertificateValidForDuration(reqX509Cert, issuerCertDuration, gracePeriod);
+        if (!validDuration) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Certificate Dates are not in allowed range.");
             throw new PartnerCertManagerException(
                     PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
                     PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());

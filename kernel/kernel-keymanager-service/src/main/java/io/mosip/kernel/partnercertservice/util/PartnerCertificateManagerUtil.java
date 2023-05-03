@@ -11,6 +11,7 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 import javax.security.auth.x500.X500Principal;
@@ -43,6 +44,8 @@ public class PartnerCertificateManagerUtil {
 
     private static final Logger LOGGER = KeymanagerLogger.getLogger(PartnerCertificateManagerUtil.class);
 
+    private static final int DEFAULT_ALLOWED_CERTIFICATE_DAYS = 315;
+    
     /**
      * Function to check certificate is self-signed.
      * 
@@ -129,6 +132,25 @@ public class PartnerCertificateManagerUtil {
         }
         return false;
     }
+
+    public static boolean isCertificateValidForDuration(X509Certificate x509Cert, int issuerCertDuration, int gracePeriod) {
+        
+        int noOfDays = (issuerCertDuration * PartnerCertManagerConstants.YEAR_DAYS) - gracePeriod;
+        if (noOfDays < 0) {
+            noOfDays = DEFAULT_ALLOWED_CERTIFICATE_DAYS;
+        } 
+        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();//.plus(noOfDays, ChronoUnit.DAYS);
+        LocalDateTime certNotAfter = x509Cert.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
+        long validDays = ChronoUnit.DAYS.between(localDateTimeStamp, certNotAfter);
+        if ((validDays - noOfDays) >= 0)             
+            return true;
+
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+            PartnerCertManagerConstants.PCM_UTIL, "Remaining validity for the Certificate is " + validDays + 
+            " days, grace days configured is " + gracePeriod);
+        return false;
+    }
+
     
     public static boolean isValidTimestamp(LocalDateTime timeStamp, CACertificateStore certStore) {
 		return timeStamp.isEqual(certStore.getCertNotBefore()) || timeStamp.isEqual(certStore.getCertNotAfter())
