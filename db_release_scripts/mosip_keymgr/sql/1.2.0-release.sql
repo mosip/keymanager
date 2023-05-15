@@ -13,6 +13,13 @@ insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_b
 insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('RESIDENT',1095,TRUE,'mosipadmin',now(),60,'NA');
 insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('COMPLIANCE_TOOLKIT',1095,TRUE,'mosipadmin',now(),60,'NA');
 
+INSERT INTO keymgr.key_policy_def
+	(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, upd_by, upd_dtimes, is_deleted, del_dtimes)
+	VALUES('DIGITAL_CARD', 1095, true, 'mosipadmin', '2020-12-15 15:15:54.411', NULL, NULL, NULL, NULL);
+
+INSERT INTO keymgr.key_policy_def_h
+	(app_id, eff_dtimes, key_validity_duration, is_active, cr_by, cr_dtimes, upd_by, upd_dtimes, is_deleted, del_dtimes)
+	VALUES('DIGITAL_CARD', '2020-12-15 15:15:54.442', 1095, true, 'mosipadmin', '2020-12-15 15:15:54.442', NULL, NULL, NULL, NULL);
 
 -- updating default values for pre_expire_days & access_allowed columns
 update keymgr.key_policy_def set pre_expire_days=60, access_allowed='NA' where app_id='PRE_REGISTRATION';
