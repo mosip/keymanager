@@ -9,9 +9,12 @@ ALTER TABLE keymgr.key_alias ADD CONSTRAINT uni_ident_const UNIQUE (uni_ident);
 ALTER TABLE keymgr.key_policy_def ADD COLUMN pre_expire_days smallint;
 ALTER TABLE keymgr.key_policy_def ADD COLUMN access_allowed character varying(1024);
 
-insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('ADMIN_SERVICES',1095,TRUE,'mosipadmin',now(),60,'NA');
-insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('RESIDENT',1095,TRUE,'mosipadmin',now(),60,'NA');
-insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) values('COMPLIANCE_TOOLKIT',1095,TRUE,'mosipadmin',now(),60,'NA');
+insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) 
+	SELECT 'ADMIN_SERVICES',1095,TRUE,'mosipadmin',now(),60,'NA' WHERE NOT EXISTS (SELECT app_id FROM keymgr.key_policy_def WHERE app_id='ADMIN_SERVICES');
+insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) 
+	SELECT 'RESIDENT',1095,TRUE,'mosipadmin',now(),60,'NA' WHERE NOT EXISTS (SELECT app_id FROM keymgr.key_policy_def WHERE app_id='RESIDENT');
+insert into keymgr.key_policy_def(app_id, key_validity_duration, is_active, cr_by, cr_dtimes, pre_expire_days, access_allowed) 
+	SELECT 'COMPLIANCE_TOOLKIT',1095,TRUE,'mosipadmin',now(),60,'NA' WHERE NOT EXISTS (SELECT app_id FROM keymgr.key_policy_def WHERE app_id='COMPLIANCE_TOOLKIT');
 
 
 -- updating default values for pre_expire_days & access_allowed columns
