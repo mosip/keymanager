@@ -3,7 +3,7 @@
  
   <groupId>io.mosip.kernel</groupId>
   <artifactId>keys-migrator</artifactId>
-  <version>1.2.0.1-B2</version>
+  <version>1.2.0.1-SNAPSHOT</version>
   <url>https://github.com/mosip/keymanager</url>
 	
   <scm>
