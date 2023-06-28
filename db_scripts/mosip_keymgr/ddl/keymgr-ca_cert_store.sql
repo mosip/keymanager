@@ -20,7 +20,8 @@ CREATE TABLE keymgr.ca_cert_store(
 	upd_dtimes timestamp,
 	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
-	CONSTRAINT pk_cacs_id PRIMARY KEY (cert_id)
+	CONSTRAINT pk_cacs_id PRIMARY KEY (cert_id),
+	CONSTRAINT cert_thumbprint_unique UNIQUE (cert_thumbprint,partner_domain)
 
 );
 -- ddl-end --

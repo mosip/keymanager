@@ -287,7 +287,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 
 					if (ksAlias.equals(masterKeyAlias) || privateKeyObj.equals(KeymanagerConstant.KS_PK_NA)) {
 						LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
-								"Not Allowed to generate New Key Pair for other domains.");
+								"Not Allowed to generate New Key Pair for other domains (Partner Certificate might have expired).");
 						throw new KeymanagerServiceException(KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorCode(),
 								KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorMessage());
 					}

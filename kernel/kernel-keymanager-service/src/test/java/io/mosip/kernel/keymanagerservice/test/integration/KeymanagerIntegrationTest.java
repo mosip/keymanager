@@ -26,6 +26,7 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -142,11 +143,11 @@ public class KeymanagerIntegrationTest {
 	private void setupMultipleKeyAlias() {
 		keyalias = new ArrayList<>();
 		keyalias.add(new KeyAlias("alias-one", "applicationId", "referenceId", LocalDateTime.of(2020, 1, 1, 12, 00),
-				LocalDateTime.of(2023, 1, 1, 12, 00), "status", null, null));
+				LocalDateTime.of(2030, 1, 1, 12, 00), "status", null, null));
 		keyalias.add(new KeyAlias("alias-two", "applicationId", "referenceId", LocalDateTime.of(2020, 1, 1, 12, 00),
-				LocalDateTime.of(2023, 1, 1, 12, 00), "status", null, null));
+				LocalDateTime.of(2030, 1, 1, 12, 00), "status", null, null));
 		keyalias.add(new KeyAlias("alias-root", "ROOT", "", LocalDateTime.of(2020, 1, 1, 12, 00),
-				LocalDateTime.of(2025, 1, 1, 12, 00), "status", null, null));
+				LocalDateTime.of(2035, 1, 1, 12, 00), "status", null, null));
 
 	}
 
@@ -180,7 +181,7 @@ public class KeymanagerIntegrationTest {
 		key = keyGen.generateKeyPair();
 		X509Certificate x509Certificate = CertificateUtility.generateX509Certificate(key.getPrivate(), key.getPublic(),
 				"mosip", "mosip", "mosip", "india", LocalDateTime.of(2010, 1, 1, 12, 00),
-				LocalDateTime.of(2011, 1, 1, 12, 00), "SHA256withRSA", "BC");
+				LocalDateTime.of(2030, 1, 1, 12, 00), "SHA256withRSA", "BC");
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = x509Certificate;
 		privateKeyEntry = new PrivateKeyEntry(key.getPrivate(), chain);
@@ -339,6 +340,7 @@ public class KeymanagerIntegrationTest {
 		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMS-003"));
 	}
 
+	
 	@WithUserDetails("reg-processor")
 	@Test
 	public void encryptWithEmptyAliasReferenceId() throws Exception {

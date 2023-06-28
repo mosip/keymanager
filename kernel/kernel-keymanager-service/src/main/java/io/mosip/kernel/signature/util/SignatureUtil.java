@@ -58,7 +58,7 @@ public class SignatureUtil {
 			return true;
 		} catch (IOException e) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Provided JSON Data to sign value is invalid.");
+					"Provided JSON Data to sign is invalid.");
 		}
 		return false;
 	}

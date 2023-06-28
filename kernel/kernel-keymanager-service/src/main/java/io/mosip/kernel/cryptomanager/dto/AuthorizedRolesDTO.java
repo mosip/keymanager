@@ -24,8 +24,8 @@ public class AuthorizedRolesDTO
 	
 	private List<String> postdecryptwithpin;
 	
-	private List<String> postencryptdt;
+	private List<String> postjwtencrypt;
 	
-	private List<String> postdecryptdt;
+	private List<String> postjwtdecrypt;
 
 }

@@ -41,5 +41,21 @@ public class CryptomanagerConstant {
 	public static final String DECRYPT_PIN = "CryptoManagerDecryptWithPin";
 
 	public static final String NOT_APPLICABLE = "NA";
+
+	public static final String JWT_ENCRYPT = "Crypto-Manager-JWEEncrypt";
+
+	public static final String JWT_DECRYPT = "Crypto-Manager-JWEDecrypt";
+
+	public static final Boolean DEFAULT_INCLUDES_FALSE = false;
+
+	public static final Boolean DEFAULT_INCLUDES_TRUE = true;
+
+	public static final String JSON_CONTENT_TYPE_KEY = "cty";
+
+	public static final String JSON_CONTENT_TYPE_VALUE = "JWT";
+
+	public static final String JSON_HEADER_JWK_KEY = "jku";
+
+	public static final String JSON_HEADER_TYPE_KEY = "typ";
 }
 

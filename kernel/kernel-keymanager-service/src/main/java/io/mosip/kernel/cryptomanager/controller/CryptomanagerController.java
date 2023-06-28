@@ -22,6 +22,9 @@ import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
+import io.mosip.kernel.cryptomanager.dto.JWTEncryptRequestDto;
+import io.mosip.kernel.cryptomanager.dto.JWTCipherResponseDto;
+import io.mosip.kernel.cryptomanager.dto.JWTDecryptRequestDto;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
@@ -143,5 +146,49 @@ public class CryptomanagerController {
 		ResponseWrapper<CryptoWithPinResponseDto> responseDto = new ResponseWrapper<>();
 		responseDto.setResponse(cryptomanagerService.decryptWithPin(requestDto.getRequest()));
 		return responseDto;
+	}
+
+	/**
+	 * Controller to Encrypt the data using JSON Web Encryption
+	 * 
+	 * @param jwtCipherRequestDto {@link JWTEncryptRequestDto} request
+	 * @return {@link JWTCipherResponseDto} encrypted Data
+	 */
+	@Operation(summary = "JWE Data Encryption", description = "Performs JSON Web Encrypt for the given data", tags = { "cryptomanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@PreAuthorize("hasAnyRole(@cryptoManagerAuthRoles.getPostjwtencrypt())")
+	@ResponseFilter
+	@PostMapping(value = "/jwtEncrypt", produces = "application/json")
+	public ResponseWrapper<JWTCipherResponseDto> jwtEncrypt(
+			@ApiParam("Data to encrypt in BASE64 encoding with meta-data") @RequestBody @Valid RequestWrapper<JWTEncryptRequestDto> jwtCipherRequestDto) {
+		ResponseWrapper<JWTCipherResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(cryptomanagerService.jwtEncrypt(jwtCipherRequestDto.getRequest()));
+		return response;
+	}
+
+	/**
+	 * Controller to Decrypt the data using JSON Web Encryption
+	 * 
+	 * @param jwtCipherRequestDto {@link JWTEncryptRequestDto} request
+	 * @return {@link JWTCipherResponseDto} decrypted Data
+	 */
+	@Operation(summary = "JWE Data Decryption", description = "Performs JSON Web Decrypt for the given encrypted data", tags = { "cryptomanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@cryptoManagerAuthRoles.getPostjwtdecrypt())")
+	@PostMapping(value = "/jwtDecrypt", produces = "application/json")
+	public ResponseWrapper<JWTCipherResponseDto> jwtDecrypt(
+			@ApiParam("Data to decrypt in BASE64 encoding with meta-data") @RequestBody @Valid RequestWrapper<JWTDecryptRequestDto> jwtCipherRequestDto) {
+		ResponseWrapper<JWTCipherResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(cryptomanagerService.jwtDecrypt(jwtCipherRequestDto.getRequest()));
+		return response;
 	}
 }

@@ -29,11 +29,11 @@ public enum CryptomanagerErrorCode {
 	/**
 	 * 
 	 */
-	INVALID_DATA("KER-CRY-003", " or not base64 encoded"),
+	INVALID_DATA("KER-CRY-003", " input data is not base64 encoded"),
 	/**
 	 * 
 	 */
-	INVALID_REQUEST("KER-CRY-004", "should not be null or empty"),
+	INVALID_REQUEST("KER-CRY-004", "data should not be null or empty"),
 	/**
 	 * 
 	 */
@@ -60,6 +60,12 @@ public enum CryptomanagerErrorCode {
 	ENCRYPT_NOT_ALLOWED_ERROR("KER-CRY-011", "Not Allowed to preform encryption with Master Key. Use Base/Encrypt key to encrypt data."),
 
 	DECRYPT_NOT_ALLOWED_ERROR("KER-CRY-012", "Not Allowed to preform decryption for the provided application id and with authentication token"),
+
+	INVALID_JSON("KER-CRY-013", "Input data to encrypt is not valid JSON."),
+
+	JWE_ENCRYPTION_INTERNAL_ERROR("KER-CRY-014", "Internal Error while encrypting data using JWE."),
+
+	JWE_DECRYPTION_INTERNAL_ERROR("KER-CRY-015", "Internal Error while decrypting data using JWE."),
 
 	INTERNAL_SERVER_ERROR("KER-CRY-500", "Internal server error");
 

@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.crypto.BadPaddingException;
@@ -49,7 +48,6 @@ import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.repository.DataEncryptKeystoreRepository;
-import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.repository.KeyStoreRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -221,7 +219,10 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 	@SuppressWarnings("java:S2245") // added suppress for sonarcloud. random index to fetch the key from DB.
 	private int getRandomKeyIndex() {
 		List<Integer> indexes = dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS);
-		int randomNum = ThreadLocalRandom.current().nextInt(0, indexes.size() + 1);
+		// Removed plus one ( + 1) because 10000 random number is generated
+		// but in DB we have indexes from 0 - 9999 only.
+		// So removed + 1
+		int randomNum = ThreadLocalRandom.current().nextInt(0, indexes.size());
 		return indexes.get(randomNum);
 	}
 

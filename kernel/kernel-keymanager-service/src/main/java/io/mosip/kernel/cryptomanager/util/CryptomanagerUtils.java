@@ -6,9 +6,12 @@
  */
 package io.mosip.kernel.cryptomanager.util;
 
+import java.io.IOException;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
+import java.security.interfaces.RSAPublicKey;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -21,6 +24,9 @@ import java.util.stream.Stream;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +46,7 @@ import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
 import io.mosip.kernel.keymanagerservice.entity.KeyPolicy;
+import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
@@ -58,6 +65,8 @@ public class CryptomanagerUtils {
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(CryptomanagerUtils.class);
 
+	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+
 	/** The Constant UTC_DATETIME_PATTERN. */
 	private static final String UTC_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
@@ -69,10 +78,22 @@ public class CryptomanagerUtils {
 	@Value("${mosip.kernel.keygenerator.symmetric-algorithm-name}")
 	private String symmetricAlgorithmName;
 
-	
 	/** Key Splitter. */
 	@Value("${mosip.kernel.data-key-splitter}")
 	private String keySplitter;
+
+	@Value("${mosip.sign-certificate-refid:SIGN}")
+	private String signRefId;
+
+	/** The sign applicationid. */
+	@Value("${mosip.sign.applicationid:KERNEL}")
+	private String signApplicationId;
+
+	@Value("${mosip.kernel.keymanager.crypto.validate.keysize:true}")
+	private boolean validateKeySize;
+
+	@Value("${mosip.kernel.keymanager.jwtEncrypt.validate.json:true}")
+	private boolean confValidateJson;
 
 	/** The key manager. */
 	@Autowired
@@ -283,4 +304,84 @@ public class CryptomanagerUtils {
 		return allowedList.stream().anyMatch(preferredUserName::equalsIgnoreCase);
 	}
 	
+
+	public void validateKeyIdentifierIds(String applicationId, String referenceId) {
+		if(!isDataValid(referenceId) || 
+			(applicationId.equalsIgnoreCase(signApplicationId) && (referenceId.equalsIgnoreCase(signRefId) ||
+				referenceId.equalsIgnoreCase(KeymanagerConstant.KERNEL_IDENTIFY_CACHE)))) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+								"Not Allowed to preform encryption with Master Key.");
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
+						CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+		}
+	}
+
+	public Certificate getCertificate(String applicationId, String referenceId) {
+		String certData = getCertificateFromKeyManager(applicationId, referenceId);
+		return keymanagerUtil.convertToCertificate(certData);
+	}
+
+	public void validateEncKeySize(Certificate encCert) {
+
+		if (validateKeySize) {
+			RSAPublicKey rsaPublicKey = (RSAPublicKey) encCert.getPublicKey();
+			if (rsaPublicKey.getModulus().bitLength() != 2048) {
+				LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+						"Not Allowed to preform encryption with Key size not equal to 2048 bit.");
+				throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
+						CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+			}
+		}
+	}
+
+	public void validateEncryptData(String reqDataToEncrypt) {
+	
+		if (!isDataValid(reqDataToEncrypt)) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+					"Provided Data to Encrypt is invalid.");
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_REQUEST.getErrorCode(),
+					CryptomanagerErrorCode.INVALID_REQUEST.getErrorMessage());
+		}
+
+		
+	}
+
+	public void checkForValidJsonData(String decodedDataToEncrypt) {
+		
+		if (confValidateJson && !isJsonValid(decodedDataToEncrypt)) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+					"Provided Data to encrypt is not valid JSON.");
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_JSON.getErrorCode(),
+					CryptomanagerErrorCode.INVALID_JSON.getErrorMessage());
+		}
+	}
+
+	public boolean isJsonValid(String jsonInString) {
+		try {
+			mapper.readTree(jsonInString);
+			return true;
+		} catch (IOException e) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+					"Provided JSON Data to Encrypt is invalid.");
+		}
+		return false;
+	}
+
+	public boolean isIncludeAttrsValid(Boolean includes, Boolean defaultValue) {
+		if (Objects.isNull(includes)) {
+			return defaultValue;
+		}
+		return includes;
+	}
+
+	public Certificate convertToCertificate (String certData) {
+		try {
+			return keymanagerUtil.convertToCertificate(certData);
+		} catch (KeymanagerServiceException exp) {
+			LOGGER.warn(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+					"Unable to parse the input certificate.");
+		}
+		return null;
+	}
+
 }

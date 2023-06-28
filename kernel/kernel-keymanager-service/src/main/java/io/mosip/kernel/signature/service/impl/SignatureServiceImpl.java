@@ -235,7 +235,8 @@ public class SignatureServiceImpl implements SignatureService {
 		boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(jwtSignRequestDto.getApplicationId());
 		if (!hasAcccess) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-								"Signing Data is not allowed for the authenticated user for the provided application id.");
+						"Signing Data is not allowed for the authenticated user for the provided application id. " +
+						" App Id: " + jwtSignRequestDto.getApplicationId());
 			throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
 				SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
 		}
@@ -243,7 +244,7 @@ public class SignatureServiceImpl implements SignatureService {
 		String reqDataToSign = jwtSignRequestDto.getDataToSign();
 		if (!SignatureUtil.isDataValid(reqDataToSign)) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Provided Data to sign value is invalid.");
+					"Provided Data to sign is invalid.");
 			throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
 					SignatureErrorCode.INVALID_INPUT.getErrorMessage());
 		}
@@ -251,7 +252,7 @@ public class SignatureServiceImpl implements SignatureService {
 		String decodedDataToSign = new String(CryptoUtil.decodeBase64(reqDataToSign));
 		if (confValidateJson && !SignatureUtil.isJsonValid(decodedDataToSign)) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Provided Data to sign value is invalid JSON.");
+					"Provided Data to sign is invalid JSON.");
 			throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}

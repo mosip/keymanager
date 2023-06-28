@@ -1,35 +1,50 @@
 package io.mosip.kernel.cryptomanager.service.impl;
 
+import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_FALSE;
+import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_TRUE;
 import static java.util.Arrays.copyOfRange;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Objects;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.bouncycastle.util.encoders.Hex;
+import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
+import org.jose4j.jwe.JsonWebEncryption;
+import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
+import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
+import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
+import io.mosip.kernel.cryptomanager.dto.JWTEncryptRequestDto;
+import io.mosip.kernel.cryptomanager.dto.JWTCipherResponseDto;
+import io.mosip.kernel.cryptomanager.dto.JWTDecryptRequestDto;
 import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
-import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
+import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
+import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 
 /**
  * Service Implementation for {@link CryptomanagerService} interface
@@ -85,6 +100,12 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
+	@Autowired
+	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;
+
+	@Autowired
+	KeymanagerUtil keymanagerUtil;
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -97,16 +118,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
 						"Request for data encryption.");
 		
-		if(!cryptomanagerUtil.isDataValid(cryptoRequestDto.getReferenceId()) || 
-			(cryptoRequestDto.getApplicationId().equalsIgnoreCase(signApplicationId) && 
-				(cryptoRequestDto.getReferenceId().equalsIgnoreCase(signRefId) ||
-				cryptoRequestDto.getReferenceId().equalsIgnoreCase(KeymanagerConstant.KERNEL_IDENTIFY_CACHE)))) {
-			LOGGER.error(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
-								"Not Allowed to preform encryption with Master Key.");
-			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
-						CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
-		}
-
+		cryptomanagerUtil.validateKeyIdentifierIds(cryptoRequestDto.getApplicationId(), cryptoRequestDto.getReferenceId());
 		SecretKey secretKey = keyGenerator.getSymmetricKey();
 		final byte[] encryptedData;
 		byte[] headerBytes = new byte[0];
@@ -132,7 +144,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		final byte[] encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(publicKey, secretKey.getEncoded());
 		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
 						"Session key encryption completed.");
-		boolean prependThumbprint = cryptoRequestDto.getPrependThumbprint() == null ? false : cryptoRequestDto.getPrependThumbprint();
+		//boolean prependThumbprint = cryptoRequestDto.getPrependThumbprint() == null ? false : cryptoRequestDto.getPrependThumbprint();
 		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
 		// support of 1.1.3 no thumbprint is configured as true & encryption request with no thumbprint
 		// request thumbprint flag will not be considered if support no thumbprint is set to false.
@@ -300,6 +312,177 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		String derivedKeyHex = cryptoCore.hash(userPin.getBytes(), salt);
 		byte[] derivedKey = cryptomanagerUtil.hexDecode(derivedKeyHex);
 		return new SecretKeySpec(derivedKey, AES_KEY_TYPE);
+	}
+
+	@Override
+	public JWTCipherResponseDto jwtEncrypt(JWTEncryptRequestDto jwtEncryptRequestDto) {
+		
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+						"Request for JWE Encryption. Input Application Id:"  + jwtEncryptRequestDto.getApplicationId() + 
+						", Reference Id: " + jwtEncryptRequestDto.getReferenceId());
+		Certificate encCertificate = null;
+		if (cryptomanagerUtil.isDataValid(jwtEncryptRequestDto.getX509Certificate())) {
+			encCertificate = cryptomanagerUtil.convertToCertificate(jwtEncryptRequestDto.getX509Certificate());
+		} 
+		if (Objects.isNull(encCertificate)) {
+			cryptomanagerUtil.validateKeyIdentifierIds(jwtEncryptRequestDto.getApplicationId(), jwtEncryptRequestDto.getReferenceId());
+			encCertificate = cryptomanagerUtil.getCertificate(jwtEncryptRequestDto.getApplicationId(),
+									 jwtEncryptRequestDto.getReferenceId());
+			// getCertificate should return a valid certificate for encryption. If no certificate is available,
+			// getCertificate will automatically throws an exception. So not checking for null for encCertificate. 
+		}
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+						"Found the cerificate, Validating Encryption Certificate key size.");
+		cryptomanagerUtil.validateEncKeySize(encCertificate);
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+						"Key Size validated, validing input data.");
+		
+		String dataToEncrypt = jwtEncryptRequestDto.getData();
+		cryptomanagerUtil.validateEncryptData(dataToEncrypt);
+
+		String decodedDataToEncrypt = new String(CryptoUtil.decodeURLSafeBase64(dataToEncrypt));
+		cryptomanagerUtil.checkForValidJsonData(decodedDataToEncrypt);
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+						"Input Data validated, proceeding with JWE Encryption.");
+
+		boolean enableDefCompression = cryptomanagerUtil.isIncludeAttrsValid(jwtEncryptRequestDto.getEnableDefCompression(), 
+																		DEFAULT_INCLUDES_TRUE);
+		boolean includeCertificate = cryptomanagerUtil.isIncludeAttrsValid(jwtEncryptRequestDto.getIncludeCertificate(),
+																		DEFAULT_INCLUDES_FALSE);
+		boolean includeCertHash = cryptomanagerUtil.isIncludeAttrsValid(jwtEncryptRequestDto.getIncludeCertHash(),
+																		DEFAULT_INCLUDES_FALSE);
+
+		String certificateUrl = cryptomanagerUtil.isDataValid(jwtEncryptRequestDto.getJwkSetUrl()) ? 
+												jwtEncryptRequestDto.getJwkSetUrl(): null;
+
+		String jweEncryptedData = jwtRsaOaep256AesGcmEncrypt(decodedDataToEncrypt, encCertificate, enableDefCompression, 
+									includeCertificate, includeCertHash, certificateUrl);
+		JWTCipherResponseDto jwtCipherResponseDto = new JWTCipherResponseDto();
+		jwtCipherResponseDto.setData(jweEncryptedData);
+		jwtCipherResponseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		return jwtCipherResponseDto;
+	}
+
+	private String jwtRsaOaep256AesGcmEncrypt(String dataToEncrypt, Certificate certificate, boolean enableDefCompression, 
+				boolean includeCertificate, boolean includeCertHash, String certificateUrl) {
+		
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+					"JWE Encryption Started.");
+		
+		JsonWebEncryption jsonWebEncrypt = new JsonWebEncryption();
+
+		jsonWebEncrypt.setHeader(CryptomanagerConstant.JSON_CONTENT_TYPE_KEY, CryptomanagerConstant.JSON_CONTENT_TYPE_VALUE);
+		jsonWebEncrypt.setHeader(CryptomanagerConstant.JSON_HEADER_TYPE_KEY, CryptomanagerConstant.JSON_CONTENT_TYPE_VALUE);
+		jsonWebEncrypt.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.RSA_OAEP_256);
+		jsonWebEncrypt.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_GCM);
+		jsonWebEncrypt.setKey(certificate.getPublicKey());
+		String certThumbprint = CryptoUtil.encodeToURLSafeBase64(cryptomanagerUtil.getCertificateThumbprint(certificate));
+		jsonWebEncrypt.setKeyIdHeaderValue(certThumbprint);
+		byte[] nonce = cryptomanagerUtil.generateRandomBytes(CryptomanagerConstant.GCM_NONCE_LENGTH);
+		jsonWebEncrypt.setIv(nonce);
+
+		if (enableDefCompression) {
+			jsonWebEncrypt.enableDefaultCompression();
+		}
+
+		if (includeCertificate) {
+			jsonWebEncrypt.setCertificateChainHeaderValue(new X509Certificate[] { (X509Certificate)certificate });
+		}
+
+		if (includeCertHash) {
+			jsonWebEncrypt.setX509CertSha256ThumbprintHeaderValue(certThumbprint);
+		}
+
+		if (Objects.nonNull(certificateUrl) && !certificateUrl.isEmpty()) {
+			jsonWebEncrypt.setHeader(CryptomanagerConstant.JSON_HEADER_JWK_KEY, certificateUrl);
+		}
+		jsonWebEncrypt.setPayload(dataToEncrypt);
+		try {
+			String encryptedData = jsonWebEncrypt.getCompactSerialization();
+			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+					"JWE Encryption Completed.");
+			return encryptedData;
+		} catch (JoseException e) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+					"Error occurred while Json Web Encryption Data.");
+					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_ENCRYPTION_INTERNAL_ERROR.getErrorCode(),
+					CryptomanagerErrorCode.JWE_ENCRYPTION_INTERNAL_ERROR.getErrorMessage(), e);
+		}
+	}
+
+	@Override
+	public JWTCipherResponseDto jwtDecrypt(JWTDecryptRequestDto jwtDecryptRequestDto) {
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+						"Request for JWE Decryption. Input Application Id:"  + jwtDecryptRequestDto.getApplicationId() + 
+						", Reference Id: " + jwtDecryptRequestDto.getReferenceId());
+		
+		cryptomanagerUtil.validateKeyIdentifierIds(jwtDecryptRequestDto.getApplicationId(), jwtDecryptRequestDto.getReferenceId());
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+						"Application Id and Reference Id validation completed, Validating Input Enc Data.");
+		
+		String dataToDecrypt = jwtDecryptRequestDto.getEncData();
+		if (!cryptomanagerUtil.isDataValid(dataToDecrypt)) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT,
+					"Provided Data to Decrypt is invalid.");
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_REQUEST.getErrorCode(),
+					CryptomanagerErrorCode.INVALID_REQUEST.getErrorMessage());
+		}
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+						"Input Enc Data validated, proceeding with JWE Decryption.");
+
+		JsonWebEncryption jsonWebDecrypt = new JsonWebEncryption();
+		setEncryptedData(jsonWebDecrypt, dataToDecrypt);
+		String keyId = jsonWebDecrypt.getKeyIdHeaderValue();
+		String certThumbprintHex = Hex.toHexString(CryptoUtil.decodeURLSafeBase64(keyId)).toUpperCase();
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+						"Fetched KeyId(CertificateThumbprint) from JWT Header, TP Value: " + certThumbprintHex);	
+		String applicationId = jwtDecryptRequestDto.getApplicationId();
+		String referenceId = jwtDecryptRequestDto.getReferenceId();
+		KeyStore dbKeyStoreObj = privateKeyDecryptorHelper.getDBKeyStoreData(certThumbprintHex, applicationId, referenceId);
+
+		Object[] keys = privateKeyDecryptorHelper.getKeyObjects(dbKeyStoreObj, false);
+		PrivateKey privateKey = (PrivateKey) keys[0];
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+						"Private Key Retrival completed, processing with JWE Decryption.");
+		String decryptedData = getDecryptedData(jsonWebDecrypt, privateKey);
+
+		JWTCipherResponseDto jwtCipherResponseDto = new JWTCipherResponseDto();
+		jwtCipherResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData.getBytes()));
+		jwtCipherResponseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		return jwtCipherResponseDto;
+	}
+
+	private void setEncryptedData(JsonWebEncryption jsonWebDecrypt, String dataToDecrypt) {
+		try {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+					"Setting Encrypted Data for decryption.");
+			jsonWebDecrypt.setCompactSerialization(dataToDecrypt);			
+		} catch (JoseException e) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+					"Error occurred while Json Web Decryption Data.");
+					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
+					CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorMessage(), e);
+		}
+	}
+
+	private String getDecryptedData(JsonWebEncryption jsonWebDecrypt, PrivateKey privateKey) {
+		try {
+			jsonWebDecrypt.setKey(privateKey);
+			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_DECRYPT, 
+					"Decrypting input encrypted Data.");
+			String decryptedData = jsonWebDecrypt.getPlaintextString();
+			keymanagerUtil.destoryKey(privateKey);
+			return decryptedData;
+		} catch (JoseException e) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
+					"Error occurred while Json Web Decryption Data.");
+					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
+					CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorMessage(), e);
+		}
 	}
 
 }
