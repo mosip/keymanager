@@ -35,3 +35,9 @@ update keymgr.key_policy_def set pre_expire_days=60, access_allowed='NA' where a
 update keymgr.key_policy_def set pre_expire_days=1125, access_allowed='NA' where app_id='ROOT';
 update keymgr.key_policy_def set pre_expire_days=30, access_allowed='NA' where app_id='BASE';
 update keymgr.key_policy_def set pre_expire_days=395, access_allowed='NA' where app_id='PMS';
+update keymgr.key_policy_def set pre_expire_days=60, access_allowed='NA' where app_id='ADMIN_SERVICES';
+update keymgr.key_policy_def set pre_expire_days=60, access_allowed='NA' where app_id='RESIDENT';
+update keymgr.key_policy_def set pre_expire_days=60, access_allowed='NA' where app_id='COMPLIANCE_TOOLKIT';
+
+delete from keymgr.key_policy_def where app_id='IDA';
+delete from keymgr.key_policy_def where app_id='DATASHARE';
