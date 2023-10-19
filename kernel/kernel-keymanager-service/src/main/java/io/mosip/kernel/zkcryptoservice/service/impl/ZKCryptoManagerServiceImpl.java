@@ -220,7 +220,10 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 	
 	private int getRandomKeyIndex() {
 		List<Integer> indexes = dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS);
-		int randomNum = ThreadLocalRandom.current().nextInt(0, indexes.size() + 1);
+		// Remove plus one ( + 1) because 10000 random number is generated
+		// but in DB we have indexes from 0 - 9999 only.
+		// So removed + 1
+		int randomNum = ThreadLocalRandom.current().nextInt(0, indexes.size());
 		return indexes.get(randomNum);
 	}
 
