@@ -39,7 +39,7 @@ on:
 
 jobs:
   tag-branch:
-    uses: mosip/kattu/.github/workflows/tag.yml@master
+    uses: shubham17998/kattu/.github/workflows/reusableworkflow.yaml@master
     with:
       TAG: ${{ inputs.TAG }}
       BODY: ${{ inputs.BODY }}
