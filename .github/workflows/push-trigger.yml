@@ -4,7 +4,9 @@ on:
   release:
     types: [published]
   pull_request:
-    types: [opened]
+    types: [opened, reopened, synchronize]
+    branches-ignore:
+      - '!release-branch'
   workflow_dispatch:
     inputs:
       message:
