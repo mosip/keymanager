@@ -13,9 +13,8 @@ on:
         default: 'Triggered for Updates'
         type: string
   push:
-    branches-ignore:
-      - 'release-branch'
     branches:
+      - '!release-branch'
       - release*
       - master
       - 1.*
