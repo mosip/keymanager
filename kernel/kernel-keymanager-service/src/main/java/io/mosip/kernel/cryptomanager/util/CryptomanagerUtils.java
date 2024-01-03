@@ -342,8 +342,6 @@ public class CryptomanagerUtils {
 			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_REQUEST.getErrorCode(),
 					CryptomanagerErrorCode.INVALID_REQUEST.getErrorMessage());
 		}
-
-		
 	}
 
 	public void checkForValidJsonData(String decodedDataToEncrypt) {
@@ -382,6 +380,16 @@ public class CryptomanagerUtils {
 					"Unable to parse the input certificate.");
 		}
 		return null;
+	}
+
+	public void validateInputData(String reqDataToDigest) {
+	
+		if (!isDataValid(reqDataToDigest)) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.GEN_ARGON2_HASH,
+					"Provided Data to generate Hash is invalid.");
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_REQUEST.getErrorCode(),
+					CryptomanagerErrorCode.INVALID_REQUEST.getErrorMessage());
+		}
 	}
 
 }

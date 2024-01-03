@@ -47,4 +47,5 @@ public interface ZKCryptoManagerConstants {
 
 	String RE_ENCRYPT_RANDOM_KEY = "Re-EncryptRandomKey";
 
+	String PERIOD = "\\.";
 }

@@ -24,7 +24,7 @@ public interface DataEncryptKeystoreRepository extends JpaRepository<DataEncrypt
 	 * @param id the id
 	 * @return the string
 	 */
-	@Cacheable(value="zkdataencryptedkeystorecache", key="#id", condition="#id!=null")
+	@Cacheable(value="zkdataencryptedkeystorecache", unless ="#result == null")
 	@Query("SELECT d.key from DataEncryptKeystore d where d.id = :id")
 	String findKeyById(@Param("id") Integer id);
 

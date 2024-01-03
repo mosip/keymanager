@@ -6,6 +6,8 @@
  */
 package io.mosip.kernel.cryptomanager.service;
 
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
@@ -71,4 +73,13 @@ public interface CryptomanagerService {
 	 * @return decrypted data (actual data)
 	 */
 	public JWTCipherResponseDto jwtDecrypt(JWTDecryptRequestDto jwtCipherRequestDto);
+
+
+	/**
+	 * Performs generation of Hash using Argon2 .
+	 *
+	 * @param argon2GenHashRequestDto {@link Argon2GenerateHashRequestDto} instance
+	 * @return {@link Argon2GenerateHashResponseDto}
+	 */
+	public Argon2GenerateHashResponseDto generateArgon2Hash(Argon2GenerateHashRequestDto argon2GenHashRequestDto);
 }

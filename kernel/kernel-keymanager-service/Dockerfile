@@ -96,6 +96,8 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh configure_start.sh
 
+ADD ./lib/* "${loader_path_env}"/
+
 RUN chmod +x configure_start.sh
 
 # creating folder to copy additional supporting jar files required at run-time.

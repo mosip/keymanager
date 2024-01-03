@@ -1,21 +1,36 @@
 package io.mosip.kernel.cryptomanager.service.impl;
 
+import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.CACHE_INT_COUNTER;
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_FALSE;
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_TRUE;
 import static java.util.Arrays.copyOfRange;
 
+import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
+import javax.annotation.PostConstruct;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.cache2k.Cache;
+import org.cache2k.Cache2kBuilder;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
@@ -24,6 +39,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2Factory;
+import de.mkammerer.argon2.Argon2Factory.Argon2Types;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
@@ -31,6 +49,8 @@ import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
@@ -42,6 +62,7 @@ import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
+import io.mosip.kernel.keygenerator.bouncycastle.util.KeyGeneratorUtils;
 import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -63,6 +84,10 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 	private static final String AES_KEY_TYPE = "AES";
 
+	private static final int AES_KEY_SIZE = 128;
+
+	private String AES_GCM_ALGO = "AES/GCM/NoPadding";
+
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(CryptomanagerServiceImpl.class);
 
 	/**
@@ -81,6 +106,20 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 	/** The sign applicationid. */
 	@Value("${mosip.sign.applicationid:KERNEL}")
 	private String signApplicationId;
+
+	@Value("${mosip.keymanager.salt.params.cache.expire.inMins:30}")
+    private long cacheExpireInMins;
+
+	@Value("${mosip.keymanager.argon2.hash.generate.iterations:10}")
+    private int argon2Iterations;
+
+	@Value("${mosip.keymanager.argon2.hash.generate.memory.inKiB:65536}")
+    private int argon2Memory;
+
+	@Value("${mosip.keymanager.argon2.hash.generate.parallelism:2}")
+    private int argon2Parallelism;
+
+	private static SecureRandom secureRandom = null;
 
 	/**
 	 * {@link KeyGenerator} instance
@@ -105,6 +144,39 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
+
+	private Cache<String, Object> saltGenParamsCache = null;
+
+	@PostConstruct
+    public void init() {
+        // Added Cache2kBuilder in the postConstruct because expire value 
+        // configured in properties are getting injected after this object creation.
+        // Cache2kBuilder constructor is throwing error.
+        
+		saltGenParamsCache = new Cache2kBuilder<String, Object>() {}
+		// added hashcode because test case execution failing with IllegalStateException: Cache already created
+		.name("saltGenParamsCache-" + this.hashCode()) 
+		.expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
+		.entryCapacity(10)
+		.refreshAhead(true)
+		.loaderThreadCount(1)
+		.loader((objectKey) -> {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(),
+					CryptomanagerConstant.GEN_ARGON2_HASH, "Loading Creating Cache for Object Key: " + objectKey);
+			if (objectKey.equals(CryptomanagerConstant.CACHE_AES_KEY)) {
+				javax.crypto.KeyGenerator keyGenerator = KeyGeneratorUtils.getKeyGenerator(AES_KEY_TYPE, AES_KEY_SIZE);
+				return keyGenerator.generateKey();
+			} else if (objectKey.equals(CACHE_INT_COUNTER)) {
+				if(secureRandom == null)
+            		secureRandom = new SecureRandom();
+				
+				return new AtomicLong(secureRandom.nextLong());
+			} 
+			return null;
+		})
+		.build();
+        
+    }
 
 	/*
 	 * (non-Javadoc)
@@ -464,7 +536,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		} catch (JoseException e) {
 			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
 					"Error occurred while Json Web Decryption Data.");
-					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
 					CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorMessage(), e);
 		}
 	}
@@ -480,9 +552,72 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		} catch (JoseException e) {
 			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
 					"Error occurred while Json Web Decryption Data.");
-					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorCode(),
 					CryptomanagerErrorCode.JWE_DECRYPTION_INTERNAL_ERROR.getErrorMessage(), e);
 		}
 	}
+
+	@Override
+	public Argon2GenerateHashResponseDto generateArgon2Hash(Argon2GenerateHashRequestDto argon2GenHashRequestDto) {
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.GEN_ARGON2_HASH, 
+						"Request for Argon2 Hash Geneation.");
+		
+		cryptomanagerUtil.validateInputData(argon2GenHashRequestDto.getInputData());
+
+		String inputData = argon2GenHashRequestDto.getInputData();
+		String saltData = argon2GenHashRequestDto.getSalt();
+		byte[] saltBytes = null;
+		if (!cryptomanagerUtil.isDataValid(saltData)) {
+			SecretKey aesKey = (SecretKey) saltGenParamsCache.get(CryptomanagerConstant.CACHE_AES_KEY);
+			AtomicLong intCounter = (AtomicLong) saltGenParamsCache.get(CryptomanagerConstant.CACHE_INT_COUNTER);
+			long saltInput = intCounter.getAndIncrement();
+			saltGenParamsCache.put(CryptomanagerConstant.CACHE_INT_COUNTER, intCounter);
+			saltBytes = getSaltBytes(getLongBytes(saltInput), aesKey);
+			saltData = CryptoUtil.encodeToURLSafeBase64(saltBytes);
+		} else {
+			saltBytes = CryptoUtil.decodeURLSafeBase64(saltData);
+		}
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.GEN_ARGON2_HASH, 
+						"InputData is valid and salt bytes generated.");
+		Argon2Advanced  argon2Advanced = Argon2Factory.createAdvanced(Argon2Types.ARGON2id);
+		char[] inputDataCharArr = inputData.toCharArray();
+		byte[] argon2Hash = argon2Advanced.rawHash(argon2Iterations, argon2Memory, argon2Parallelism, inputDataCharArr, saltBytes);
+		String argon2HashStr = CryptoUtil.encodeToURLSafeBase64(argon2Hash);
+		inputDataCharArr = null;
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.GEN_ARGON2_HASH, 
+						"Argon to hash generation done.");
+		
+		Argon2GenerateHashResponseDto hashResponseDto = new Argon2GenerateHashResponseDto();
+		hashResponseDto.setHashValue(argon2HashStr);
+		hashResponseDto.setSalt(saltData);
+		return hashResponseDto;
+	}
+
+	private byte[] getLongBytes(long value) {
+		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+		buffer.putLong(value);
+		return buffer.array();
+	}
+
+	private byte[] getSaltBytes(byte[] randomBytes, SecretKey aesKey) {
+		try {
+			Cipher cipher = Cipher.getInstance(AES_GCM_ALGO);
+			cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+			return cipher.doFinal(randomBytes, 0, randomBytes.length);
+		} catch(NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
+			| IllegalBlockSizeException | BadPaddingException | IllegalArgumentException e) {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), 
+						CryptomanagerConstant.GEN_ARGON2_HASH,	"Error generation of random salt.", e);
+		}
+		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.GEN_ARGON2_HASH, 
+						"Generating Random Salt using Secure Random because encrypted random bytes failed.");
+		if(secureRandom == null)
+            secureRandom = new SecureRandom();
+
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return bytes;
+	}
+
 
 }

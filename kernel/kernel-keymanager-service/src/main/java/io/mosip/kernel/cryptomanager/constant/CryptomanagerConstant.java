@@ -57,5 +57,12 @@ public class CryptomanagerConstant {
 	public static final String JSON_HEADER_JWK_KEY = "jku";
 
 	public static final String JSON_HEADER_TYPE_KEY = "typ";
+
+	public static final String GEN_ARGON2_HASH = "Crypto-Manager-Gen-Argon2-Hash";
+
+	public static final String CACHE_AES_KEY = "cacheAESKey";
+
+	public static final String CACHE_INT_COUNTER = "cacheIntCounter";
+	
 }
 

@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.crypto.BadPaddingException;
@@ -29,6 +30,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +42,7 @@ import io.mosip.kernel.core.keymanager.spi.KeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
@@ -93,8 +96,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
     @Value("${mosip.kernel.zkcrypto.wrap.algorithm-name}")
 	private String aesECBTransformation;
 	
-	@Value("${mosip.kernel.zkcrypto.derive.encrypt.algorithm-name}")
-    private String aesECBPKCS5Transformation;
+	private List<KeyAlias> keyAliases = null;
         
     @Autowired
 	private DataEncryptKeystoreRepository dataEncryptKeystoreRepository;
@@ -194,7 +196,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			String identifier = reqCryptoData.getIdentifier();
 			String dataToDecrypt = reqCryptoData.getValue();
 
-			byte[] decodedData = CryptoUtil.decodeBase64(dataToDecrypt);
+			byte[] decodedData = CryptoUtil.decodeURLSafeBase64(dataToDecrypt);
 			byte[] dbIndexBytes = Arrays.copyOfRange(decodedData, 0, ZKCryptoManagerConstants.INT_BYTES_LEN);
 			byte[] nonce = Arrays.copyOfRange(decodedData, ZKCryptoManagerConstants.INT_BYTES_LEN, 
 														   ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_LEN);
@@ -350,7 +352,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		System.arraycopy(aad, 0, finalEncData, dbIndexBytes.length + nonce.length, aad.length);
 		System.arraycopy(encryptedData, 0, finalEncData, dbIndexBytes.length + nonce.length + aad.length,
 				encryptedData.length);
-		String concatEncryptedData = CryptoUtil.encodeBase64(finalEncData);
+		String concatEncryptedData = CryptoUtil.encodeToURLSafeBase64(finalEncData);
 		CryptoDataDto resCryptoData = new CryptoDataDto();
 		resCryptoData.setIdentifier(identifier);
 		resCryptoData.setValue(concatEncryptedData);
@@ -370,21 +372,32 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.ENCRYPT_RANDOM_KEY, 
 						ZKCryptoManagerConstants.EMPTY, "Encrypting Random Key with Public Key.");
 		
-		String keyAlias = getKeyAlias(pubKeyApplicationId, pubKeyReferenceId);
-		Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore = keyStoreRepository.findByAlias(keyAlias);
-		if (!dbKeyStore.isPresent()) {
+		String[] pubKeyReferenceIds = pubKeyReferenceId.split(KeymanagerConstant.COMMA);
+		List<String> encryptedRandomKeyList = new ArrayList<>();
+
+		for (String pubKeyRefId : pubKeyReferenceIds) {
+			if (Objects.isNull(pubKeyRefId) || pubKeyRefId.trim().length() == 0) 
+				continue;
 			LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.ENCRYPT_RANDOM_KEY, 
-						ZKCryptoManagerConstants.ENCRYPT_RANDOM_KEY, "Key in DBStore does not exist for this alias. Throwing exception");
-			throw new NoUniqueAliasException(ZKCryptoErrorConstants.NO_UNIQUE_ALIAS.getErrorCode(),
-							ZKCryptoErrorConstants.NO_UNIQUE_ALIAS.getErrorMessage());
+						ZKCryptoManagerConstants.EMPTY, "Encrypting Random Key with Reference Id:" + pubKeyRefId);
+
+			String keyAlias = getKeyAlias(pubKeyApplicationId, pubKeyRefId);
+			Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore = keyStoreRepository.findByAlias(keyAlias);
+			if (!dbKeyStore.isPresent()) {
+				LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.ENCRYPT_RANDOM_KEY, 
+							ZKCryptoManagerConstants.ENCRYPT_RANDOM_KEY, "Key in DBStore does not exist for this alias. Throwing exception");
+				throw new NoUniqueAliasException(ZKCryptoErrorConstants.NO_UNIQUE_ALIAS.getErrorCode(),
+								ZKCryptoErrorConstants.NO_UNIQUE_ALIAS.getErrorMessage());
+			}
+			String certificateData = dbKeyStore.get().getCertificateData();
+			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
+			PublicKey publicKey = x509Cert.getPublicKey();
+			byte[] encryptedRandomKey = cryptoCore.asymmetricEncrypt(publicKey, secretRandomKey.getEncoded());
+			byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(x509Cert);
+			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedRandomKey);
+			encryptedRandomKeyList.add(CryptoUtil.encodeToURLSafeBase64(concatedData));
 		}
-		String certificateData = dbKeyStore.get().getCertificateData();
-		X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
-		PublicKey publicKey = x509Cert.getPublicKey();
-		byte[] encryptedRandomKey = cryptoCore.asymmetricEncrypt(publicKey, secretRandomKey.getEncoded());
-		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(x509Cert);
-		byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedRandomKey);
-		return CryptoUtil.encodeBase64(concatedData);
+		return encryptedRandomKeyList.stream().collect(Collectors.joining(KeymanagerConstant.DOT));
 	}
 
 	@Override
@@ -397,11 +410,36 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			throw new ZKCryptoException(ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorCode(),
 						ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorMessage());
 		}
+		String[] encryptedKeyArr = encryptedKey.split(ZKCryptoManagerConstants.PERIOD);
 		LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+		if (Objects.isNull(keyAliases)) {
+			Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(pubKeyApplicationId, pubKeyReferenceId, localDateTimeStamp);
+			keyAliases = keyAliasMap.get(KeymanagerConstant.KEYALIAS);
+		}
+		String encRandomKey = null;
+		for (String encKey : encryptedKeyArr) {
+			byte[] encKeyBytes = CryptoUtil.decodeURLSafeBase64(encKey);
+			byte[] certThumbprint = Arrays.copyOfRange(encKeyBytes, 0, CryptomanagerConstant.THUMBPRINT_LENGTH);
+			String certThumbprintHex = Hex.toHexString(certThumbprint).toUpperCase();
+			Optional<KeyAlias> keyAlias = keyAliases.stream().filter(alias -> alias.getCertThumbprint().equals(certThumbprintHex))
+													.findFirst();
+
+			if (!keyAlias.isPresent()) {
+				continue;
+			}
+			encRandomKey = encKey;
+			break;
+		}
+		if (Objects.isNull(encRandomKey)) {
+			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.RE_ENCRYPT_RANDOM_KEY, 
+					ZKCryptoManagerConstants.RE_ENCRYPT_RANDOM_KEY, "Thumbprint matching key not found in DB.");
+			throw new ZKCryptoException(ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorCode(),
+						ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorMessage());
+		}
 		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(
-									pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encryptedKey, true);
+										pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encRandomKey, true);
 		String randomKey = keyManagerService.decryptSymmetricKey(symmetricKeyRequestDto).getSymmetricKey();
-		String encryptedRandomKey = getEncryptedRandomKey(Base64.getEncoder().encodeToString(CryptoUtil.decodeBase64(randomKey)));
+		String encryptedRandomKey = getEncryptedRandomKey(Base64.getEncoder().encodeToString(CryptoUtil.decodeURLSafeBase64(randomKey)));
 		ReEncryptRandomKeyResponseDto responseDto = new ReEncryptRandomKeyResponseDto();
 		responseDto.setEncryptedKey(encryptedRandomKey);
 		return responseDto;

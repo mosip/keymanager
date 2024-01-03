@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
+import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
@@ -189,6 +191,28 @@ public class CryptomanagerController {
 			@ApiParam("Data to decrypt in BASE64 encoding with meta-data") @RequestBody @Valid RequestWrapper<JWTDecryptRequestDto> jwtCipherRequestDto) {
 		ResponseWrapper<JWTCipherResponseDto> response = new ResponseWrapper<>();
 		response.setResponse(cryptomanagerService.jwtDecrypt(jwtCipherRequestDto.getRequest()));
+		return response;
+	}
+
+	/**
+	 * Controller to create Argon2 HASH for the input data. 
+	 * 
+	 * @param argon2GenHashRequestDto {@link Argon2GenerateHashRequestDto} request
+	 * @return {@link Argon2GenerateHashResponseDto} the hash value and salt value
+	 */
+	@Operation(summary = "Argon2 hash generation", description = "Performs Hash generation using Argon2 algorithm", tags = { "cryptomanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@PreAuthorize("hasAnyRole(@cryptoManagerAuthRoles.getPostgenerateargon2hash())")
+	@ResponseFilter
+	@PostMapping(value = "/generateArgon2Hash", produces = "application/json")
+	public ResponseWrapper<Argon2GenerateHashResponseDto> generateArgon2Hash(
+			@ApiParam("Data to generate Argon2 ") @RequestBody @Valid RequestWrapper<Argon2GenerateHashRequestDto> argon2GenHashRequestDto) {
+		ResponseWrapper<Argon2GenerateHashResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(cryptomanagerService.generateArgon2Hash(argon2GenHashRequestDto.getRequest()));
 		return response;
 	}
 }

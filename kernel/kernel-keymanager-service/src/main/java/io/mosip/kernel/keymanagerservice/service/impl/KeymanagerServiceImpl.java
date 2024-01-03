@@ -859,7 +859,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 
 		if (appId.equalsIgnoreCase(signApplicationid) && refId.equalsIgnoreCase(certificateSignRefID)) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
-					"Not allowed to uploaded AppId: KERNEL & RefId: SIGN.");
+					"Not allowed to upload other domain certificate with AppId: " + signApplicationid + " & RefId: SIGN.");
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
 					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
 		}
@@ -905,7 +905,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore = dbHelper.getKeyStoreFromDB(keyAlias);
 		if (!keyFromDBStore.isPresent() && currentKeyAlias.size() == 1) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
-								"Other valid key is not available in key store, so not allowed to upload certificate.");
+								"Other domain valid key is not available in key store, so not allowed to upload certificate.");
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
 								KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
 		} 
@@ -928,7 +928,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
 					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
 		}
-
+		
 		LocalDateTime expireTime = timestamp.minusMinutes(1L);
 		dbHelper.storeKeyInAlias(appId, currentKeyAlias.get(0).getKeyGenerationTime(), refId, keyAlias, expireTime, 
 				currentKeyAlias.get(0).getCertThumbprint(), currentKeyAlias.get(0).getUniqueIdentifier());

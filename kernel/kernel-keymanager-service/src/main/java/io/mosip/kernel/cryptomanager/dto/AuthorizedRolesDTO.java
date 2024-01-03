@@ -28,4 +28,6 @@ public class AuthorizedRolesDTO
 	
 	private List<String> postjwtdecrypt;
 
+	private List<String> postgenerateargon2hash;
+
 }

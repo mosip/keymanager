@@ -7,7 +7,7 @@
 	<groupId>io.mosip.kernel</groupId>
 
 	<artifactId>kernel-keymanager-service</artifactId>
-	<version>1.2.0.1-B3-SNAPSHOT</version>
+	<version>1.2.0.1-B3</version>
 	<name>kernel-keymanager-service</name>
 	<description>Mosip commons project </description>
         <url>https://github.com/mosip/commons</url>
@@ -146,6 +146,9 @@
 		<jacoco.maven.plugin.version>0.8.5</jacoco.maven.plugin.version>
 		<com.nimbusds.nimbus-jose-jwt.version>9.14</com.nimbusds.nimbus-jose-jwt.version>
 		<com.fasterxml.jackson.core.version>2.12.0</com.fasterxml.jackson.core.version>
+		<io.projectreactor.reactor-core.version>3.1.7.RELEASE</io.projectreactor.reactor-core.version>
+		<de.mkammerer.argon2-jvm-nolibs.version>2.11</de.mkammerer.argon2-jvm-nolibs.version>
+		<net.java.dev.jna.version>5.13.0</net.java.dev.jna.version>
 	</properties>
 
 	<dependencies>
@@ -265,7 +268,17 @@
 		<dependency>
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
-			<version>3.1.7.RELEASE</version>
+			<version>${io.projectreactor.reactor-core.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>de.mkammerer</groupId>
+			<artifactId>argon2-jvm-nolibs</artifactId>
+			<version>${de.mkammerer.argon2-jvm-nolibs.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.java.dev.jna</groupId>
+			<artifactId>jna</artifactId>
+			<version>${net.java.dev.jna.version}</version>
 		</dependency>
 	</dependencies>
 	
@@ -280,7 +293,7 @@
                 </repository> 
         </distributionManagement> 
         <build>
-<plugins>
+		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
