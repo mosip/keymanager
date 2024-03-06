@@ -168,7 +168,7 @@ public class ClientCryptoFacade {
                     dataToDecrypt.length);
             return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
         } catch (Throwable t) {
-            LOGGER.error("Failed to decrypt the data due to : ", t.getMessage());
+            LOGGER.error("Failed to decrypt the data due to : {}", t.getMessage());
             //1.1.4.4 backward compatibility code, for IV_LENGTH = 16 and AAD_LENGTH = 12;
             byte[] iv = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength, symmetricKeyLength + 16);
             byte[] aad = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + 16, symmetricKeyLength + 16 + 12);
