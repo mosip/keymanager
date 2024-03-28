@@ -78,7 +78,7 @@ jobs:
             SERVICE_NAME: 'keys-migrator'
             BUILD_ARTIFACT: 'kernel'
       fail-fast: false
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
+    uses: abhishek8shankar/kattu/.github/workflows/docker-build.yml@develop
     name: ${{ matrix.SERVICE_NAME }}
     with:
       SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}
