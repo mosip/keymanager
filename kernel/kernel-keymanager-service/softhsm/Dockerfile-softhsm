@@ -30,4 +30,12 @@ RUN rm -rf /tmp/softhsm2
 
 RUN chmod -R 777 /softhsm
 
+ARG container_user=mosip
+ARG container_user_group=mosip
+ARG container_user_uid=1001
+ARG container_user_gid=1001
+WORKDIR /home/${container_user}
+RUN chown -R ${container_user}:${container_user} /home/${container_user}
+USER ${container_user_uid}:${container_user_gid}
+
 RUN /softhsm/bin/softhsm2-util --init-token --slot 0 --pin ${softhsm_pin_env} --so-pin ${softhsm_pin_env} --label 'Keymanager_token'
