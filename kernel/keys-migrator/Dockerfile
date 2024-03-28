@@ -56,6 +56,12 @@ ENV hsm_zip_file_path=${hsm_client_zip_path}
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
 
+
+ARG container_user=mosip
+ARG container_user_group=mosip
+ARG container_user_uid=1001
+ARG container_user_gid=1001
+
 ENV work_dir=/
 
 ARG loader_path=${work_dir}/additional_jars/
@@ -69,6 +75,10 @@ ADD configure_start.sh configure_start.sh
 RUN chmod +x configure_start.sh
 
 ADD target/keys-migrator-*.jar keys-migrator.jar
+
+WORKDIR /home/${container_user}
+RUN chown -R ${container_user}:${container_user} /home/${container_user}
+USER ${container_user_uid}:${container_user_gid}
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
