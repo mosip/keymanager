@@ -53,6 +53,11 @@ ENV artifactory_url_env=${artifactory_url}
 # environment variable to pass hsm client zip file path, at docker runtime
 ENV hsm_zip_file_path=${hsm_client_zip_path}
 
+ARG container_user=mosip
+ARG container_user_group=mosip
+ARG container_user_uid=1001
+ARG container_user_gid=1001
+
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
 
@@ -69,6 +74,10 @@ ADD configure_start.sh configure_start.sh
 RUN chmod +x configure_start.sh
 
 ADD target/keys-generator-*.jar keys-generator.jar
+
+WORKDIR /home/${container_user}
+RUN chown -R ${container_user}:${container_user} /home/${container_user}
+USER ${container_user_uid}:${container_user_gid}
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
