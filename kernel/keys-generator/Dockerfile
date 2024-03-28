@@ -76,8 +76,10 @@ RUN chmod +x configure_start.sh
 ADD target/keys-generator-*.jar keys-generator.jar
 
 WORKDIR /home/${container_user}
-RUN chown -R ${container_user}:${container_user} /home/${container_user}
-USER ${container_user_uid}:${container_user_gid}
+
+RUN chown -R ${container_user_uid}:${container_user_gid} /home/${container_user}
+
+USER ${container_user}
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
