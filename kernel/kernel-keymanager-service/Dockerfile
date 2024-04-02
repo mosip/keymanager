@@ -27,6 +27,12 @@ ARG artifactory_url
 # can be passed during Docker build as build time environment for hsm client zip file path
 ARG hsm_client_zip_path
 
+# can be passed during Docker build as build time environment management rmi server hostname
+#ARG management_rmi_server_hostname
+
+# can be passed during Docker build as build time environment management rmi server port
+#ARG management_jmxremote_rmi_port
+
 # environment variable to pass active profile such as DEV, QA etc at docker runtime
 ENV active_profile_env=${active_profile}
 
@@ -123,12 +129,3 @@ CMD if [ "$is_glowroot_env" = "present" ]; then \
     wget -q "${iam_adapter_url_env}" -O "${loader_path_env}"/kernel-auth-adapter.jar; \
     java -jar -Dloader.path="${loader_path_env}" -Dspring.cloud.config.label="${spring_config_label_env}" -Dspring.profiles.active="${active_profile_env}" -Dspring.cloud.config.uri="${spring_config_url_env}" ./kernel-keymanager-service.jar ; \
     fi
-
-# Adding additional layers
-ARG container_user=mosip
-ARG container_user_group=mosip
-ARG container_user_uid=1001
-ARG container_user_gid=1001
-WORKDIR /home/${container_user}
-RUN chown -R ${container_user}:${container_user} /home/${container_user}
-USER ${container_user_uid}:${container_user_gid}
