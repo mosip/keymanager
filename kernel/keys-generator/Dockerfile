@@ -2,13 +2,12 @@ ARG SOURCE
 ARG COMMIT_HASH
 ARG COMMIT_ID
 ARG BUILD_TIME
+
 LABEL source=${SOURCE}
 LABEL commit_hash=${COMMIT_HASH}
 LABEL commit_id=${COMMIT_ID}
 LABEL build_time=${BUILD_TIME}
-RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get -y install unzip
+
 # can be passed during Docker build as build time environment for github branch to pickup configuration from.
 ARG spring_config_label
 # can be passed during Docker build as build time environment for spring profiles active 
@@ -49,7 +48,10 @@ ARG container_user_uid=1001
 ARG container_user_gid=1001
 
 # Create user and set ownership
-RUN useradd -u ${container_user_uid} -g ${container_user_gid} -m ${container_user} \
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && apt-get -y install unzip \
+    && useradd -u ${container_user_uid} -g ${container_user_gid} -m ${container_user} \
     && chown -R ${container_user}:${container_user} /home/${container_user}
 
 WORKDIR /home/${container_user}
