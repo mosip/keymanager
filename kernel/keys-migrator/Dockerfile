@@ -34,6 +34,10 @@ ARG container_user_group=mosip
 ARG container_user_uid=1001
 ARG container_user_gid=1001
 
+# Creating the user and group
+RUN groupadd -r ${container_user_group} --gid ${container_user_gid} \
+    && useradd -r -g ${container_user_group} --uid ${container_user_uid} ${container_user}
+
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
 
@@ -47,14 +51,14 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh configure_start.sh
 
+ADD target/keys-migrator-*.jar keys-migrator.jar
+
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -y install unzip \
     && mkdir -p ${loader_path} \
     && chmod +x configure_start.sh \
     && chown -R ${container_user}:${container_user} /home/${container_user}
-
-ADD target/keys-migrator-*.jar keys-migrator.jar
 
 USER ${container_user_uid}:${container_user_gid}
 
