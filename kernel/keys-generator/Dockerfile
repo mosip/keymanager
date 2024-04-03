@@ -47,14 +47,14 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh configure_start.sh
 
+ADD target/keys-generator-*.jar keys-generator.jar
+
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -y install unzip \
     && mkdir -p ${loader_path} \
     && chmod +x configure_start.sh \
     && chown -R ${container_user}:${container_user} /home/${container_user}
-
-ADD target/keys-generator-*.jar keys-generator.jar
 
 USER ${container_user_uid}:${container_user_gid}
 
