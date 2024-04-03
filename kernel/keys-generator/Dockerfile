@@ -34,6 +34,10 @@ ARG container_user_group=mosip
 ARG container_user_uid=1001
 ARG container_user_gid=1001
 
+# Creating the user and group
+RUN groupadd -r ${container_user_group} --gid ${container_user_gid} \
+    && useradd -r -g ${container_user_group} --uid ${container_user_uid} ${container_user}
+
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
 
