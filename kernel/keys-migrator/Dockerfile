@@ -54,10 +54,10 @@ RUN apt-get update \
     && chmod +x configure_start.sh \
     && chown -R ${container_user}:${container_user} /home/${container_user}
 
-ADD target/keys-generator-*.jar keys-generator.jar
+ADD target/keys-migrator-*.jar keys-migrator.jar
 
 USER ${container_user_uid}:${container_user_gid}
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
-CMD ["java","-jar", "-Dloader.path=${loader_path_env}", "-Dspring.cloud.config.label=${spring_config_label_env}","-Dspring.cloud.config.name=${spring_config_name_env}", "-Dspring.profiles.active=${active_profile_env}", "-Dspring.cloud.config.uri=${spring_config_url_env}", "/keys-generator.jar"]
+CMD ["java","-jar", "-Dloader.path=${loader_path_env}", "-Dspring.cloud.config.label=${spring_config_label_env}","-Dspring.cloud.config.name=${spring_config_name_env}", "-Dspring.profiles.active=${active_profile_env}", "-Dspring.cloud.config.uri=${spring_config_url_env}", "/keys-migrator.jar"]
