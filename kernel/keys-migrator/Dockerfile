@@ -1,37 +1,36 @@
 FROM openjdk:11
 
-ARG SOURCE
-ARG COMMIT_HASH
-ARG COMMIT_ID
-ARG BUILD_TIME
-LABEL source=${SOURCE}
-LABEL commit_hash=${COMMIT_HASH}
-LABEL commit_id=${COMMIT_ID}
-LABEL build_time=${BUILD_TIME}
-
-RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get -y install unzip
-
 # can be passed during Docker build as build time environment for github branch to pickup configuration from.
 ARG spring_config_label
 
-# can be passed during Docker build as build time environment for spring profiles active 
+# can be passed during Docker build as build time environment for spring profiles active
 ARG active_profile
 
-# can be passed during Docker build as build time environment for config server URL 
+# can be passed during Docker build as build time environment for config server URL
 ARG spring_config_url
 
 # can be passed during Docker build as build time environment for artifactory URL
 ARG artifactory_url
 
-# can be passed during Docker build as build time environment for config server URL 
+# can be passed during Docker build as build time environment for config server URL
 ARG spring_config_name
 
 # can be passed during Docker build as build time environment for hsm client zip file path
 ARG hsm_client_zip_path
 
 ARG hsm_local_dir=hsm-client
+
+# can be passed during Docker build as build time environment for github branch to pickup configuration from.
+ARG container_user=mosip
+ARG container_user_group=mosip
+ARG container_user_uid=1001
+ARG container_user_gid=1001
+
+# can be passed during Docker build as build time environment for label related addition to docker.
+ARG SOURCE
+ARG COMMIT_HASH
+ARG COMMIT_ID
+ARG BUILD_TIME
 
 ENV hsm_local_dir_name=${hsm_local_dir}
 
@@ -53,22 +52,38 @@ ENV artifactory_url_env=${artifactory_url}
 # environment variable to pass hsm client zip file path, at docker runtime
 ENV hsm_zip_file_path=${hsm_client_zip_path}
 
+# can be passed during Docker build as build time environment for label.
+LABEL source=${SOURCE}
+LABEL commit_hash=${COMMIT_HASH}
+LABEL commit_id=${COMMIT_ID}
+LABEL build_time=${BUILD_TIME}
+
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
+
+WORKDIR /home/${container_user}
 
 ENV work_dir=/
 
 ARG loader_path=${work_dir}/additional_jars/
 
-RUN mkdir -p ${loader_path}
-
 ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh configure_start.sh
 
-RUN chmod +x configure_start.sh
-
 ADD target/keys-migrator-*.jar keys-migrator.jar
+
+# Creating the user and group
+RUN groupadd -r ${container_user_group} --gid ${container_user_gid} \
+    && useradd -r -g ${container_user_group} --uid ${container_user_uid} ${container_user} \
+    && apt-get update \
+    && apt-get -y upgrade \
+    && apt-get -y install unzip \
+    && mkdir -p ${loader_path} \
+    && chmod +x configure_start.sh \
+    && chown -R ${container_user}:${container_user} /home/${container_user}
+
+USER ${container_user_uid}:${container_user_gid}
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
