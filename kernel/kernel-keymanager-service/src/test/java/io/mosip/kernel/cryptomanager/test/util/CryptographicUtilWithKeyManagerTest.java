@@ -21,6 +21,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.keymanager.spi.KeyStore;
@@ -44,12 +46,8 @@ public class CryptographicUtilWithKeyManagerTest {
 	@MockBean
 	private KeyStore keyStore;
 
-
 	@Autowired
 	private CryptomanagerUtils cryptomanagerUtil;
-
-	@MockBean
-	private ObjectMapper objectMapper;
 
 	@MockBean
 	private KeymanagerService keyManagerService;

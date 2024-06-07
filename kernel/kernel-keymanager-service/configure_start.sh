@@ -9,7 +9,7 @@ DEFAULT_ZIP_PATH=artifactory/libs-release-local/hsm/client.zip
 echo "Download the client from $artifactory_url_env"
 echo "Zip File Path: $zip_path"
 
-wget -q --show-progress "$artifactory_url_env/$zip_path"
+wget -q "$artifactory_url_env/$zip_path"
 echo "Downloaded $artifactory_url_env/$zip_path"
 
 FILE_NAME=${zip_path##*/}
@@ -33,8 +33,10 @@ else
 fi
 
 echo "Attempting to install"
-cd ./$DIR_NAME && chmod +x install.sh && sudo ./install.sh
+echo "$DIR_NAME"
+cd $DIR_NAME && chmod +x install.sh && sudo ./install.sh && chmod a-w install.sh
 echo "Installation complete"
 cd $work_dir
+
 
 exec "$@"

@@ -28,7 +28,7 @@ public class HibernatePersistenceConstant {
 	/**
 	 * The string constant cache query property
 	 */
-	public static final String CACHE_QUERY_PROPERTY = "javax.persistence.cache.storeMode";
+	public static final String CACHE_QUERY_PROPERTY = "jakarta.persistence.cache.storeMode";
 	/**
 	 * The string constant my sql dialect
 	 */

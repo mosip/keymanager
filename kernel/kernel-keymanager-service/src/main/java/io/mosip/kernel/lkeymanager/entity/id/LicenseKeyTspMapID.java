@@ -2,8 +2,8 @@ package io.mosip.kernel.lkeymanager.entity.id;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 import io.mosip.kernel.lkeymanager.entity.LicenseKeyTspMap;
 import lombok.Data;
@@ -31,5 +31,5 @@ public class LicenseKeyTspMapID implements Serializable {
 	 * The License key.
 	 */
 	@Column(name = "license_key", length = 255, nullable = false)
-	private String lKey;
+	private String licenseKey;
 }

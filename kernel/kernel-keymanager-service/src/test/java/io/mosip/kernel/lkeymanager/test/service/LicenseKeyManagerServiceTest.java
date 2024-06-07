@@ -92,7 +92,7 @@ public class LicenseKeyManagerServiceTest {
 		licenseKeyTspMap.setCreatedBy("testadmin@mosip.io");
 		licenseKeyTspMap.setCreatedDateTimes(LocalDateTime.now());
 		licenseKeyTspMap.setDeleted(false);
-		licenseKeyTspMap.setLKey("tEsTlIcEnSe");
+		licenseKeyTspMap.setLicenseKey("tEsTlIcEnSe");
 		licenseKeyTspMap.setTspId("TSP_ID_TEST");
 
 	}
@@ -103,7 +103,7 @@ public class LicenseKeyManagerServiceTest {
 		licenseKeyPermission.setCreatedBy("testadmin@mosip.io");
 		licenseKeyPermission.setCreatedDateTimes(LocalDateTime.now());
 		licenseKeyPermission.setDeleted(false);
-		licenseKeyPermission.setLKey("tEsTlIcEnSe");
+		licenseKeyPermission.setLicenseKey("tEsTlIcEnSe");
 		licenseKeyPermission
 				.setPermission("Biometric Authentication - IIR Data Match,Biometric Authentication - FID Data Match");
 		licenseKeyPermission.setUpdatedBy("testadmin@mosip.io");
@@ -157,9 +157,9 @@ public class LicenseKeyManagerServiceTest {
 		reqWrapperDTO.setRequesttime(LocalDateTime.now());
 		reqWrapperDTO.setVersion("v1.0");
 		String json = objectMapper.writeValueAsString(reqWrapperDTO);
-		when(licenseKeyTspMapRepository.findByLKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
+		when(licenseKeyTspMapRepository.findByLicenseKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
 				.thenReturn(licenseKeyTspMap);
-		when(licenseKeyPermissionRepository.findByLKey(Mockito.any())).thenReturn(licenseKeyPermission);
+		when(licenseKeyPermissionRepository.findByLicenseKey(Mockito.any())).thenReturn(licenseKeyPermission);
 		mockMvc.perform(post("/license/permission").contentType(MediaType.APPLICATION_JSON).content(json))
 				.andExpect(status().isOk());
 
@@ -188,9 +188,9 @@ public class LicenseKeyManagerServiceTest {
 		reqWrapperDTO.setRequesttime(LocalDateTime.now());
 		reqWrapperDTO.setVersion("v1.0");
 		String json = objectMapper.writeValueAsString(reqWrapperDTO);
-		when(licenseKeyTspMapRepository.findByLKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
+		when(licenseKeyTspMapRepository.findByLicenseKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
 				.thenReturn(licenseKeyTspMap);
-		when(licenseKeyPermissionRepository.findByLKey(Mockito.any())).thenReturn(null);
+		when(licenseKeyPermissionRepository.findByLicenseKey(Mockito.any())).thenReturn(null);
 		mockMvc.perform(post("/license/permission").contentType(MediaType.APPLICATION_JSON).content(json))
 				.andExpect(status().isOk());
 	}
@@ -203,10 +203,10 @@ public class LicenseKeyManagerServiceTest {
 	@Test
 	@WithUserDetails("reg-processor")
 	public void testLKMFetchService() throws Exception {
-		when(licenseKeyTspMapRepository.findByLKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
+		when(licenseKeyTspMapRepository.findByLicenseKeyAndTspId(Mockito.anyString(), Mockito.anyString()))
 				.thenReturn(licenseKeyTspMap);
 		when(licenseKeyListRepository.findByLicenseKey(Mockito.anyString())).thenReturn(licensekeyList);
-		when(licenseKeyPermissionRepository.findByLKey(Mockito.any())).thenReturn(licenseKeyPermission);
+		when(licenseKeyPermissionRepository.findByLicenseKey(Mockito.any())).thenReturn(licenseKeyPermission);
 		mockMvc.perform(get("/license/permission?licenseKey=tEsTlIcEnSe&tspId=TSP_ID_TEST")
 				.contentType(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.response.permissions[0]", isA(String.class)));

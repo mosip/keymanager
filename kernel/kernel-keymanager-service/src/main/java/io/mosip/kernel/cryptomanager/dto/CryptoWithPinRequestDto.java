@@ -6,7 +6,7 @@
  */
 package io.mosip.kernel.cryptomanager.dto;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.swagger.annotations.ApiModel;

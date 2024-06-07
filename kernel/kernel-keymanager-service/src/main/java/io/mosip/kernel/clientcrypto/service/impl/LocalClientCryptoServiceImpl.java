@@ -20,7 +20,7 @@ import org.springframework.context.ApplicationContext;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.io.*;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;

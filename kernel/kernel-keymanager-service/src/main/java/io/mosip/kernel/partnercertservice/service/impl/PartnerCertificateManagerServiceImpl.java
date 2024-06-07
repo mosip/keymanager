@@ -32,7 +32,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.security.auth.x500.X500Principal;
 
 import org.cache2k.Cache;

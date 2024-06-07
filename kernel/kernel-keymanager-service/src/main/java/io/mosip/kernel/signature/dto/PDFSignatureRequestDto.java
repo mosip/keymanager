@@ -6,9 +6,9 @@
  */
 package io.mosip.kernel.signature.dto;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.swagger.annotations.ApiModel;
