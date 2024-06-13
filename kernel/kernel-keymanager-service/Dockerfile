@@ -96,6 +96,9 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh /home/${container_user}/configure_start.sh
 
+# Remove any carriage return characters from configure_start.sh
+RUN sed -i -e 's/\r$//' /home/${container_user}/configure_start.sh
+
 ADD ./lib/* "${loader_path_env}"/
 
 RUN chmod +x /home/${container_user}/configure_start.sh
