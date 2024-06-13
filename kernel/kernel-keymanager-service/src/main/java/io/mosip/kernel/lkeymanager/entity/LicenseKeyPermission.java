@@ -2,17 +2,17 @@ package io.mosip.kernel.lkeymanager.entity;
 
 import java.time.LocalDateTime;
 
-import javax.persistence.AttributeOverride;
-import javax.persistence.AttributeOverrides;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinColumns;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 import io.mosip.kernel.lkeymanager.entity.id.LicenseKeyPermissionID;
 import lombok.Data;
@@ -36,7 +36,8 @@ public class LicenseKeyPermission {
 	@AttributeOverrides({
 			@AttributeOverride(name = "license_key", column = @Column(name = "license_key", nullable = false, length = 255)),
 			@AttributeOverride(name = "permission", column = @Column(name = "permission", nullable = false, length = 512)) })
-	private String lKey;
+	private String licenseKey;
+	
 	private String permission;
 	/**
 	 * The active state of permission.

@@ -2,8 +2,8 @@ package io.mosip.kernel.lkeymanager.entity.id;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 import io.mosip.kernel.lkeymanager.entity.LicenseKeyPermission;
 import lombok.Data;
@@ -26,7 +26,7 @@ public class LicenseKeyPermissionID implements Serializable {
 	 * The License key.
 	 */
 	@Column(name = "license_key", nullable = false, length = 255)
-	private String lKey;
+	private String licenseKey;
 	/**
 	 * The permission for the license key.
 	 */

@@ -26,7 +26,6 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -200,7 +199,7 @@ public class KeymanagerIntegrationTest {
 		MvcResult result = mockMvc.perform(post("/decrypt").contentType(MediaType.APPLICATION_JSON).content(content))
 				.andExpect(status().is(200)).andReturn();
 
-		// System.out.println(result.getResponse().getContentAsString());
+		
 	}
 
 	@WithUserDetails("reg-processor")

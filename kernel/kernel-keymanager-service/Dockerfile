@@ -1,4 +1,4 @@
-FROM openjdk:11
+FROM eclipse-temurin:21-jre
 
 ARG SOURCE
 ARG COMMIT_HASH
@@ -94,14 +94,13 @@ RUN mkdir -p ${loader_path}
 
 ENV loader_path_env=${loader_path}
 
-ADD configure_start.sh configure_start.sh
+ADD configure_start.sh /home/${container_user}/configure_start.sh
 
 ADD ./lib/* "${loader_path_env}"/
 
-RUN chmod +x configure_start.sh
+RUN chmod +x /home/${container_user}/configure_start.sh
 
-# creating folder to copy additional supporting jar files required at run-time.
-#RUN mkdir -p /home/${container_user}/additional-jars
+RUN chmod a-w /home/${container_user}/configure_start.sh
 
 ADD ./target/*.jar /target/
 RUN find /target -name '*.jar' -executable -type f "-print0" | xargs "-0" cp -t / \
@@ -117,7 +116,8 @@ USER ${container_user_uid}:${container_user_gid}
 EXPOSE 8088
 EXPOSE 9010
 
-ENTRYPOINT [ "./configure_start.sh" ]
+ENTRYPOINT ["./configure_start.sh"]
+
 CMD if [ "$is_glowroot_env" = "present" ]; then \
     wget -q "${artifactory_url_env}"/artifactory/libs-release-local/io/mosip/testing/glowroot.zip ; \
     unzip glowroot.zip ; \

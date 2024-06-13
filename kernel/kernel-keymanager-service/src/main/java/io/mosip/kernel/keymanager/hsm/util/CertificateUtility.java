@@ -116,7 +116,7 @@ public class CertificateUtility {
 			certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
 			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);	        
 			return new JcaX509CertificateConverter().getCertificate(certHolder);
-		} catch (OperatorCreationException|NoSuchAlgorithmException | CertificateException | IOException e) {
+		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
 		}

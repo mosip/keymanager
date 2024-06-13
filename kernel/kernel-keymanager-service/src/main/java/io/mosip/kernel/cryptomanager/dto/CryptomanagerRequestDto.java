@@ -8,9 +8,9 @@ package io.mosip.kernel.cryptomanager.dto;
 
 import java.time.LocalDateTime;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -61,14 +61,14 @@ public class CryptomanagerRequestDto {
 	 * Salt to be passed as IV
 	 */
 	@Pattern(regexp = CryptomanagerConstant.EMPTY_REGEX, message = CryptomanagerConstant.EMPTY_ATTRIBUTE)
-	@ApiModelProperty(notes = " Base64 Encoded Salt to be send as IV", example = "YiGFRjiV7WMFIscV")
+	@ApiModelProperty(notes = " Base64 Encoded Salt to be send as IV")
 	private String salt;
 
 	/**
 	 * AAD to be passed
 	 */
 	@Pattern(regexp = CryptomanagerConstant.EMPTY_REGEX, message = CryptomanagerConstant.EMPTY_ATTRIBUTE)
-	@ApiModelProperty(notes = " Base64 Encoded AAD(Advance Authentication Data)", example = "pfxeERQk57XJBJ9JF0oBAtrTzofhAPw54HnJtwW36l4=")
+	@ApiModelProperty(notes = " Base64 Encoded AAD(Advance Authentication Data)")
 	private String aad;
 
 	/**

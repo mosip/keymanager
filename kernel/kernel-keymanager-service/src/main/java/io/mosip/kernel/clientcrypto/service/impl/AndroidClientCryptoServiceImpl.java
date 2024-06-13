@@ -10,7 +10,7 @@ import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import javax.crypto.Cipher;
 import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;

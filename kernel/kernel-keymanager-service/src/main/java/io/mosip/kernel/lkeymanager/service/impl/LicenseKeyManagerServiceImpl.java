@@ -92,7 +92,7 @@ public class LicenseKeyManagerServiceImpl
 		licenseKeyListEntity.setCreatedDateTimes(licenseKeyManagerUtil.getCurrentTimeInUTCTimeZone());
 
 		licenseKeyTspMapEntity.setTspId(licenseKeyGenerationDto.getTspId());
-		licenseKeyTspMapEntity.setLKey(generatedLicense);
+		licenseKeyTspMapEntity.setLicenseKey(generatedLicense);
 		licenseKeyTspMapEntity.setActive(true);
 		licenseKeyTspMapEntity.setCreatedDateTimes(licenseKeyManagerUtil.getCurrentTimeInUTCTimeZone());
 		licenseKeyTspMapEntity.setCreatedBy("SYSTEM");
@@ -114,7 +114,7 @@ public class LicenseKeyManagerServiceImpl
 	public String mapLicenseKey(LicenseKeyMappingDto licenseKeyMappingDto) {
 		licenseKeyManagerUtil.validateRequestParameters(licenseKeyMappingDto.getTspId(),
 				licenseKeyMappingDto.getLicenseKey(), licenseKeyMappingDto.getPermissions());
-		if (licenseKeyTspMapRepository.findByLKeyAndTspId(licenseKeyMappingDto.getLicenseKey(),
+		if (licenseKeyTspMapRepository.findByLicenseKeyAndTspId(licenseKeyMappingDto.getLicenseKey(),
 				licenseKeyMappingDto.getTspId()) == null) {
 			List<ServiceError> errorList = new ArrayList<>();
 			errorList.add(new ServiceError(LicenseKeyManagerExceptionConstants.LICENSEKEY_NOT_FOUND.getErrorCode(),
@@ -125,13 +125,13 @@ public class LicenseKeyManagerServiceImpl
 		licenseKeyManagerUtil.areValidPermissions(licenseKeyMappingDto.getPermissions());
 
 		LicenseKeyPermission licenseKeyPermissionEntity = new LicenseKeyPermission();
-		licenseKeyPermissionEntity.setLKey(licenseKeyMappingDto.getLicenseKey());
+		licenseKeyPermissionEntity.setLicenseKey(licenseKeyMappingDto.getLicenseKey());
 		licenseKeyPermissionEntity.setActive(true);
 		licenseKeyPermissionEntity.setCreatedDateTimes(licenseKeyManagerUtil.getCurrentTimeInUTCTimeZone());
 		licenseKeyPermissionEntity.setCreatedBy(LicenseKeyManagerPropertyConstants.DEFAULT_CREATED_BY.getValue());
 
 		LicenseKeyPermission licenseKeyPermission = licenseKeyPermissionsRepository
-				.findByLKey(licenseKeyMappingDto.getLicenseKey());
+				.findByLicenseKey(licenseKeyMappingDto.getLicenseKey());
 
 		if (licenseKeyPermission == null) {
 			licenseKeyPermissionEntity.setPermission(
@@ -159,7 +159,7 @@ public class LicenseKeyManagerServiceImpl
 	@Override
 	public List<String> fetchLicenseKeyPermissions(String tspID, String licenseKey) {
 		licenseKeyManagerUtil.validateTSPAndLicenseKey(tspID, licenseKey);
-		if (licenseKeyTspMapRepository.findByLKeyAndTspId(licenseKey, tspID) == null) {
+		if (licenseKeyTspMapRepository.findByLicenseKeyAndTspId(licenseKey, tspID) == null) {
 			List<ServiceError> errorList = new ArrayList<>();
 			errorList.add(new ServiceError(LicenseKeyManagerExceptionConstants.LICENSEKEY_NOT_FOUND.getErrorCode(),
 					LicenseKeyManagerExceptionConstants.LICENSEKEY_NOT_FOUND.getErrorMessage()));
@@ -173,7 +173,7 @@ public class LicenseKeyManagerServiceImpl
 			throw new LicenseKeyServiceException(errorList);
 
 		}
-		LicenseKeyPermission licenseKeyPermissions = licenseKeyPermissionsRepository.findByLKey(licenseKey);
+		LicenseKeyPermission licenseKeyPermissions = licenseKeyPermissionsRepository.findByLicenseKey(licenseKey);
 		if (licenseKeyPermissions == null) {
 			List<ServiceError> errorList = new ArrayList<>();
 			errorList.add(new ServiceError(LicenseKeyManagerExceptionConstants.NO_PERMISSIONS_MAPPED.getErrorCode(),

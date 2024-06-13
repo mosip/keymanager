@@ -1,6 +1,6 @@
 package io.mosip.kernel.keymanagerservice.dto;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.swagger.annotations.ApiModel;

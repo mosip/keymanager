@@ -18,12 +18,12 @@ on:
       - release*
       - master
       - 1.*
-      - develop
+      - develop*
       - MOSIP*
 
 jobs:
   build-kernel:
-    uses: mosip/kattu/.github/workflows/maven-build.yml@master
+    uses: mosip/kattu/.github/workflows/maven-build.yml@master-java21
     with:
       SERVICE_LOCATION: ./kernel
       BUILD_ARTIFACT: kernel
@@ -37,11 +37,11 @@ jobs:
   publish_to_nexus:
     if: "${{ !contains(github.ref, 'master') && github.event_name != 'pull_request' && github.event_name != 'release' && github.event_name != 'prerelease' && github.event_name != 'publish' }}"
     needs: build-kernel
-    uses: mosip/kattu/.github/workflows/maven-publish-to-nexus.yml@master
+    uses: mosip/kattu/.github/workflows/maven-publish-to-nexus.yml@master-java21
     with:
       SERVICE_LOCATION: ./kernel
     secrets:
-      OSSRH_URL: ${{ secrets.RELEASE_URL }}
+      OSSRH_URL: ${{ secrets.OSSRH_SNAPSHOT_URL }}
       OSSRH_USER: ${{ secrets.OSSRH_USER }}
       OSSRH_SECRET: ${{ secrets.OSSRH_SECRET }}
       OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
@@ -51,7 +51,7 @@ jobs:
   sonar_analysis:
     needs: build-kernel
     if: "${{ github.event_name != 'pull_request' }}"
-    uses: mosip/kattu/.github/workflows/maven-sonar-analysis.yml@master
+    uses: mosip/kattu/.github/workflows/maven-sonar-analysis.yml@master-java21
     with:
       SERVICE_LOCATION: ./kernel
     secrets:
@@ -78,7 +78,7 @@ jobs:
             SERVICE_NAME: 'keys-migrator'
             BUILD_ARTIFACT: 'kernel'
       fail-fast: false
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
+    uses: mosip/kattu/.github/workflows/docker-build.yml@master-java21
     name: ${{ matrix.SERVICE_NAME }}
     with:
       SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}

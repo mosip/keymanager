@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.mosip.kernel.lkeymanager.entity.LicenseKeyPermission;
 import io.mosip.kernel.lkeymanager.entity.id.LicenseKeyPermissionID;
@@ -26,7 +25,7 @@ public interface LicenseKeyPermissionRepository extends JpaRepository<LicenseKey
 	 * @param licenseKey the license key for which permission needs to be fetched.
 	 * @return the license key entity.
 	 */
-	public LicenseKeyPermission findByLKey(String licenseKey);
+	public LicenseKeyPermission findByLicenseKey(String licenseKey);
 
 	/**
 	 * Method to update license key permissions.
@@ -38,7 +37,7 @@ public interface LicenseKeyPermissionRepository extends JpaRepository<LicenseKey
 	 * @return the permission entity response.
 	 */
 	@Modifying
-	@Query("UPDATE LicenseKeyPermission p SET p.permission =?1, p.updatedDateTimes =?3, p.updatedBy=?4 WHERE p.lKey =?2")
+	@Query("UPDATE LicenseKeyPermission p SET p.permission =?1, p.updatedDateTimes =?3, p.updatedBy=?4 WHERE p.licenseKey =?2")
 	public int updatePermissionList(String updatedPermissionString, String licenseKey, LocalDateTime updationTime,
 			String updatedBy);
 }

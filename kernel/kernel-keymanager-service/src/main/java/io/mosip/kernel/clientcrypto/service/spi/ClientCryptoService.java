@@ -3,7 +3,7 @@ package io.mosip.kernel.clientcrypto.service.spi;
 
 import io.mosip.kernel.clientcrypto.exception.ClientCryptoException;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * @author Anusha Sunkada

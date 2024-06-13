@@ -14,7 +14,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 		"${mosip.auth.adapter.impl.basepackage}", "io.mosip.kernel.signature.*", "io.mosip.kernel.tokenidgenerator.*",
 		"io.mosip.kernel.lkeymanager.*", "io.mosip.kernel.keymanager.*", "io.mosip.kernel.keygenerator.*",
 		"io.mosip.kernel.crypto.*", "io.mosip.kernel.zkcryptoservice.*", "io.mosip.kernel.partnercertservice.*",
-		"io.mosip.kernel.clientcrypto.*", "io.mosip.kernel.core.logger.config", "io.mosip.kernel.keymigrate.*"})
+		"io.mosip.kernel.clientcrypto.*", "io.mosip.kernel.core.logger.config", "io.mosip.kernel.keymigrate.*",
+	    "io.mosip.kernel.pdfgenerator.itext.*"})
 public class KeymanagerBootApplication {
 
 	/**
