@@ -75,17 +75,6 @@ ARG hsm_local_dir=hsm-client
 
 ENV hsm_local_dir_name=${hsm_local_dir}
 
-# install packages and create user
-RUN apt-get -y update \
-&& apt-get install -y unzip sudo\
-&& groupadd -g ${container_user_gid} ${container_user_group} \
-&& useradd -u ${container_user_uid} -g ${container_user_group} -s /bin/sh -m ${container_user} \
-&& adduser ${container_user} sudo \
-&& echo "%sudo ALL=(ALL) NOPASSWD:/home/${container_user}/${hsm_local_dir}/install.sh" >> /etc/sudoers
-
-# set working directory for the user
-WORKDIR /home/${container_user}
-
 ENV work_dir=/home/${container_user}
 
 ARG loader_path=${work_dir}/additional_jars/
@@ -96,22 +85,28 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh /home/${container_user}/configure_start.sh
 
-# Remove any carriage return characters from configure_start.sh
-RUN sed -i -e 's/\r$//' /home/${container_user}/configure_start.sh
-
 ADD ./lib/* "${loader_path_env}"/
 
-RUN chmod +x /home/${container_user}/configure_start.sh
+# install packages and create user
+RUN apt-get -y update \
+&& apt-get install -y unzip sudo\
+&& groupadd -g ${container_user_gid} ${container_user_group} \
+&& useradd -u ${container_user_uid} -g ${container_user_group} -s /bin/sh -m ${container_user} \
+&& adduser ${container_user} sudo \
+&& echo "%sudo ALL=(ALL) NOPASSWD:/home/${container_user}/${hsm_local_dir}/install.sh" >> /etc/sudoers \
+&& sed -i -e 's/\r$//' /home/${container_user}/configure_start.sh \
+&& chmod +x /home/${container_user}/configure_start.sh \
+&& chmod a-w /home/${container_user}/configure_start.sh
 
-RUN chmod a-w /home/${container_user}/configure_start.sh
+# set working directory for the user
+WORKDIR /home/${container_user}
 
 ADD ./target/*.jar /target/
 RUN find /target -name '*.jar' -executable -type f "-print0" | xargs "-0" cp -t / \
     && rm -rf /target \
-    && mv /*.jar ${work_dir}/kernel-keymanager-service.jar
-
-# change permissions of file inside working dir
-RUN chown -R ${container_user}:${container_user} /home/${container_user}
+    && mv /*.jar ${work_dir}/kernel-keymanager-service.jar \
+    # change permissions of file inside working dir
+    && chown -R ${container_user}:${container_user} /home/${container_user}
 
 # select container user for all tasks
 USER ${container_user_uid}:${container_user_gid}
