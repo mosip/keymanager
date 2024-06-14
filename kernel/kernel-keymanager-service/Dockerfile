@@ -96,6 +96,9 @@ ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh /home/${container_user}/configure_start.sh
 
+# Remove any carriage return characters from configure_start.sh
+RUN sed -i -e 's/\r$//' /home/${container_user}/configure_start.sh
+
 ADD ./lib/* "${loader_path_env}"/
 
 RUN chmod +x /home/${container_user}/configure_start.sh
@@ -127,5 +130,5 @@ CMD if [ "$is_glowroot_env" = "present" ]; then \
     java -jar -javaagent:glowroot/glowroot.jar -Dloader.path="${loader_path_env}" -Dspring.cloud.config.label="${spring_config_label_env}" -Dspring.profiles.active="${active_profile_env}" -Dspring.cloud.config.uri="${spring_config_url_env}" -XX:HeapDumpPath=/home/  ./kernel-keymanager-service.jar ; \
     else \
     wget -q "${iam_adapter_url_env}" -O "${loader_path_env}"/kernel-auth-adapter.jar; \
-    java -jar -Dloader.path="${loader_path_env}" -Dspring.cloud.config.label="${spring_config_label_env}" -Dspring.profiles.active="${active_profile_env}" -Dspring.cloud.config.uri="${spring_config_url_env}" -Dspring.cloud.config.name="${spring_config_name_env}" ./kernel-keymanager-service.jar ; \
+    java -jar -Dloader.path="${loader_path_env}" -Dspring.cloud.config.label="${spring_config_label_env}" -Dspring.profiles.active="${active_profile_env}" -Dspring.cloud.config.uri="${spring_config_url_env}" ./kernel-keymanager-service.jar ; \
     fi
