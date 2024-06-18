@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -56,6 +57,9 @@ public class KeymanagerDBHelper {
     @Value("${mosip.kernel.keymanager.unique.identifier.autoupdate:true}")
 	private boolean autoUpdate;
 
+    @Value("${mosip.kernel.keymanager.key.cache.expire.inMins:1440}")
+    private long cacheExpireInMins;
+
     /**
 	 * {@link KeyAliasRepository} instance
 	 */
@@ -94,12 +98,15 @@ public class KeymanagerDBHelper {
 
     private Cache<String, Optional<KeyPolicy>> keyPolicyCache = null;
 
+    private Cache<String, List<KeyAlias>> keyAliasCache = null;
+
     @PostConstruct
     public void init() {
         if (autoUpdate) {
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                         "Updating the thumbprint & key unique identifer completed.");
             createCacheObject();
+            createKeyAliasCacheObject();
             addCertificateThumbprints();
             addKeyUniqueIdentifier();
         }
@@ -120,6 +127,25 @@ public class KeymanagerDBHelper {
         .build();
     }
     
+    private void createKeyAliasCacheObject() {
+        keyAliasCache = new Cache2kBuilder<String, List<KeyAlias>>() {}
+        // added hashcode because test case execution failing with IllegalStateException: Cache already created
+        .name("keyAliasCache-" + this.hashCode()) 
+        .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
+        .entryCapacity(500)
+        .refreshAhead(true)
+        .loaderThreadCount(1)
+        .loader((appIdRefId) -> {
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                            "Fetching Key Alias for Application Id & Reference Id (Cache): " + appIdRefId);
+                String[] appIdRefIdArr = appIdRefId.split(KeymanagerConstant.HYPHEN, -1);
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                            "Key Alias for Application Id: " + appIdRefIdArr[0] + ", Reference Id (Cache): " 
+                            + appIdRefIdArr[1]);
+                return keyAliasRepository.findByApplicationIdAndReferenceId(appIdRefIdArr[0], appIdRefIdArr[1]);
+        })
+        .build();
+    }
     /**
 	 * Function to store key in keyalias table
 	 * 
@@ -174,8 +200,8 @@ public class KeymanagerDBHelper {
 	public Map<String, List<KeyAlias>> getKeyAliases(String applicationId, String referenceId, LocalDateTime timeStamp) {
         LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, KeymanagerConstant.GETALIAS);
         Map<String, List<KeyAlias>> hashmap = new HashMap<>();
-        List<KeyAlias> keyAliases = keyAliasRepository.findByApplicationIdAndReferenceId(applicationId, referenceId)
-                .stream()
+        String appIdRefIdKey = applicationId + KeymanagerConstant.HYPHEN + referenceId;
+        List<KeyAlias> keyAliases = keyAliasCache.get(appIdRefIdKey).stream()
                 .sorted((alias1, alias2) -> alias1.getKeyGenerationTime().compareTo(alias2.getKeyGenerationTime()))
                 .collect(Collectors.toList());
         int preExpireDays = getPreExpireDays(applicationId, referenceId);
