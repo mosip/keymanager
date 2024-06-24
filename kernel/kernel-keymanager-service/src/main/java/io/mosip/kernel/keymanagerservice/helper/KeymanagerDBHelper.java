@@ -15,6 +15,7 @@ import javax.annotation.PostConstruct;
 
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
+import org.cache2k.expiry.Expiry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ import io.mosip.kernel.keymanagerservice.entity.KeyPolicy;
 import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.keymanagerservice.exception.InvalidApplicationIdException;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
+import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.repository.KeyPolicyRepository;
@@ -204,6 +206,11 @@ public class KeymanagerDBHelper {
         List<KeyAlias> keyAliases = keyAliasCache.get(appIdRefIdKey).stream()
                 .sorted((alias1, alias2) -> alias1.getKeyGenerationTime().compareTo(alias2.getKeyGenerationTime()))
                 .collect(Collectors.toList());
+        if (keyAliases.isEmpty()){
+            LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, 
+                    "Removing from Cache because empty keyAlias are getting added in Cache.");
+            keyAliasCache.expireAt(appIdRefIdKey, Expiry.NOW);
+        }
         int preExpireDays = getPreExpireDays(applicationId, referenceId);
         LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, "PreExpireDays found as key policy:" + preExpireDays);
         List<KeyAlias> currentKeyAliases = keyAliases.stream()
