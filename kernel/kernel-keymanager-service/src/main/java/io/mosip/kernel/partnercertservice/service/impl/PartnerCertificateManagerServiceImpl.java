@@ -66,6 +66,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
+import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.exception.PartnerCertManagerException;
 import io.mosip.kernel.partnercertservice.helper.PartnerCertManagerDBHelper;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
@@ -547,28 +548,11 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
     @Override
     public PartnerCertDownloadResponeDto getPartnerCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
-
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner Certificate Request.");
 
         String partnetCertId = certDownloadRequestDto.getPartnerCertId();
-
-        if (!PartnerCertificateManagerUtil.isValidCertificateID(partnetCertId)) {
-            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
-                    PartnerCertManagerConstants.EMPTY,
-                    "Invalid Certificate ID provided to get the partner certificate.");
-            throw new PartnerCertManagerException(
-                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorCode(),
-                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorMessage());
-        }
-        PartnerCertificateStore partnerCertStore = certDBHelper.getPartnerCert(partnetCertId);
-        if (Objects.isNull(partnerCertStore)) {
-            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
-                    PartnerCertManagerConstants.EMPTY, "Partner Certificate not found for the provided ID.");
-            throw new PartnerCertManagerException(
-                    PartnerCertManagerErrorConstants.PARTNER_CERT_ID_NOT_FOUND.getErrorCode(),
-                    PartnerCertManagerErrorConstants.PARTNER_CERT_ID_NOT_FOUND.getErrorMessage());
-        }
+        PartnerCertificateStore partnerCertStore = getPartnerCertificate(partnetCertId);
 
         PartnerCertDownloadResponeDto responseDto = new PartnerCertDownloadResponeDto();
         responseDto.setCertificateData(partnerCertStore.getSignedCertData());
@@ -612,5 +596,48 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         if(!disableTrustStoreCache) {
             caCertTrustStore.expireAt(partnerDomain, Expiry.NOW);
         }
+    }
+
+    @Override
+    public PartnerSignedCertDownloadResponeDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
+        
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
+                PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
+                        "Mosip Signed Certificate Request.");
+
+        String partnetCertId = certDownloadRequestDto.getPartnerCertId();
+        PartnerCertificateStore partnerCertStore = getPartnerCertificate(partnetCertId);
+
+        PartnerSignedCertDownloadResponeDto responseDto = new PartnerSignedCertDownloadResponeDto();
+        responseDto.setMosipSignedCertificateData(partnerCertStore.getSignedCertData());
+        responseDto.setCaSignedCertificateData(partnerCertStore.getCertData());
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
+                PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
+                        "Mosip Signed Certificate Request. - Completed");
+        return responseDto;
+    }
+
+    private PartnerCertificateStore getPartnerCertificate(String partnetCertId) {
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT, PartnerCertManagerConstants.EMPTY,
+                "Request to get Certificate for partnerId: " + partnetCertId);        
+
+        if (!PartnerCertificateManagerUtil.isValidCertificateID(partnetCertId)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY,
+                    "Invalid Certificate ID provided to get the partner certificate.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorCode(),
+                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorMessage());
+        }
+        PartnerCertificateStore partnerCertStore = certDBHelper.getPartnerCert(partnetCertId);
+        if (Objects.isNull(partnerCertStore)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Partner Certificate not found for the provided ID.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.PARTNER_CERT_ID_NOT_FOUND.getErrorCode(),
+                    PartnerCertManagerErrorConstants.PARTNER_CERT_ID_NOT_FOUND.getErrorMessage());
+        }
+        return partnerCertStore;
     }
 }

@@ -22,6 +22,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
+import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
@@ -103,12 +104,12 @@ public class PartnerCertManagerController {
 	}
 
     /**
-	 * To Download Partner Certificate.
+	 * To Download Partner MOSIP CA Signed Certificate.
 	 * 
 	 * @param certDownloadRequestDto {@link PartnerCertDownloadRequestDto} request
 	 * @return {@link PartnerCertDownloadResponeDto} encrypted Data
 	 */
-	@Operation(summary = "To Download Partner Certificate", description = "To Download Partner Certificate", tags = { "partnercertmanager" })
+	@Operation(summary = "To Download Partner MOSIP CA Signed Certificate", description = "To Download Partner MOSIP CA Signed Certificate", tags = { "partnercertmanager" })
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
@@ -154,5 +155,29 @@ public class PartnerCertManagerController {
 		response.setResponse(partnerCertManagerService.verifyCertificateTrust(certificateTrustRequestDto.getRequest()));
 		return response;
 	}
-    
+
+	/**
+	 * To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.
+	 * 
+	 * @param certDownloadRequestDto {@link PartnerCertDownloadRequestDto} request
+	 * @return {@link PartnerCertDownloadResponeDto} encrypted Data
+	 */
+	@Operation(summary = "To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.", 
+			   description = "To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.", tags = { "partnercertmanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getGetgetpartnersignedcertificatepartnercertid())")
+	@GetMapping(value = "/getPartnerSignedCertificate/{partnerCertId}")
+	public ResponseWrapper<PartnerSignedCertDownloadResponeDto> getPartnerSignedCertificate(
+			@ApiParam("To download CA Signed partner certificate.") @PathVariable("partnerCertId") String partnerCertId) {
+		PartnerCertDownloadRequestDto certDownloadRequestDto = new PartnerCertDownloadRequestDto();
+		certDownloadRequestDto.setPartnerCertId(partnerCertId);
+		ResponseWrapper<PartnerSignedCertDownloadResponeDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.getPartnerSignedCertificate(certDownloadRequestDto));
+		return response;
+	}
 }
