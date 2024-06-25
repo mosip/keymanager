@@ -127,7 +127,7 @@ CMD if [ "$is_glowroot_env" = "present" ]; then \
        java -jar -javaagent:glowroot/glowroot.jar -Dloader.path="${loader_path_env}" -Dspring.cloud.config.label="${spring_config_label_env}" -Dspring.profiles.active="${active_profile_env}" -Dspring.cloud.config.uri="${spring_config_url_env}" -XX:HeapDumpPath=/home/  ./kernel-keymanager-service.jar ; \
     else \
        spring_args="" ; \
-       if ! [[ -z $spring_config_name_env ]]; then \
+       if ! [ -z $spring_config_name_env ]; then \
          spring_args="-Dspring.cloud.config.name=\"${spring_config_name_env}\"" ; \
        fi ; \
        wget -q "${iam_adapter_url_env}" -O "${loader_path_env}"/kernel-auth-adapter.jar; \
