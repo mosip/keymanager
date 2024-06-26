@@ -12,7 +12,7 @@ import lombok.Data;
  *
  */
 @Data
-public class PartnerSignedCertDownloadResponeDto {
+public class PartnerSignedCertDownloadResponseDto {
     
     /**
 	 * Partner Certificate Data.

@@ -66,7 +66,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
-import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponeDto;
+import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
 import io.mosip.kernel.partnercertservice.exception.PartnerCertManagerException;
 import io.mosip.kernel.partnercertservice.helper.PartnerCertManagerDBHelper;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
@@ -599,7 +599,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @Override
-    public PartnerSignedCertDownloadResponeDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
+    public PartnerSignedCertDownloadResponseDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
         
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
@@ -608,7 +608,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         String partnetCertId = certDownloadRequestDto.getPartnerCertId();
         PartnerCertificateStore partnerCertStore = getPartnerCertificate(partnetCertId);
 
-        PartnerSignedCertDownloadResponeDto responseDto = new PartnerSignedCertDownloadResponeDto();
+        PartnerSignedCertDownloadResponseDto responseDto = new PartnerSignedCertDownloadResponseDto();
         responseDto.setMosipSignedCertificateData(partnerCertStore.getSignedCertData());
         responseDto.setCaSignedCertificateData(partnerCertStore.getCertData());
         responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
