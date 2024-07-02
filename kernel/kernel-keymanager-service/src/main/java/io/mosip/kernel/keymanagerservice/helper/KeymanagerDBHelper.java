@@ -140,7 +140,7 @@ public class KeymanagerDBHelper {
         .loader((appIdRefId) -> {
                 LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                             "Fetching Key Alias for Application Id & Reference Id (Cache): " + appIdRefId);
-                String[] appIdRefIdArr = appIdRefId.split(KeymanagerConstant.HYPHEN, -1);
+                String[] appIdRefIdArr = appIdRefId.split(KeymanagerConstant.APP_REF_ID_SEP, -1);
                 LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                             "Key Alias for Application Id: " + appIdRefIdArr[0] + ", Reference Id (Cache): " 
                             + appIdRefIdArr[1]);
@@ -202,7 +202,7 @@ public class KeymanagerDBHelper {
 	public Map<String, List<KeyAlias>> getKeyAliases(String applicationId, String referenceId, LocalDateTime timeStamp) {
         LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, KeymanagerConstant.GETALIAS);
         Map<String, List<KeyAlias>> hashmap = new HashMap<>();
-        String appIdRefIdKey = applicationId + KeymanagerConstant.HYPHEN + referenceId;
+        String appIdRefIdKey = applicationId + KeymanagerConstant.APP_REF_ID_SEP + referenceId;
         List<KeyAlias> keyAliases = keyAliasCache.get(appIdRefIdKey).stream()
                 .sorted((alias1, alias2) -> alias1.getKeyGenerationTime().compareTo(alias2.getKeyGenerationTime()))
                 .collect(Collectors.toList());

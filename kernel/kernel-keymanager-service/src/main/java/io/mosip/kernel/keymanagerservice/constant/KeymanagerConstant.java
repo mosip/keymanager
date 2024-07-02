@@ -206,4 +206,6 @@ public class KeymanagerConstant {
 	public static final String COMMA = ",";
 
 	public static final String IDA_APP_ID = "IDA";
+
+	public static final String APP_REF_ID_SEP = "#";
 }
