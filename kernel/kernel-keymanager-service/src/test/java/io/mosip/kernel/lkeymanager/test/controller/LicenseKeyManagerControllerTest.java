@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.licensekeymanager.spi.LicenseKeyManagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.lkeymanager.dto.LicenseKeyGenerationDto;
@@ -38,7 +38,7 @@ import io.mosip.kernel.lkeymanager.dto.LicenseKeyMappingDto;
 public class LicenseKeyManagerControllerTest {
 	
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@Autowired
 	private MockMvc mockMvc;

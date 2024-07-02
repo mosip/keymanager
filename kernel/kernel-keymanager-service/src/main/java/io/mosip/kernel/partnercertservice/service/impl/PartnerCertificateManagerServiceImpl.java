@@ -44,7 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
@@ -126,7 +126,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
      * Keystore instance to handles and store cryptographic keys.
      */
     @Autowired
-    private KeyStore keyStore;
+    private ECKeyStore keyStore;
 
     @Autowired
     private KeymanagerService keymanagerService;

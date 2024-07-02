@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,6 +27,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
@@ -162,7 +164,8 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(),
 					CryptomanagerConstant.GEN_ARGON2_HASH, "Loading Creating Cache for Object Key: " + objectKey);
 			if (objectKey.equals(CryptomanagerConstant.CACHE_AES_KEY)) {
-				javax.crypto.KeyGenerator keyGenerator = KeyGeneratorUtils.getKeyGenerator(AES_KEY_TYPE, AES_KEY_SIZE);
+				javax.crypto.KeyGenerator keyGenerator = KeyGeneratorUtils.getKeyGenerator(AES_KEY_TYPE, 
+							AES_KEY_SIZE, new SecureRandom());
 				return keyGenerator.generateKey();
 			} else if (objectKey.equals(CACHE_INT_COUNTER)) {
 				if(secureRandom == null)

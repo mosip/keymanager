@@ -217,7 +217,6 @@ public class KeymanagerController {
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-	//@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','REGISTRATION_PROCESSOR','REGISTRATION_ADMIN','REGISTRATION_SUPERVISOR','REGISTRATION_OFFICER','ID_AUTHENTICATION','TEST','PRE_REGISTRATION_ADMIN','RESIDENT')")
 	@PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getPutrevokekey())")
 	@ResponseFilter
 	@PutMapping(value = "/revokeKey")
@@ -242,7 +241,6 @@ public class KeymanagerController {
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-	//@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','REGISTRATION_PROCESSOR','REGISTRATION_ADMIN','REGISTRATION_SUPERVISOR','REGISTRATION_OFFICER','ID_AUTHENTICATION','TEST','PRE_REGISTRATION_ADMIN','RESIDENT')")
 	@PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getGetgetcertificate())")
 	@ResponseFilter
 	@GetMapping(value = "/getAllCertificates")
@@ -252,6 +250,35 @@ public class KeymanagerController {
 
 		ResponseWrapper<AllCertificatesDataResponseDto> response = new ResponseWrapper<>();
 		response.setResponse(keymanagerService.getAllCertificates(applicationId, referenceId));
+		return response;
+	}
+
+	/**
+	 * Request to generate component Signature ECC Key pair & Certificate for the Provided APP ID & REF ID. 
+	 * Supported Curve(s) SECP256K1, SECP256R1 and ED25519.
+	 * 
+	  * @param objectType 			   response Object Type. Support types are Certificate/CSR. 
+	 * @param keyPairGenRequestDto     {@link KeyPairGenerateRequestDto} request
+	 * @return {@link KeyPairGenerateResponseDto} instance
+	*/
+	@Operation(summary = "Request to generate component Signature ECC Key pair & Certificate for the Provided APP ID & REF ID.", 
+				description = "Request to generate component Signature ECC Key pair & Certificate for the Provided APP ID & REF ID. " +
+				"Supported Curve(s) SECP256K1, SECP256R1 and ED25519", 
+				tags = { "keymanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getGetgetcertificate())")
+	@ResponseFilter
+	@PostMapping(value = "/generateECSignKey/{objectType}")
+	public ResponseWrapper<KeyPairGenerateResponseDto> generateECSignKey(
+		@ApiParam("Response Type CERTIFICATE/CSR") @PathVariable("objectType") String objectType, 
+		@RequestBody @Valid RequestWrapper<KeyPairGenerateRequestDto> ecKeyPairGenRequestDto) {
+
+		ResponseWrapper<KeyPairGenerateResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(keymanagerService.generateECSignKey(objectType, ecKeyPairGenRequestDto.getRequest()));
 		return response;
 	}
 }

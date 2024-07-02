@@ -98,11 +98,20 @@ public class SignatureUtil {
 
 		JWSAlgorithm jwsAlgorithm;
 		switch (signAlgorithm) {
-			case "RS256":
+			case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST:
 				jwsAlgorithm = JWSAlgorithm.RS256; 
 				break;
-			case "PS256":
+			case SignatureConstant.JWS_PS256_SIGN_ALGO_CONST:
 				jwsAlgorithm = JWSAlgorithm.PS256;
+				break;
+			case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST:
+				jwsAlgorithm = JWSAlgorithm.ES256;
+				break;
+			case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST:
+				jwsAlgorithm = JWSAlgorithm.ES256K;
+				break;
+			case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST:
+				jwsAlgorithm = JWSAlgorithm.EdDSA;
 				break;
 			default:
 				jwsAlgorithm = JWSAlgorithm.PS256; 

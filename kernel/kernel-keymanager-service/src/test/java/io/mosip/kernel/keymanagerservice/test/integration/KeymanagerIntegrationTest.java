@@ -51,7 +51,7 @@ import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
@@ -83,7 +83,7 @@ public class KeymanagerIntegrationTest {
 	private ObjectMapper objectMapper;
 
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@MockBean
 	private KeyAliasRepository keyAliasRepository;

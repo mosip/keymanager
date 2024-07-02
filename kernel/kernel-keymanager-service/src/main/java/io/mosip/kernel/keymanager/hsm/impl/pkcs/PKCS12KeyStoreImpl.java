@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -28,12 +29,15 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.spec.ECGenParameterSpec;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -44,13 +48,14 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.exception.NoSuchSecurityProviderException;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.keygenerator.bouncycastle.constant.KeyGeneratorExceptionConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
-
 
 /**
  * HSM Keymanager implementation based on OpenDNSSEC that handles and stores
@@ -62,7 +67,7 @@ import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
  * @since 1.1.4
  *
  */
-public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.KeyStore {
+public class PKCS12KeyStoreImpl implements ECKeyStore {
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(PKCS12KeyStoreImpl.class);
 
@@ -108,6 +113,10 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 	 */
 	private String signAlgorithm;
 	
+	private String asymmetricECKeyAlgorithm;
+
+	private String asymmetricEdKeyAlgorithm;
+
 	private Map<String, PrivateKeyEntry> privateKeyReferenceCache;
 	
 	private Map<String, SecretKey> secretKeyReferenceCache;
@@ -123,9 +132,10 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 	
 	private boolean enableKeyReferenceCache;
     
+	private SecureRandom secureRandom;
 
 	public PKCS12KeyStoreImpl(Map<String, String> params) throws Exception {
-		LOGGER.warn("IT IS NOT SUGGESTED TO USE PKCS12 KEYSTORE TYPE IN PRODUCTION ENVIRONMENT");
+		LOGGER.warn("IT IS SUGGESTED NOT TO USE PKCS12 KEYSTORE TYPE IN PRODUCTION ENVIRONMENT");
         this.keystoreType = KeymanagerConstant.KEYSTORE_TYPE_PKCS12;
         this.p12FilePath = params.get(KeymanagerConstant.CONFIG_FILE_PATH);
         this.keystorePass = params.get(KeymanagerConstant.PKCS11_KEYSTORE_PASSWORD);
@@ -135,6 +145,8 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
         this.asymmetricKeyLength = Integer.valueOf(params.get(KeymanagerConstant.ASYM_KEY_SIZE));
         this.signAlgorithm  = params.get(KeymanagerConstant.CERT_SIGN_ALGORITHM);
         this.enableKeyReferenceCache = Boolean.parseBoolean(params.get(KeymanagerConstant.FLAG_KEY_REF_CACHE));
+		this.asymmetricECKeyAlgorithm = params.get(KeymanagerConstant.ASYM_KEY_EC_ALGORITHM);
+		this.secureRandom = new SecureRandom();
 		initKeystore();
 		initKeyReferenceCache();
     }
@@ -435,6 +447,10 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 	@SuppressWarnings("findsecbugs:HARD_CODE_PASSWORD")
 	@Override
 	public void generateAndStoreAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams) {
+		generateAndStoreAsymKey(alias, signKeyAlias, certParams, KeymanagerConstant.RSA_KEY_TYPE);
+    }
+
+	private void generateAndStoreAsymKey(String alias, String signKeyAlias, CertificateParameters certParams, String keyType) {
 		KeyPair keyPair = null;
 		PrivateKey signPrivateKey = null;
 		X500Principal signerPrincipal = null;
@@ -443,9 +459,9 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 			signPrivateKey = signKeyEntry.getPrivateKey();
 			X509Certificate signCert = (X509Certificate) signKeyEntry.getCertificate();
 			signerPrincipal = signCert.getSubjectX500Principal();
-			keyPair = generateKeyPair(); // To avoid key generation in HSM.
+			keyPair = generateKeyPair(keyType); // To avoid key generation in HSM.
 		} else {
-			keyPair = generateKeyPair();
+			keyPair = generateKeyPair(keyType);
 			signPrivateKey = keyPair.getPrivate();
 		}
 		X509Certificate x509Cert = CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(), certParams, 
@@ -453,6 +469,57 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 		X509Certificate[] chain = new X509Certificate[] {x509Cert};
 		storeCertificate(alias, chain, keyPair.getPrivate());
     }
+
+	private KeyPair generateKeyPair(String keyType) {
+		List<String> ecCurvesList = Stream.of(ECCurves.values()).filter(value -> !value.name().equals(ECCurves.ED25519.name()))
+									.map(value -> value.toString())
+									.collect(Collectors.toList());
+		if (KeymanagerConstant.RSA_KEY_TYPE.equals(keyType))
+			return generateRSAKeyPair();
+		else if (ecCurvesList.contains(keyType))
+			return generateECKeyPair(keyType);
+		else if (KeymanagerConstant.ED25519_KEY_TYPE.equals(keyType))
+			return generateEd25519KeyPair();
+			
+		throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage()); 
+	}
+
+	private KeyPair generateRSAKeyPair() {
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricKeyAlgorithm, provider);
+			generator.initialize(asymmetricKeyLength, secureRandom);
+			return generator.generateKeyPair();
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+		}
+	}
+
+	private KeyPair generateECKeyPair(String ecCurveName) {
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricECKeyAlgorithm, provider);
+			generator.initialize(new ECGenParameterSpec(ecCurveName), secureRandom);
+			return generator.generateKeyPair();
+		} catch (java.security.NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
+			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+		}
+	}
+
+	private KeyPair generateEd25519KeyPair() {
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricEdKeyAlgorithm, provider);
+			return generator.generateKeyPair();
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+		}
+	}
     
     private void storeCertificate(String alias, Certificate[] chain, PrivateKey privateKey) {
 		PrivateKeyEntry privateKeyEntry = new PrivateKeyEntry(privateKey, chain);
@@ -488,20 +555,7 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
 		}
 	}
-
-	private KeyPair generateKeyPair() {
-		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricKeyAlgorithm);
-			SecureRandom random = new SecureRandom();
-			generator.initialize(asymmetricKeyLength, random);
-			return generator.generateKeyPair();
-		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
-					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
-		}
-	}
-
+	
 	private SecretKey generateSymmetricKey() {
 		try {
 			KeyGenerator generator = KeyGenerator.getInstance(symmetricKeyAlgorithm, provider);
@@ -563,5 +617,15 @@ public class PKCS12KeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.K
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
 		}
 	}
+
+	@Override
+	public void generateAndStoreAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams, String ecCurve) {
+		generateAndStoreAsymKey(alias, signKeyAlias, certParams, ecCurve);
+	}
+
+	/* @Override
+	public void generateAndStoreEDAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams) {
+		generateAndStoreAsymmetricKey(alias, signKeyAlias, certParams, KeymanagerConstant.ED25519_KEY_TYPE);
+	} */
 	
 }

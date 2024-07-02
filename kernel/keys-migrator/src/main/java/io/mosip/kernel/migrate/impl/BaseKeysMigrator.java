@@ -50,7 +50,7 @@ import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -137,7 +137,7 @@ public class BaseKeysMigrator {
      * Keystore instance to handles and store cryptographic keys.
      */
     @Autowired
-    private KeyStore keyStore;
+    private ECKeyStore keyStore;
 
     @Autowired
     KeymanagerUtil keymanagerUtil;

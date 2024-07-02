@@ -14,7 +14,7 @@ import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.tokenidgenerator.dto.TokenIDResponseDto;
 
@@ -24,7 +24,7 @@ import io.mosip.kernel.tokenidgenerator.dto.TokenIDResponseDto;
 public class TokenIdGeneratorIntegrationTest {
 	
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@Autowired
 	private MockMvc mockMvc;

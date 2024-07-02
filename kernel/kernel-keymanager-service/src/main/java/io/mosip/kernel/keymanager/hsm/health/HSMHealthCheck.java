@@ -12,7 +12,7 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
 import org.springframework.stereotype.Component;
 
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -68,7 +68,7 @@ public class HSMHealthCheck implements ReactiveHealthIndicator {
 	private KeymanagerDBHelper dbHelper;
 
     @Autowired
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
     @Override
     public Mono<Health> health() {

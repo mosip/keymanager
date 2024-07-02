@@ -8,16 +8,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import jakarta.annotation.PostConstruct;
 
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
+import org.cache2k.expiry.Expiry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -45,16 +48,20 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 public class KeymanagerDBHelper {
 
     private static final Logger LOGGER = KeymanagerLogger.getLogger(KeymanagerDBHelper.class);
-    
-    @Value("${mosip.sign.applicationid:KERNEL}")
+
+    /** The sign applicationid. */
+	@Value("${mosip.sign.applicationid:KERNEL}")
 	private String signApplicationId;
-    
+
     @Value("${mosip.sign-certificate-refid:SIGN}")
 	private String signRefId;
 
     // added because flag because getting exception in datasync.
     @Value("${mosip.kernel.keymanager.unique.identifier.autoupdate:true}")
 	private boolean autoUpdate;
+
+    @Value("${mosip.kernel.keymanager.key.cache.expire.inMins:1440}")
+    private long cacheExpireInMins;
 
     /**
 	 * {@link KeyAliasRepository} instance
@@ -84,7 +91,7 @@ public class KeymanagerDBHelper {
 	 * Keystore instance to handles and store cryptographic keys.
 	 */
 	@Autowired
-	io.mosip.kernel.core.keymanager.spi.KeyStore keyStore;
+	ECKeyStore keyStore;
 
     /**
 	 * {@link CryptomanagerUtils} instance
@@ -94,14 +101,19 @@ public class KeymanagerDBHelper {
 
     private Cache<String, Optional<KeyPolicy>> keyPolicyCache = null;
 
+    private Cache<String, List<KeyAlias>> keyAliasCache = null;
+
     @PostConstruct
     public void init() {
         if (autoUpdate) {
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
-                        "Updating the thumbprint & key unique identifer completed.");
+                        "Updating the thumbprint & key unique identifer in the table..");
             createCacheObject();
+            createKeyAliasCacheObject();
             addCertificateThumbprints();
             addKeyUniqueIdentifier();
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                        "Updating the thumbprint & key unique identifer completed.");
         }
     }
 
@@ -116,6 +128,26 @@ public class KeymanagerDBHelper {
                 LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                             "Fetching Key Policy for keyPolicyName(Cache): " + keyPolicyName);
                 return keyPolicyRepository.findByApplicationId(keyPolicyName);
+        })
+        .build();
+    }
+
+    private void createKeyAliasCacheObject() {
+        keyAliasCache = new Cache2kBuilder<String, List<KeyAlias>>() {}
+        // added hashcode because test case execution failing with IllegalStateException: Cache already created
+        .name("keyAliasCache-" + this.hashCode()) 
+        .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
+        .entryCapacity(500)
+        .refreshAhead(true)
+        .loaderThreadCount(1)
+        .loader((appIdRefId) -> {
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                            "Fetching Key Alias for Application Id & Reference Id (Cache): " + appIdRefId);
+                String[] appIdRefIdArr = appIdRefId.split(KeymanagerConstant.APP_REF_ID_SEP, -1);
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                            "Key Alias for Application Id: " + appIdRefIdArr[0] + ", Reference Id (Cache): " 
+                            + appIdRefIdArr[1]);
+                return keyAliasRepository.findByApplicationIdAndReferenceId(appIdRefIdArr[0], appIdRefIdArr[1]);
         })
         .build();
     }
@@ -174,10 +206,15 @@ public class KeymanagerDBHelper {
 	public Map<String, List<KeyAlias>> getKeyAliases(String applicationId, String referenceId, LocalDateTime timeStamp) {
         LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, KeymanagerConstant.GETALIAS);
         Map<String, List<KeyAlias>> hashmap = new HashMap<>();
-        List<KeyAlias> keyAliases = keyAliasRepository.findByApplicationIdAndReferenceId(applicationId, referenceId)
-                .stream()
+        String appIdRefIdKey = applicationId + KeymanagerConstant.APP_REF_ID_SEP + referenceId;
+        List<KeyAlias> keyAliases = keyAliasCache.get(appIdRefIdKey).stream()
                 .sorted((alias1, alias2) -> alias1.getKeyGenerationTime().compareTo(alias2.getKeyGenerationTime()))
                 .collect(Collectors.toList());
+        if (keyAliases.isEmpty()){
+            LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, 
+                    "Removing from Cache because empty keyAlias are getting added in Cache.");
+            keyAliasCache.expireAt(appIdRefIdKey, Expiry.NOW);
+        }
         int preExpireDays = getPreExpireDays(applicationId, referenceId);
         LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, "PreExpireDays found as key policy:" + preExpireDays);
         List<KeyAlias> currentKeyAliases = keyAliases.stream()
@@ -331,10 +368,8 @@ public class KeymanagerDBHelper {
     // this will get executed only one time to add the certificate thumbprints.
     private synchronized void addCertificateThumbprints() {
         List<KeyAlias> allKeyAliases = keyAliasRepository.findByCertThumbprintIsNull();
-        allKeyAliases.stream().filter(keyAlias -> ((Objects.isNull(keyAlias.getCertThumbprint()) || 
-                                                    keyAlias.getCertThumbprint().equals(KeymanagerConstant.EMPTY)) && 
-                                                    !keyAlias.getApplicationId().equals(signApplicationId) &&
-                                                    !keyAlias.getReferenceId().equals(KeymanagerConstant.KERNEL_IDENTIFY_CACHE)))
+        allKeyAliases.stream().filter(keyAlias -> (Objects.isNull(keyAlias.getCertThumbprint()) || 
+                                                    keyAlias.getCertThumbprint().equals(KeymanagerConstant.EMPTY)))
                                 .forEach(keyAlias -> {
                                     try {
                                         if (keyAlias.getReferenceId().isEmpty() || 
@@ -349,7 +384,7 @@ public class KeymanagerDBHelper {
                                             storeKeyInAlias(keyAlias.getApplicationId(), keyAlias.getKeyGenerationTime(), keyAlias.getReferenceId(), 
                                                 keyAlias.getAlias(), keyAlias.getKeyExpiryTime(), certThumbprint, uniqueIdentifier);
                                             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
-                                                "Thumbprint added for the key alias: " + keyAlias.getAlias());
+                                                    "Thumbprint added for the key alias: " + keyAlias.getAlias());
                                         }
                                         if (!keyAlias.getReferenceId().isEmpty()){
                                             Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore = 
@@ -364,6 +399,11 @@ public class KeymanagerDBHelper {
                                                 uniqueValue += keyPolicy.isPresent() ? 
                                                                keyAlias.getKeyGenerationTime().format(KeymanagerConstant.DATE_FORMATTER) :
                                                                certThumbprint;
+                                                if (signApplicationId.equals(KeymanagerConstant.KERNEL_APP_ID) && 
+                                                            (keyAlias.getApplicationId().equals(KeymanagerConstant.IDA_APP_ID) ||
+                                                            keyAlias.getApplicationId().equals(KeymanagerConstant.PARTNER_APP_ID))) {
+                                                    uniqueValue += keyAlias.getAlias();
+                                                }
                                                 String uniqueIdentifier = keymanagerUtil.getUniqueIdentifier(uniqueValue);
                                                 storeKeyInAlias(keyAlias.getApplicationId(), keyAlias.getKeyGenerationTime(), 
                                                     keyAlias.getReferenceId(), keyAlias.getAlias(), keyAlias.getKeyExpiryTime(), 
@@ -372,7 +412,8 @@ public class KeymanagerDBHelper {
                                                     "Thumbprint added for the key alias: " + keyAlias.getAlias());
                                             }
                                         }
-                                        
+                                        LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                                            "Thumbprint added for the key alias: " + keyAlias.getAlias());
                                     } catch(Throwable t) {
                                         // May be unique constraint exception from DB
                                         LOGGER.debug(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
@@ -384,10 +425,8 @@ public class KeymanagerDBHelper {
     // this will get executed only one time to add the key unique identifier.
     private synchronized void addKeyUniqueIdentifier() {
         List<KeyAlias> allKeyAliases = keyAliasRepository.findByUniqueIdentifierIsNull();
-        allKeyAliases.stream().filter(keyAlias -> ((Objects.isNull(keyAlias.getUniqueIdentifier()) || 
-                                                    keyAlias.getUniqueIdentifier().equals(KeymanagerConstant.EMPTY)) && 
-                                                    !keyAlias.getApplicationId().equals(signApplicationId) &&
-                                                    !keyAlias.getReferenceId().equals(KeymanagerConstant.KERNEL_IDENTIFY_CACHE)))
+        allKeyAliases.stream().filter(keyAlias -> (Objects.isNull(keyAlias.getUniqueIdentifier()) || 
+                                                    keyAlias.getUniqueIdentifier().equals(KeymanagerConstant.EMPTY)))
                                 .forEach(keyAlias -> {
                                     try {
                                         if (keyAlias.getReferenceId().isEmpty() || 

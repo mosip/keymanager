@@ -26,7 +26,7 @@ import io.mosip.kernel.core.crypto.exception.NullDataException;
 import io.mosip.kernel.core.crypto.exception.NullKeyException;
 import io.mosip.kernel.core.crypto.exception.NullMethodException;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
@@ -84,7 +84,7 @@ public class SessionKeyDecrytorHelper {
 	 * Keystore instance to handles and store cryptographic keys.
 	 */
 	@Autowired
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@Autowired
 	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;

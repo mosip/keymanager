@@ -13,6 +13,7 @@ import javax.crypto.SecretKey;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 
@@ -24,7 +25,7 @@ import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
  * @since 1.1.4
  *
  */
-public class OLKeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.KeyStore {
+public class OLKeyStoreImpl implements ECKeyStore {
 
 	public OLKeyStoreImpl(Map<String, String> params) throws Exception {
         // Key Generation is not allowed in case of offline keystore.
@@ -165,5 +166,11 @@ public class OLKeyStoreImpl implements io.mosip.kernel.core.keymanager.spi.KeySt
 	@Override
 	public String getKeystoreProviderName() {
 		return KeymanagerConstant.KEYSTORE_TYPE_OFFLINE;
+	}
+
+	@Override
+	public void generateAndStoreAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams, String ecCurve) {
+		throw new KeystoreProcessingException(KeymanagerErrorCode.OFFLINE_KEYSTORE_ACCESS_ERROR.getErrorCode(),
+						KeymanagerErrorCode.OFFLINE_KEYSTORE_ACCESS_ERROR.getErrorMessage());
 	}
 }

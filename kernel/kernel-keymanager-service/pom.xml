@@ -33,7 +33,7 @@
 		<!-- data -->
 		<h2.version>1.4.197</h2.version>
 
-		<jose4j.version>0.6.5</jose4j.version>
+		<jose4j.version>0.9.6</jose4j.version>
 		<tss.version>0.3.0</tss.version>
 		<cache2k-version>2.4.1.Final</cache2k-version>
 		<spring.boot.configuration.processor>3.2.3</spring.boot.configuration.processor>

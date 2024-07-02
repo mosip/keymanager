@@ -21,11 +21,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
@@ -44,7 +42,7 @@ import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 public class CryptographicUtilWithKeyManagerTest {
 
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@Autowired
 	private CryptomanagerUtils cryptomanagerUtil;
@@ -54,9 +52,6 @@ public class CryptographicUtilWithKeyManagerTest {
 
 	@Autowired
 	private KeyGenerator generator;
-
-	@Autowired
-	private RestTemplate restTemplate;
 
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
