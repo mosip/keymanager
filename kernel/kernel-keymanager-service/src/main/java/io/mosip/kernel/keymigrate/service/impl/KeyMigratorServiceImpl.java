@@ -211,36 +211,6 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         return false;
     }
 
-    /* private String reSignCertificate(String appId, String masterKeyAlias, String oldCertData, LocalDateTime localDateTimeStamp, 
-                    LocalDateTime notBefore, LocalDateTime notAfter) {
-
-        String keyAlias = masterKeyAlias;
-        if (appId.equals(KeyMigratorConstants.PARTNER_APPID)){
-            Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(pmsSignAppId, KeyMigratorConstants.EMPTY, localDateTimeStamp);
-		    List<KeyAlias> currentKeyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
-            if (currentKeyAlias.isEmpty()) {
-                LOGGER.info(KeyMigratorConstants.SESSIONID, KeymanagerConstant.CURRENTKEYALIAS,
-                        String.valueOf(currentKeyAlias.size()), "No CurrentKeyAlias found for PMS Sign Key. Throwing exception");
-                throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
-                        KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
-            }
-            keyAlias = currentKeyAlias.get(0).getAlias();
-        }
-        PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyAlias);
-        PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
-        X509Certificate signerCert = masterKeyEntry.getCertificate();
-        X500Principal signerPrincipal = signerCert.getSubjectX500Principal();
-
-        X509Certificate oldCert = (X509Certificate) keymanagerUtil.convertToCertificate(oldCertData);
-        X500Principal oldCertPrincipal = oldCert.getSubjectX500Principal();
-        CertificateParameters certParams = keymanagerUtil.getCertificateParameters(oldCertPrincipal,
-                                                    notBefore, notAfter);
-
-        X509Certificate x509Cert = (X509Certificate) CertificateUtility.generateX509Certificate(masterPrivateKey, oldCert.getPublicKey(), 
-                    certParams, signerPrincipal, signAlgorithm, keyStore.getKeystoreProviderName());
-        return keymanagerUtil.getPEMFormatedData(x509Cert);
-    } */
-
     @Override
     public ZKKeyMigrateCertficateResponseDto getZKTempCertificate() {
 

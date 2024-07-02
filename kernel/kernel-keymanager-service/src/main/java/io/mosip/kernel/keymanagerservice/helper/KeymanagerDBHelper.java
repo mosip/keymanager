@@ -460,7 +460,6 @@ public class KeymanagerDBHelper {
                                                 storeKeyInAlias(keyAlias.getApplicationId(), keyAlias.getKeyGenerationTime(), 
                                                     keyAlias.getReferenceId(), keyAlias.getAlias(), keyAlias.getKeyExpiryTime(), 
                                                     keyAlias.getCertThumbprint(), uniqueIdentifier);
-                                                
                                             }
                                         }
                                         LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
