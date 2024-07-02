@@ -82,9 +82,9 @@ public class BaseKeysMigrator {
 
     private static final String BLANK_REF_ID = "";
 
-    private static final String KERNEL_APP_ID = "KERNEL";
+    //private static final String KERNEL_APP_ID = "KERNEL";
 
-    private static final String IDENTITY_CACHE_REF_ID = "IDENTITY_CACHE";
+    //private static final String IDENTITY_CACHE_REF_ID = "IDENTITY_CACHE";
 
     private static final String PARTNER_APP_ID = "PARTNER";
 
@@ -120,6 +120,12 @@ public class BaseKeysMigrator {
 
     @Value("${mosip.kernel.keymanager.keymigration.zkUploadkey.url}")
 	private String zkUploadKeyUrl;
+
+    @Value("${mosip.kernel.keymanager.keymigration.zkappid:KERNEL}")
+    private String zkApplicationId;
+
+    @Value("${mosip.kernel.keymanager.keymigration.zkrefid:IDENTITY_CACHE}")
+    private String zkReferenceId; 
 
     @Autowired
 	private ObjectMapper mapper;
@@ -338,7 +344,7 @@ public class BaseKeysMigrator {
         List<DataEncryptKeystore> zkRandomKeys = dataEncryptKeystoreRepository.findAll();
         X509Certificate zkTempCertificate = getZKTempCertificate();
         PublicKey zkPublicKey = zkTempCertificate.getPublicKey();
-        List<KeyAlias> masterKeyAlias = keyAliasRepository.findByApplicationIdAndReferenceId(KERNEL_APP_ID, IDENTITY_CACHE_REF_ID);
+        List<KeyAlias> masterKeyAlias = keyAliasRepository.findByApplicationIdAndReferenceId(zkApplicationId, zkReferenceId);
         String zkMasterKeyAlias = masterKeyAlias.get(0).getAlias();
         Key zkMasterKey = keyStore.getSymmetricKey(zkMasterKeyAlias);
         
