@@ -194,15 +194,6 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		SecretKey secretKey = keyGenerator.getSymmetricKey();
 		final byte[] encryptedData;
 		byte[] headerBytes = new byte[0];
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Input App Id & Ref Id for encrytion: " + cryptoRequestDto.getApplicationId() + ", " + 
-						cryptoRequestDto.getReferenceId());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Input data for encrytion: " + cryptoRequestDto.getData());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Input salt for encrytion: " + cryptoRequestDto.getSalt());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Input aad for encrytion: " + cryptoRequestDto.getAad());
 		if (cryptomanagerUtil.isValidSalt(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt()))) {
 			encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
 							cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt())),
@@ -241,12 +232,8 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
 		byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
 		byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Reponse cert thumbprint: " + CryptoUtil.encodeToURLSafeBase64(certThumbprint));
 		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, 
 							finalEncKeyBytes, keySplitter)));
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-							"Reponse cert thumbprint: " + cryptoResponseDto.getData());
 		return cryptoResponseDto;
 	}
 
@@ -279,14 +266,6 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.DECRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
 						CryptomanagerErrorCode.DECRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
 		}
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Input App id for decryption: " + cryptoRequestDto.getApplicationId());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Input Ref Id for decryption: " + cryptoRequestDto.getReferenceId());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Input data for decryption: " + cryptoRequestDto.getData());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Input salt for decryption: " + cryptoRequestDto.getSalt());
 		int keyDemiliterIndex = 0;
 		byte[] encryptedHybridData = cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData());
 		keyDemiliterIndex = CryptoUtil.getSplitterIndex(encryptedHybridData, keyDemiliterIndex, keySplitter);
@@ -316,8 +295,6 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 						"Data decryption completed.");
 		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
 		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData));
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Response Data decryption: " + cryptoResponseDto.getData());
 		return cryptoResponseDto;
 	}
 
