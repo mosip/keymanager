@@ -253,9 +253,11 @@ public class SignatureServiceImpl implements SignatureService {
 			});
 			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.SESSIONID, KeymanagerConstant.SESSIONID,
 					"all providers "); */
-			outputStream = pdfGenerator.signAndEncryptPDF(CryptoUtil.decodeURLSafeBase64(request.getData()), rectangle,
+			outputStream = pdfGenerator.signAndEncryptPDF(CryptoUtil.decodeBase64(request.getData()), rectangle,
 					request.getReason(), request.getPageNumber(), Security.getProvider(providerName),
 					signatureCertificate.getCertificateEntry(), request.getPassword());
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.SESSIONID, KeymanagerConstant.SESSIONID,
+					"Completed PDF Signing.");
 		} catch (IOException | GeneralSecurityException e) {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
 					KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage() + " " + e.getMessage());

@@ -975,12 +975,20 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		}
 
 		if (appId.equalsIgnoreCase(signApplicationid) && refId.equalsIgnoreCase(certificateSignRefID)) {
-			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
+			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 					"Not allowed to upload other domain certificate with AppId: " + signApplicationid + " & RefId: SIGN.");
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
 					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
 		}
-		
+		if (keymanagerUtil.isValidReferenceId(refId) && 
+					(Arrays.stream(KeyReferenceIdConsts.values()).anyMatch((rId) -> rId.name().equals(refId)))) {
+			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
+						"Not allowed to upload other domain certificate with RefId: " + refId 
+						+ ", This refId is reserve for ECC algorithms.");
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
+						KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+		}
+
 		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 				"to get KeyInfo for application ID: " + appId + ", RefId: " + refId);
 		LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
@@ -1039,7 +1047,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		
 		// 
 		if (currentKeyAlias.get(0).getCertThumbprint().equals(certThumbprint)) {
-			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
+			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 					"Not Allowed to upload same certificate for other domains. " +
 							"Current available certificate thumbprint matching with input certificate thumbprint.");
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
