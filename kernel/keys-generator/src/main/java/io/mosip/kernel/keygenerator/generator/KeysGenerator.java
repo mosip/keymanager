@@ -1,6 +1,6 @@
 package io.mosip.kernel.keygenerator.generator;
 
-import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -13,9 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import io.mosip.kernel.keymanagerservice.constant.KeyReferenceIdConsts;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
-import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 
 /**
@@ -185,13 +184,17 @@ public class KeysGenerator {
         requestDto.setApplicationId(appId);
         requestDto.setReferenceId(refId);
         requestDto.setForce(false);
-        requestDto.setCommonName(commonName);
+        /* requestDto.setCommonName(commonName);
         String componentName = appId.equalsIgnoreCase(ROOT_APP_ID) ? "" : " (" + appId.toUpperCase() + ")";
         requestDto.setOrganizationUnit(organizationUnit + componentName);
         requestDto.setOrganization(organization);
         requestDto.setLocation(location);
         requestDto.setState(state);
-        requestDto.setCountry(country);
+        requestDto.setCountry(country); */
+        if(Arrays.stream(KeyReferenceIdConsts.values()).anyMatch((rId) -> rId.name().equals(refId))) {
+            keymanagerService.generateECSignKey(DUMMY_RESP_TYPE, requestDto);
+            return;
+        }
         keymanagerService.generateMasterKey(DUMMY_RESP_TYPE, requestDto);
     }
 
