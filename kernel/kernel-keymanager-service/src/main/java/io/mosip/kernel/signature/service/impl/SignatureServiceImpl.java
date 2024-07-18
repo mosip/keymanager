@@ -476,10 +476,13 @@ public class SignatureServiceImpl implements SignatureService {
 							"Supported Signature Algorithm: " + 
 					AlgorithmFactoryFactory.getInstance().getJwsAlgorithmFactory().getSupportedAlgorithms());
 			} else {
-				ProviderContext provContext = new ProviderContext();
-				provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
-				jws.setProviderContext(provContext);
-				publicKey = certToVerify.getPublicKey();
+				if (!ecKeyStore.getKeystoreProviderName().equals(
+						io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.KEYSTORE_TYPE_OFFLINE)) {
+					ProviderContext provContext = new ProviderContext();
+					provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
+					jws.setProviderContext(provContext);
+					publicKey = certToVerify.getPublicKey();
+				}
 			}
 						
 			if (Objects.nonNull(actualData))
