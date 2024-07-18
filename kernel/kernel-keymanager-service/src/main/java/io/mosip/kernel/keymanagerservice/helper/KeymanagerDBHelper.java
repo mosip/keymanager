@@ -109,13 +109,17 @@ public class KeymanagerDBHelper {
         if (autoUpdate) {
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                         "Updating the thumbprint & key unique identifer in the table..");
-            createCacheObject();
-            createKeyAliasCacheObject();
             addCertificateThumbprints();
             addKeyUniqueIdentifier();
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
                         "Updating the thumbprint & key unique identifer completed.");
         }
+        LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                        "Creating Cache object for key policy & Key Alias.");
+        createCacheObject();
+        createKeyAliasCacheObject();
+        LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, 
+                        "Cache object for key policy & Key Alias creation completed.");
     }
 
     private void createCacheObject() {
