@@ -178,6 +178,7 @@ public class KeymanagerDBHelper {
         keyAlias.setCertThumbprint(certThumbprint);
         keyAlias.setUniqueIdentifier(uniqueIdentifier);
         keyAliasRepository.saveAndFlush(keymanagerUtil.setMetaData(keyAlias));
+        purgeKeyAliasCache(applicationId, referenceId);
     }
 
     /**
@@ -497,5 +498,13 @@ public class KeymanagerDBHelper {
             return 30;
         }
         return encKeyPolicy.get().getPreExpireDays();
+    }
+
+    private void purgeKeyAliasCache(String applicationId, String referenceId) {
+        String appIdRefIdKey = applicationId + KeymanagerConstant.APP_REF_ID_SEP + referenceId;
+        LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, 
+                    "Purging from Cache because new key generated or new certificate uploaded." +
+                    "AppId & RefId: " + appIdRefIdKey);
+            keyAliasCache.expireAt(appIdRefIdKey, Expiry.NOW);
     }
 }
