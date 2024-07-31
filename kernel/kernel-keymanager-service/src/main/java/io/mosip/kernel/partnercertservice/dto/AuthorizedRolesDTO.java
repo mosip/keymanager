@@ -24,4 +24,6 @@ public class AuthorizedRolesDTO {
 	
 	private List<String> postverifycertificatetrust;
 
+	private List<String> getgetpartnersignedcertificatepartnercertid;
+
 }

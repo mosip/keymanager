@@ -8,6 +8,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
+import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
 
 /**
  * This interface provides the methods for Partner Certificate Management Service.
@@ -59,4 +60,12 @@ public interface PartnerCertificateManagerService {
      * @return void 
     */
     public void purgeTrustStoreCache(String partnerDomain);
+
+     /**
+     * Function to Download Partner CA Signed certificates & MOSIP CA Signed Certificate.
+     * 
+     * @param PartnerCertDownloadRequestDto certDownloadRequestDto
+     * @return {@link PartnerCertDownloadResponeDto} instance
+    */
+    public PartnerSignedCertDownloadResponseDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto);
 }

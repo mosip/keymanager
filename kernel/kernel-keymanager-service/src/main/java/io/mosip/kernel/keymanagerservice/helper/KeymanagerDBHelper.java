@@ -505,6 +505,6 @@ public class KeymanagerDBHelper {
         LOGGER.info(KeymanagerConstant.SESSIONID, applicationId, referenceId, 
                     "Purging from Cache because new key generated or new certificate uploaded." +
                     "AppId & RefId: " + appIdRefIdKey);
-            keyAliasCache.expireAt(appIdRefIdKey, Expiry.NOW);
+        keyAliasCache.expireAt(appIdRefIdKey, Expiry.NOW);
     }
 }
