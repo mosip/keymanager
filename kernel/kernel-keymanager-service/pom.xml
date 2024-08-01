@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.mosip.kernel</groupId>
 	<artifactId>kernel-keymanager-service</artifactId>
-	<version>1.3.0-B1-SNAPSHOT</version>
+	<version>1.3.0-SNAPSHOT</version>
 	<name>kernel-keymanager-service</name>
 	<description>Mosip commons project </description>
 	<url>https://github.com/mosip/keymanager</url>
@@ -25,10 +25,10 @@
 		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
 
 		<!-- Kernel -->
-		<kernel.core.version>1.3.0-B1-SNAPSHOT</kernel.core.version>
-		<kernel.logger.logback.version>1.3.0-B1-SNAPSHOT</kernel.logger.logback.version>
-		<kernel.pdfgenerator.itext.version>1.3.0-B1-SNAPSHOT</kernel.pdfgenerator.itext.version>
-		<kernel.dataaccess.hibernate.version>1.3.0-B1-SNAPSHOT</kernel.dataaccess.hibernate.version>
+		<kernel.core.version>1.3.0-SNAPSHOT</kernel.core.version>
+		<kernel.logger.logback.version>1.3.0-SNAPSHOT</kernel.logger.logback.version>
+		<kernel.pdfgenerator.itext.version>1.3.0-SNAPSHOT</kernel.pdfgenerator.itext.version>
+		<kernel.dataaccess.hibernate.version>1.3.0-SNAPSHOT</kernel.dataaccess.hibernate.version>
 
 		<!-- data -->
 		<h2.version>1.4.197</h2.version>
@@ -56,7 +56,7 @@
 			<dependency>
 				<groupId>io.mosip.kernel</groupId>
 				<artifactId>kernel-bom</artifactId>
-				<version>1.3.0-B1-SNAPSHOT</version>
+				<version>1.3.0-SNAPSHOT</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
