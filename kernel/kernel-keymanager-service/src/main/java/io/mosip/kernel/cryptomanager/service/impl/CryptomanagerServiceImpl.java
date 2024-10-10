@@ -570,7 +570,13 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		if (!cryptomanagerUtil.isDataValid(saltData)) {
 			SecretKey aesKey = (SecretKey) saltGenParamsCache.get(CryptomanagerConstant.CACHE_AES_KEY);
 			AtomicLong intCounter = (AtomicLong) saltGenParamsCache.get(CryptomanagerConstant.CACHE_INT_COUNTER);
-			long saltInput = intCounter.getAndIncrement();
+			if (Objects.isNull(intCounter)) {
+				if(secureRandom == null)
+					secureRandom = new SecureRandom();
+				intCounter = new AtomicLong(secureRandom.nextLong());
+			}
+            long saltInput = intCounter.getAndIncrement();
+
 			saltGenParamsCache.put(CryptomanagerConstant.CACHE_INT_COUNTER, intCounter);
 			saltBytes = getSaltBytes(getLongBytes(saltInput), aesKey);
 			saltData = CryptoUtil.encodeToURLSafeBase64(saltBytes);

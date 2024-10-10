@@ -115,14 +115,15 @@ public class ClientCryptoFacade {
     public boolean validateSignature(ClientType clientType, byte[] publicKey, byte[] signature, byte[] actualData) {
         clientType = isTPMKey(publicKey) ? ClientType.TPM : clientType;
 
-        switch (clientType == null ? clientType.LOCAL : clientType) {
+        switch (clientType == null ? ClientType.LOCAL : clientType) {
             case TPM:
                 return TPMClientCryptoServiceImpl.validateSignature(publicKey, signature, actualData);
             case ANDROID:
                 return AndroidClientCryptoServiceImpl.validateSignature(publicKey, signature, actualData);
+            default:
+                LOGGER.warn("USING LOCAL CLIENT SECURITY USED TO SIGN DATA, IGNORING IF THIS IS NON-PROD ENV");
+                return LocalClientCryptoServiceImpl.validateSignature(publicKey, signature, actualData);
         }
-        LOGGER.warn("USING LOCAL CLIENT SECURITY USED TO SIGN DATA, IGNORE IF THIS IS NON-PROD ENV");
-        return LocalClientCryptoServiceImpl.validateSignature(publicKey, signature, actualData);
     }
 
     public byte[] encrypt(ClientType clientType, byte[] publicKey, byte[] dataToEncrypt) {
@@ -134,7 +135,7 @@ public class ClientCryptoFacade {
         byte[] cipher = cryptoCore.symmetricEncrypt(secretKey, dataToEncrypt, iv, aad);
 
         byte[] encryptedSecretKey = null;
-        switch (clientType == null ? clientType.LOCAL : clientType)  {
+        switch (clientType == null ? ClientType.LOCAL : clientType)  {
             case TPM:
                 encryptedSecretKey = TPMClientCryptoServiceImpl.asymmetricEncrypt(publicKey, secretKey.getEncoded());
                 break;

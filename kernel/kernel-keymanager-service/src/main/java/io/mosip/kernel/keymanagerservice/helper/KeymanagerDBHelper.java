@@ -186,7 +186,6 @@ public class KeymanagerDBHelper {
     * 
     * @param alias               alias
     * @param masterAlias         masterAlias
-    * @param publicKey           publicKey
     * @param encryptedPrivateKey encryptedPrivateKey
     */
     public void storeKeyInDBStore(String alias, String masterAlias, String certificateData, String encryptedPrivateKey) {
@@ -209,10 +208,12 @@ public class KeymanagerDBHelper {
 	 *         referenceId with key "keyAlias"; and a list of all keyalias with
 	 *         matching timestamp with key "currentKeyAlias"
 	 */
+    @SuppressWarnings("null")
 	public Map<String, List<KeyAlias>> getKeyAliases(String applicationId, String referenceId, LocalDateTime timeStamp) {
         LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY, KeymanagerConstant.GETALIAS);
         Map<String, List<KeyAlias>> hashmap = new HashMap<>();
         String appIdRefIdKey = applicationId + KeymanagerConstant.APP_REF_ID_SEP + referenceId;
+
         List<KeyAlias> keyAliases = keyAliasCache.get(appIdRefIdKey).stream()
                 .sorted((alias1, alias2) -> alias1.getKeyGenerationTime().compareTo(alias2.getKeyGenerationTime()))
                 .collect(Collectors.toList());
