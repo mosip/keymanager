@@ -101,13 +101,11 @@ spec:
                 name: {{ . }}
             {{- end }}
             {{- end }}
-            {{- if .Values.softHsmCM }}
-            - configMapRef:
-                name: {{ .Values.softHsmCM }}
-            {{- end }}
             {{- if .Values.extraEnvVarsSecret }}
+            {{- range .Values.extraEnvVarsSecret }}
             - secretRef:
-                name: {{ include "common.tplvalues.render" (dict "value" .Values.extraEnvVarsSecret "context" $) }}
+                name: {{ . }}
+            {{- end }}
             {{- end }}
           volumeMounts:
             {{- if .Values.persistence.enabled }}
