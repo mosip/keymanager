@@ -977,16 +977,16 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		if (appId.equalsIgnoreCase(signApplicationid) && refId.equalsIgnoreCase(certificateSignRefID)) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 					"Not allowed to upload other domain certificate with AppId: " + signApplicationid + " & RefId: SIGN.");
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.SIGN_APP_ID_REFERENCEID_NOT_ALLOWED.getErrorCode(),
+					KeymanagerErrorConstant.SIGN_APP_ID_REFERENCEID_NOT_ALLOWED.getErrorMessage());
 		}
 		if (keymanagerUtil.isValidReferenceId(refId) && 
 					(Arrays.stream(KeyReferenceIdConsts.values()).anyMatch((rId) -> rId.name().equals(refId)))) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 						"Not allowed to upload other domain certificate with RefId: " + refId 
 						+ ", This refId is reserve for ECC algorithms.");
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-						KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.EC_SIGN_REFERENCE_ID_NOT_SUPPORTED.getErrorCode(),
+						KeymanagerErrorConstant.EC_SIGN_REFERENCE_ID_NOT_SUPPORTED.getErrorMessage());
 		}
 
 		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
@@ -1019,8 +1019,8 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			if (!keyFromDBStore.isPresent()) {
 				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
 									"Other valid key is available, so not allowed to upload certificate.");
-				throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-									KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+				throw new KeymanagerServiceException(KeymanagerErrorConstant.VALID_KEY_ALREADY_EXIST.getErrorCode(),
+									KeymanagerErrorConstant.VALID_KEY_ALREADY_EXIST.getErrorMessage());
 			}
 			return storeAndBuildResponse(appId, refId, reqX509Cert, notBeforeDate, notAfterDate, certThumbprint);
 		}
@@ -1031,8 +1031,8 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		if (!keyFromDBStore.isPresent() && currentKeyAlias.size() == 1) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
 								"Other domain valid key is not available in key store, so not allowed to upload certificate.");
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-								KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.OTHER_DOMAIN_VALID_KEY_NOT_EXIST.getErrorCode(),
+								KeymanagerErrorConstant.OTHER_DOMAIN_VALID_KEY_NOT_EXIST.getErrorMessage());
 		} 
 
 		// master key alias & key alias should be same & private key should not available for other domain certificates.
@@ -1041,8 +1041,8 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		if (!keyAlias.equals(masterKeyAlias) || !privateKeyObj.equals(KeymanagerConstant.KS_PK_NA)) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
 					"Not Allowed to update certificate for other domains if private key available.");
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.PRIVATE_KEY_FOUND.getErrorCode(),
+					KeymanagerErrorConstant.PRIVATE_KEY_FOUND.getErrorMessage());
 		}
 		
 		// 
@@ -1050,8 +1050,8 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, appId,
 					"Not Allowed to upload same certificate for other domains. " +
 							"Current available certificate thumbprint matching with input certificate thumbprint.");
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorCode(),
-					KeymanagerErrorConstant.UPLOAD_NOT_ALLOWED.getErrorMessage());
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.CERTIFICATE_ALREADY_EXIST.getErrorCode(),
+					KeymanagerErrorConstant.CERTIFICATE_ALREADY_EXIST.getErrorMessage());
 		}
 		
 		LocalDateTime expireTime = timestamp.minusMinutes(1L);

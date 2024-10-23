@@ -69,6 +69,16 @@ public enum KeymanagerErrorConstant {
 
 	EC_SIGN_REFERENCE_ID_NOT_SUPPORTED("KER-KMS-030", "EC Sign Reference Id Not Supported for the Application ID."),
 
+	SIGN_APP_ID_REFERENCEID_NOT_ALLOWED("KER-KMS-031", "Application Id with KERNEL & Reference Id with Sign not allowed to upload Partner certificate."),
+
+	VALID_KEY_ALREADY_EXIST("KER-KMS-032", "Valid Key already Exist, not allowed to upload another Certificate."),
+
+	OTHER_DOMAIN_VALID_KEY_NOT_EXIST("KER-KMS-033", "Other Domain Valid key not available, Upload other domain valid Key certificate."),
+
+	PRIVATE_KEY_FOUND("KER-KMS-034", "PrivateKey available, for Other Domain Certificate, Private Key should not available."),
+
+	CERTIFICATE_ALREADY_EXIST("KER-KMS-035", "Certificate Already Exist, not allowed to upload same certificate again"),
+
 	INTERNAL_SERVER_ERROR("KER-KMS-500", "Internal server error");
 
 	/**
