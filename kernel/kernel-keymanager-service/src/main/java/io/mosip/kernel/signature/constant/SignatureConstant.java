@@ -22,6 +22,8 @@ public class SignatureConstant {
 
 	public static final String JWT_SIGN = "JWTSignature";
 
+	public static final String RAW_SIGN = "RAW_SIGN";
+
 	public static final String BLANK = "";
 
 	public static final Boolean DEFAULT_INCLUDES = false;

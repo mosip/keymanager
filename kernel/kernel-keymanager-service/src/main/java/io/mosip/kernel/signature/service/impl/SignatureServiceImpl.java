@@ -22,7 +22,15 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
+import com.mchange.util.Base64Encoder;
+import com.nimbusds.jose.JWSAlgorithm;
+import io.ipfs.multibase.Multibase;
+import io.mosip.kernel.keymanagerservice.exception.InvalidApplicationIdException;
+import io.mosip.kernel.keymanagerservice.exception.InvalidFormatException;
+import io.mosip.kernel.signature.dto.*;
+import io.mosip.kernel.signature.service.SignatureServicev2;
 import org.apache.commons.codec.binary.Base64;
+import org.bouncycastle.pqc.jcajce.provider.dilithium.DilithiumKeyFactorySpi;
 import org.jose4j.jca.ProviderContext;
 import org.jose4j.jwa.AlgorithmFactory;
 import org.jose4j.jwa.AlgorithmFactoryFactory;
@@ -67,17 +75,6 @@ import io.mosip.kernel.partnercertservice.dto.CertificateTrustResponeDto;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
-import io.mosip.kernel.signature.dto.JWSSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureResponseDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyResponseDto;
-import io.mosip.kernel.signature.dto.PDFSignatureRequestDto;
-import io.mosip.kernel.signature.dto.SignRequestDto;
-import io.mosip.kernel.signature.dto.SignatureRequestDto;
-import io.mosip.kernel.signature.dto.SignatureResponseDto;
-import io.mosip.kernel.signature.dto.TimestampRequestDto;
-import io.mosip.kernel.signature.dto.ValidatorResponseDto;
 import io.mosip.kernel.signature.exception.CertificateNotValidException;
 import io.mosip.kernel.signature.exception.PublicKeyParseException;
 import io.mosip.kernel.signature.exception.RequestException;
@@ -93,7 +90,7 @@ import jakarta.annotation.PostConstruct;
  *
  */
 @Service
-public class SignatureServiceImpl implements SignatureService {
+public class SignatureServiceImpl implements SignatureService, SignatureServicev2 {
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureServiceImpl.class);
 
@@ -627,6 +624,67 @@ public class SignatureServiceImpl implements SignatureService {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
 				"JWS Signature Request - Completed.");
 		return responseDto;
+	}
+
+	@Override
+	public SignResponseDto signv2(SignRequestDtoV2 signatureReq) {
+		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+				"Raw Sign Signature Request.");
+		String applicationId = signatureReq.getApplicationId();
+		String referenceId = signatureReq.getReferenceId();
+		boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(applicationId);
+		String reqDataToSign = signatureReq.getDataToSign();
+		if (!hasAcccess) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+					"Signing Data is not allowed for the authenticated user for the provided application id.");
+			throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+					SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
+		}
+
+		if (!SignatureUtil.isDataValid(reqDataToSign)) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+					"Provided Data to sign is invalid.");
+			throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+					SignatureErrorCode.INVALID_INPUT.getErrorMessage());
+		}
+		byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
+		String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+			applicationId = signApplicationid;
+			referenceId = signRefid;
+		}
+		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
+				signatureReq.getSignAlgorithm(): SignatureConstant.ED25519_ALGORITHM;
+
+		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
+				Optional.of(referenceId), timestamp);
+		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+				DateUtils.parseUTCToDate(timestamp));
+		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
+        certificateResponse.getCertificateEntry().getChain();
+        String providerName = certificateResponse.getProviderName();
+		SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
+		if (Objects.isNull(signatureProvider)) {
+			signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
+		}
+		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
+		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
+		SignResponseDto signedData = new SignResponseDto();
+		signedData.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		switch (signatureReq.getResponseEncodingFormat()) {
+			case "base64url":
+				signedData.setSignature(
+						Multibase.encode(Multibase.Base.Base64Url, data));
+				break;
+			case "base58btc":
+				signedData.setSignature(
+						Multibase.encode(Multibase.Base.Base58BTC, data));
+				break;
+			default:
+				throw new InvalidFormatException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
+						KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
+		}
+		return signedData;
 	}
 
 	public static class EcdsaSECP256K1UsingSha256 extends EcdsaUsingShaAlgorithm

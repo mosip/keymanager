@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 public class SignResponseDto {
 
 	/**
-	 * encrypted data
+	 * signed data encoded as per request input
 	 */
 	private String signature;
 

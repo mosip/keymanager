@@ -69,9 +69,11 @@ public enum KeymanagerErrorConstant {
 
 	EC_SIGN_REFERENCE_ID_NOT_SUPPORTED("KER-KMS-030", "EC Sign Reference Id Not Supported for the Application ID."),
 
-	INTERNAL_SERVER_ERROR("KER-KMS-500", "Internal server error");
+	INTERNAL_SERVER_ERROR("KER-KMS-500", "Internal server error"),
 
-	/**
+	INVALID_FORMAT_ERROR("KER-KMS-XXX", "Unsupported output format for the signature");
+
+    /**
 	 * The error code.
 	 */
 	private final String errorCode;
@@ -85,7 +87,7 @@ public enum KeymanagerErrorConstant {
 	 * @param errorCode    The error code to be set.
 	 * @param errorMessage The error message to be set.
 	 */
-	private KeymanagerErrorConstant(String errorCode, String errorMessage) {
+    KeymanagerErrorConstant(String errorCode, String errorMessage) {
 		this.errorCode = errorCode;
 		this.errorMessage = errorMessage;
 	}
