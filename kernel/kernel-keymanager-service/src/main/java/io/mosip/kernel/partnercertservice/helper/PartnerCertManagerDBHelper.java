@@ -3,14 +3,11 @@ package io.mosip.kernel.partnercertservice.helper;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import io.mosip.kernel.keymanagerservice.dto.CertificateDataResponseDto;
+import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -55,6 +52,9 @@ public class PartnerCertManagerDBHelper {
 	*/
 	@Autowired
     KeymanagerUtil keymanagerUtil;
+
+    @Autowired
+    KeymanagerService keymanagerService;
     
     public boolean isCertificateExist(String certThumbprint, String partnerDomain){
         CACertificateStore caCertificate = caCertificateStoreRepository
@@ -75,7 +75,7 @@ public class PartnerCertManagerDBHelper {
     }
 
     public void storeCACertificate(String certId, String certSubject, String certIssuer, String issuerId, 
-                    X509Certificate reqX509Cert, String certThumbprint, String partnerDomain) {
+                    X509Certificate reqX509Cert, String certThumbprint, String partnerDomain, String caCertType) {
 
         String certSerialNo = reqX509Cert.getSerialNumber().toString();
         LocalDateTime notBeforeDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
@@ -92,6 +92,7 @@ public class PartnerCertManagerDBHelper {
         certStoreObj.setCertThumbprint(certThumbprint);
         certStoreObj.setCertSerialNo(certSerialNo);
         certStoreObj.setPartnerDomain(partnerDomain);
+        certStoreObj.setCaCertificateType(caCertType);
         caCertificateStoreRepository.saveAndFlush(keymanagerUtil.setMetaData(certStoreObj));
     }
 
@@ -160,5 +161,14 @@ public class PartnerCertManagerDBHelper {
 
     public PartnerCertificateStore getPartnerCert(String certId) {
         return partnerCertificateStoreRepository.findByCertId(certId);
+    }
+
+    public void getCertThumbprints(String appId, Optional<String> refId, List<String> certThumbprints) {
+        CertificateDataResponseDto[] certificates = keymanagerService.getAllCertificates(appId, refId).getAllCertificates();
+        for (CertificateDataResponseDto certData : certificates) {
+            X509Certificate certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certData.getCertificateData());
+            String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(certificate);
+            certThumbprints.add(certThumbprint);
+        }
     }
 }

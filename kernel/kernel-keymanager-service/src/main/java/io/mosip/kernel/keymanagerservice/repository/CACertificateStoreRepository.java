@@ -4,7 +4,10 @@ package io.mosip.kernel.keymanagerservice.repository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -18,7 +21,7 @@ import io.mosip.kernel.keymanagerservice.entity.CACertificateStore;
  *
  */
 @Repository
-public interface CACertificateStoreRepository extends JpaRepository<CACertificateStore, String> {
+public interface CACertificateStoreRepository extends JpaRepository<CACertificateStore, String>, JpaSpecificationExecutor<CACertificateStore> {
 
 	/**
 	 * Function to find CACertificates by Certificate Subject and Certificate Issuer. 
@@ -28,7 +31,6 @@ public interface CACertificateStoreRepository extends JpaRepository<CACertificat
 	 * @return list of CACertificateStore
 	 */
     List<CACertificateStore> findByCertSubjectAndCertIssuer(String certSubject, String certIssuer);
-    
 
     /**
 	 * Function to find CACertificate by Certificate thumbprint. 
@@ -44,6 +46,13 @@ public interface CACertificateStoreRepository extends JpaRepository<CACertificat
 	 * @return list of CACertificateStore
 	*/
 	List<CACertificateStore> findAll();
+
+	/**
+	 * Function to fetch all certificate whose caCertificateType is null
+	 *
+	 * @return list of CACertificateStore
+	 */
+	List<CACertificateStore> findByCaCertificateTypeIsNull();
 	
 	/**
 	 * Function to find CACertificates by Certificate Subject. 
@@ -60,7 +69,7 @@ public interface CACertificateStoreRepository extends JpaRepository<CACertificat
 	 * @return list of CACertificateStore
 	 */
 	List<CACertificateStore> findByPartnerDomain(String partnerDomain);
-	
+
 	/**
 	 * Function to find CACertificate by Certificate thumbprint and Partner domain. 
 	 * 
