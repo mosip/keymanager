@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.*;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -67,6 +68,19 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CertificateDataResponseDto;
+import io.mosip.kernel.keymanagerservice.entity.CACertificateStore;
+import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
+import io.mosip.kernel.keymanagerservice.repository.CACertificateStoreRepository;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
+import io.mosip.kernel.partnercertservice.helper.CACertificateStoreSpec;
+import io.mosip.kernel.partnercertservice.constant.CaCertificateTypeConsts;
+import io.mosip.kernel.partnercertservice.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import io.mosip.kernel.partnercertservice.exception.PartnerCertManagerException;
 import io.mosip.kernel.partnercertservice.helper.PartnerCertManagerDBHelper;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
@@ -127,6 +141,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     PartnerCertManagerDBHelper certDBHelper;
 
     /**
+     * Repository to get CA certificate
+     */
+    @Autowired
+    CACertificateStoreRepository caCertificateStoreRepository;
+
+    /**
      * Keystore instance to handles and store cryptographic keys.
      */
     @Autowired
@@ -140,11 +160,18 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Autowired
     CryptomanagerUtils cryptomanagerUtil;
 
+    @Autowired
+    KeyAliasRepository keyAliasRepository;
+
+    @Autowired
+    PartnerCertManagerDBHelper partnerCertManagerDBHelper;
+
     @PostConstruct
     public void init() {
         // Added Cache2kBuilder in the postConstruct because expire value 
         // configured in properties are getting injected after this object creation.
         // Cache2kBuilder constructor is throwing error.
+        checkAndUpdateCaCertificateTypeIsNull();
         if (!disableTrustStoreCache) {
                 caCertTrustStore = new Cache2kBuilder<String, Object>() {}
                 // added hashcode because test case execution failing with IllegalStateException: Cache already created
@@ -159,6 +186,24 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         return certDBHelper.getTrustAnchors(partnerDomain);
                 })
                 .build();
+        }
+    }
+
+    private void checkAndUpdateCaCertificateTypeIsNull() {
+        List<CACertificateStore> certificates = caCertificateStoreRepository.findByCaCertificateTypeIsNull();
+        String caCertificateType;
+
+        for(CACertificateStore certificate : certificates) {
+            X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificate.getCertData());
+
+            if(PartnerCertificateManagerUtil.isSelfSignedCertificate(x509Cert)) {
+                caCertificateType = String.valueOf(CaCertificateTypeConsts.ROOT);
+            } else {
+                caCertificateType = String.valueOf(CaCertificateTypeConsts.INTERMEDIATE);
+            }
+
+            certificate.setCaCertificateType(caCertificateType);
+            caCertificateStoreRepository.saveAndFlush(certificate);
         }
     }
 
@@ -201,8 +246,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                         PartnerCertManagerConstants.EMPTY, "Adding Self-signed Certificate in store.");
                 String certId = UUID.randomUUID().toString();
+                String caCertificateType = String.valueOf(CaCertificateTypeConsts.ROOT);
                 certDBHelper.storeCACertificate(certId, certSubject, certIssuer, certId, reqX509Cert, certThumbprint,
-                        partnerDomain);
+                        partnerDomain, caCertificateType);
                 uploadedCert = true;
 
             } else {
@@ -223,8 +269,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 }
                 String issuerId = certDBHelper.getIssuerCertId(certIssuer);
                 String certId = UUID.randomUUID().toString();
+                String caCertificateType = String.valueOf(CaCertificateTypeConsts.INTERMEDIATE);
                 certDBHelper.storeCACertificate(certId, certSubject, certIssuer, issuerId, reqX509Cert, certThumbprint,
-                        partnerDomain);
+                        partnerDomain, caCertificateType);
                 uploadedCert = true;
             }
             purgeCache(partnerDomain);
@@ -277,6 +324,20 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         PartnerCertManagerErrorConstants.INVALID_PARTNER_DOMAIN.getErrorCode(),
                         PartnerCertManagerErrorConstants.INVALID_PARTNER_DOMAIN.getErrorMessage()));
         return validPartnerDomain.toUpperCase();
+    }
+
+    private String validateAllowedCaCertificateType(String caCertificateType) {
+        boolean isValidCaCertType = Arrays.stream(CaCertificateTypeConsts.values()).anyMatch((caCertType) -> caCertType.name()
+                .equalsIgnoreCase(caCertificateType));
+        if(!isValidCaCertType) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.EMPTY, caCertificateType,
+                    "Invalid CA Certificate Type", PartnerCertManagerErrorConstants.INVALID_CA_CERTIFICATE_TYPE);
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.INVALID_CA_CERTIFICATE_TYPE.getErrorCode(),
+                    PartnerCertManagerErrorConstants.INVALID_CA_CERTIFICATE_TYPE.getErrorMessage()
+            );
+        }
+        return caCertificateType.toUpperCase();
     }
 
     @SuppressWarnings({"unchecked", "java:S2259"}) // added suppress for sonarcloud, not possibility of null pointer exception.
@@ -672,5 +733,78 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                     PartnerCertManagerErrorConstants.PARTNER_CERT_ID_NOT_FOUND.getErrorMessage());
         }
         return partnerCertStore;
+    }
+
+    @Override
+    public CaCertificateChainResponseDto getCaCertificateChain(CaCertTypeListRequestDto requestDto) {
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT, requestDto.getCaCertificateType(),
+                "Request to get Certificate for Domain and Certificate Type: " + requestDto.getPartnerDomain());
+
+        Boolean excludeMosipCert = requestDto.getExcludeMosipCA() == null ? Boolean.FALSE : requestDto.getExcludeMosipCA();
+        String partnerDomain = validateAllowedDomains(requestDto.getPartnerDomain());
+        String caCertificateType = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getCaCertificateType()) == null ? null : validateAllowedCaCertificateType(requestDto.getCaCertificateType());
+        int offSet = requestDto.getPageNumber() < 1 ? 0 : requestDto.getPageNumber() - 1;
+        int pageSize = requestDto.getPageSize() < 1 ? 10 : requestDto.getPageSize();
+        String certId = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getCertId());
+        String issuedTo = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getIssuedTo());
+        String issuedBy = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getIssuedBy());
+        LocalDateTime validFrom = requestDto.getValidFromDate();
+        LocalDateTime validTill = requestDto.getValidTillDate();
+        LocalDateTime uploadTime = requestDto.getUploadTime();
+        String sortFieldName = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getSortByFieldName()) == null ? "createdtimes" : requestDto.getSortByFieldName();
+
+        Sort.Direction direction = "DESC".equalsIgnoreCase(requestDto.getSortOrder()) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(offSet, pageSize, Sort.by(direction, sortFieldName));
+
+        List<String> certThumbprints = getMosipCertThumbprints(excludeMosipCert);
+
+        Specification<CACertificateStore> spec = CACertificateStoreSpec.filterCertificates(
+                caCertificateType, partnerDomain, certId, issuedTo, issuedBy, validFrom, validTill, uploadTime, certThumbprints);
+
+        Page<CACertificateStore> partnerCertificateList = caCertificateStoreRepository.findAll(spec, pageRequest);
+
+        CaCertTypeListResponseDto[] certificates = partnerCertificateList.getContent()
+                .stream()
+                .map(certificate -> {
+                    CaCertTypeListResponseDto certResponseDto = new CaCertTypeListResponseDto();
+                    certResponseDto.setCaCertificateType(certificate.getCaCertificateType());
+                    certResponseDto.setPartnerDomain(certificate.getPartnerDomain());
+                    certResponseDto.setCertId(certificate.getCertId());
+                    certResponseDto.setIssuedTo(certificate.getCertSubject());
+                    certResponseDto.setIssuedBy(certificate.getCertIssuer());
+                    certResponseDto.setValidFromDate(certificate.getCertNotBefore());
+                    certResponseDto.setValidTillDate(certificate.getCertNotAfter());
+                    certResponseDto.setUploadTime(certificate.getCreatedtimes());
+                    certResponseDto.setStatus(isActiveCaCert(certificate));
+                    return certResponseDto;
+                })
+                .toArray(CaCertTypeListResponseDto[]::new);
+
+        CaCertificateChainResponseDto responseDto = new CaCertificateChainResponseDto();
+        responseDto.setAllPartnerCertificates(certificates);
+        responseDto.setPageNumber(partnerCertificateList.getNumber() + 1);
+        responseDto.setPageSize(partnerCertificateList.getSize());
+        responseDto.setTotalRecords(partnerCertificateList.getTotalElements());
+        responseDto.setTotalPages(partnerCertificateList.getTotalPages());
+
+        return responseDto;
+    }
+
+    private List<String> getMosipCertThumbprints(boolean excludeMosipcert) {
+        List<String> certThumbprints = new ArrayList<>();
+        if (excludeMosipcert) {
+            partnerCertManagerDBHelper.getCertThumbprints(PartnerCertManagerConstants.ROOT_APP_ID,
+                    Optional.of(PartnerCertManagerConstants.EMPTY), certThumbprints);
+
+            partnerCertManagerDBHelper.getCertThumbprints(PartnerCertManagerConstants.PMS_APP_ID,
+                    Optional.of(PartnerCertManagerConstants.EMPTY), certThumbprints);
+        }
+        return certThumbprints;
+    }
+
+    private boolean isActiveCaCert(CACertificateStore certificate) {
+        LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
+        return timeStamp.isEqual(certificate.getCertNotBefore()) || timeStamp.isEqual(certificate.getCertNotAfter())
+                || (timeStamp.isAfter(certificate.getCertNotBefore()) && timeStamp.isBefore(certificate.getCertNotAfter()));
     }
 }
