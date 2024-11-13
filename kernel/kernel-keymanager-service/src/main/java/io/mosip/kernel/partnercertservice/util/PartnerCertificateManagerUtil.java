@@ -77,6 +77,18 @@ public class PartnerCertificateManagerUtil {
         return false;
     }
 
+    public static boolean isMinValidityCertificate(X509Certificate x509Certificate, int minimumValidity) {
+        try {
+            LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity);
+            LocalDateTime expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
+            return  !expiredate.isBefore(timeStamp);
+        } catch (Exception exp) {
+            LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.PCM_UTIL, "Error minimum Validity of Certificate: " + exp.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Function to format X500Principal of certificate.
      * 

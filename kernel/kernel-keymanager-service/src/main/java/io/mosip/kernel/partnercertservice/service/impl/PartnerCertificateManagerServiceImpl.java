@@ -110,6 +110,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Value("${mosip.kernel.partner.truststore.cache.disable:false}")
     private boolean disableTrustStoreCache;
 
+    @Value("${mosip.kernel.partner.cacertificate.upload.minimumvalidity.month:12}")
+    private int minValidity;
+
 
     /**
      * Utility to generate Metadata
@@ -177,7 +180,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         int certsCount = certList.size();
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.EMPTY, "Number of Certificates inputed: " + certsCount);
-        
+
         String partnerDomain = validateAllowedDomains(caCertRequestDto.getPartnerDomain());
         boolean foundError = false;
         boolean uploadedCert = false;
@@ -185,32 +188,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             X509Certificate reqX509Cert = (X509Certificate) cert;
 
             String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
-            boolean certExist = certDBHelper.isCertificateExist(certThumbprint, partnerDomain);
-            if (certExist) {
-                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                        PartnerCertManagerConstants.EMPTY, "CA/sub-CA certificate already exists in Store.");
-                if (certsCount == 1) {
-                     throw new PartnerCertManagerException(
-                           PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorCode(),
-                           PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorMessage());
-                }
-                foundError = true;
-                continue;
-            }
 
-            boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
-            if (!validDates) {
-                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                        PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
-                if(certsCount == 1) {
-                    throw new PartnerCertManagerException(
-                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
-                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
-                }
-                foundError = true;
-                continue;
-            }
-            
+            foundError = validateBasicCaCertificateParams(reqX509Cert, certThumbprint, certsCount, partnerDomain);
+
             String certSubject = PartnerCertificateManagerUtil
                     .formatCertificateDN(reqX509Cert.getSubjectX500Principal().getName());
             String certIssuer = PartnerCertificateManagerUtil
@@ -463,6 +443,58 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorCode(),
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorMessage());
         }
+    }
+
+    private boolean validateBasicCaCertificateParams(X509Certificate reqX509Cert, String certThumbprint, int certsCount,
+                                                  String partnerDomain) {
+        boolean foundError = false;
+        boolean certExist = certDBHelper.isCertificateExist(certThumbprint, partnerDomain);
+            if (certExist) {
+                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                        PartnerCertManagerConstants.EMPTY, "CA/sub-CA certificate already exists in Store.");
+                if (certsCount == 1) {
+                     throw new PartnerCertManagerException(
+                           PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorCode(),
+                           PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorMessage());
+                }
+                foundError = true;
+            }
+
+            boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
+            if (!validDates) {
+                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                        PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
+                if(certsCount == 1) {
+                    throw new PartnerCertManagerException(
+                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
+                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
+                }
+                foundError = true;
+            }
+
+            boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
+            if(!minimumValidity) {
+                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                        PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
+                if (certsCount == 1) {
+                    throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
+                            PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
+                }
+                foundError = true;
+            }
+
+        int certVersion = reqX509Cert.getVersion();
+        if (certVersion != 3) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY,
+                    "CA Certificate version not valid, the version has to be V3");
+                if (certsCount == 1){
+                    throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.INVALID_CERT_VERSION.getErrorCode(),
+                            PartnerCertManagerErrorConstants.INVALID_CERT_VERSION.getErrorMessage());
+                }
+                foundError = true;
+        }
+            return foundError;
     }
 
     private void validateOtherPartnerCertParams(X509Certificate reqX509Cert, String reqOrgName) {
