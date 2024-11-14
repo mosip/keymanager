@@ -197,4 +197,30 @@ public class PartnerCertManagerController {
 		response.setResponse(partnerCertManagerService.getCaCertificateChain(certListRequestDto.getRequest()));
 		return response;
 	}
+
+	/**
+	 * To Download p7b file for a CA / Intermediate CA certificate along with the trust chain
+	 *
+	 * @param p7bFileDownloadRequestDto {@link CAp7bFileDownloadRequestDto} request
+	 * @return {@link CAp7bFileDownloadResponseDto} p7b data
+	 */
+	@Operation(summary = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.",
+			description = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.", tags = { "cacertmanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getGetcap7bfilecacertid())")
+	@GetMapping(value = "/getp7bCACertificateTrust/{caCertId}")
+	public ResponseWrapper<CAp7bFileDownloadResponseDto> getp7bCACertificateTrust(
+			@ApiParam("To Download p7b file CA certificate along with trust.") @PathVariable("caCertId") String caCertId) {
+		CAp7bFileDownloadRequestDto p7bFileDownloadRequestDto = new CAp7bFileDownloadRequestDto();
+		p7bFileDownloadRequestDto.setCaCertId(caCertId);
+		ResponseWrapper<CAp7bFileDownloadResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.getp7bCACertificateWithTrust(p7bFileDownloadRequestDto));
+		return response;
+	}
+
 }

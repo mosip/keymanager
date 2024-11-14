@@ -40,6 +40,14 @@ public interface CACertificateStoreRepository extends JpaRepository<CACertificat
 	CACertificateStore findByCertThumbprint(String certThumbprint);
 
 	/**
+	 * Function to find CACertificate by Certificate Id.
+	 *
+	 * @param certId
+	 * @return CACertificateStore
+	 */
+	CACertificateStore findByCertId(String certId);
+
+	/**
 	 * Function to fetch all CACertificates. 
 	 * 
 	 * @return list of CACertificateStore
