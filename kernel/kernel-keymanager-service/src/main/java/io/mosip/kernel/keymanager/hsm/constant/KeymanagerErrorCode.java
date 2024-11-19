@@ -24,7 +24,9 @@ public enum KeymanagerErrorCode {
 	
 	KEYSTORE_NO_CONSTRUCTOR_FOUND("KER-KMA-008", "Keystore implemenation clazz has no constructor with Map as argument."),
 	
-	OFFLINE_KEYSTORE_ACCESS_ERROR("KER-KMA-009", "Keystore instantiated as offline, performing operation not allowed.");
+	OFFLINE_KEYSTORE_ACCESS_ERROR("KER-KMA-009", "Keystore instantiated as offline, performing operation not allowed."),
+
+	ALGORITHM_NOT_SUPPORTED("KER-KMA-010", "Algorithm is not supported for the provider through SunPKCS11.");
 
 	/**
 	 * The error code

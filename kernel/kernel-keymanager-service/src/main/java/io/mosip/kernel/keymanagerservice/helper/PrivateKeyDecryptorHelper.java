@@ -29,6 +29,7 @@ import io.mosip.kernel.keymanagerservice.exception.CryptoException;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 
 /**
  * Private key decryption Helper class for Keymanager
@@ -56,7 +57,7 @@ public class PrivateKeyDecryptorHelper {
 	private KeymanagerDBHelper dbHelper;
 
     @Autowired
-	private io.mosip.kernel.core.keymanager.spi.KeyStore keyStore;
+	private ECKeyStore keyStore;
 
     public KeyStore getDBKeyStoreData (String certThumbprintHex, String applicationId, String referenceId) {
 

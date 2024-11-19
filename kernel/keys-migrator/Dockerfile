@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 
 ARG SOURCE
 ARG COMMIT_HASH
@@ -8,9 +8,6 @@ LABEL source=${SOURCE}
 LABEL commit_hash=${COMMIT_HASH}
 LABEL commit_id=${COMMIT_ID}
 LABEL build_time=${BUILD_TIME}
-
-RUN apk update \
-    && apk add unzip
 
 # can be passed during Docker build as build time environment for github branch to pickup configuration from.
 ARG spring_config_label
@@ -55,6 +52,22 @@ ENV hsm_zip_file_path=${hsm_client_zip_path}
 # creating folder to copy additional supporting jar files required at run-time.
 #RUN mkdir /additional-jars
 
+# can be passed during Docker build as build time environment for github branch to pickup configuration from.
+ARG container_user=mosip
+
+# can be passed during Docker build as build time environment for github branch to pickup configuration from.
+ARG container_user_group=mosip
+
+# can be passed during Docker build as build time environment for github branch to pickup configuration from.
+ARG container_user_uid=1001
+
+# can be passed during Docker build as build time environment for github branch to pickup configuration from.
+ARG container_user_gid=1001
+
+ARG hsm_local_dir=hsm-client
+
+ENV hsm_local_dir_name=${hsm_local_dir}
+
 # set working directory for the user
 WORKDIR /home/${container_user}
 
@@ -62,16 +75,22 @@ ENV work_dir=/home/${container_user}
 
 ARG loader_path=${work_dir}/additional_jars/
 
-RUN mkdir -p ${loader_path}
-
 ENV loader_path_env=${loader_path}
 
 ADD configure_start.sh configure_start.sh
 
-RUN chmod +x configure_start.sh
-
 ADD target/keys-migrator-*.jar keys-migrator.jar
 
-ENTRYPOINT [ "/configure_start.sh" ]
+# install packages and create user
+RUN apt-get -y update \
+&& apt-get install -y unzip sudo adduser \
+&& groupadd -g ${container_user_gid} ${container_user_group} \
+&& useradd -u ${container_user_uid} -g ${container_user_group} -s /bin/bash -m ${container_user} \
+&& adduser ${container_user} sudo \
+&& echo "%sudo ALL=(ALL) NOPASSWD:/home/${container_user}/${hsm_local_dir}/install.sh" >> /etc/sudoers \
+&& mkdir -p ${loader_path} \
+&& chmod +x configure_start.sh
 
-CMD ["java","-jar", "-Dloader.path=${loader_path_env}", "-Dspring.cloud.config.label=${spring_config_label_env}","-Dspring.cloud.config.name=${spring_config_name_env}", "-Dspring.profiles.active=${active_profile_env}", "-Dspring.cloud.config.uri=${spring_config_url_env}", "/keys-migrator.jar"]
+ENTRYPOINT [ "./configure_start.sh" ]
+
+CMD ["java","-jar", "-Dloader.path=${loader_path_env}", "-Dspring.cloud.config.label=${spring_config_label_env}","-Dspring.cloud.config.name=${spring_config_name_env}", "-Dspring.profiles.active=${active_profile_env}", "-Dspring.cloud.config.uri=${spring_config_url_env}", "./keys-migrator.jar"]

@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.entity.DataEncryptKeystore;
@@ -47,7 +47,7 @@ public class RandomKeysGenerator {
      * Keystore instance to handles and store cryptographic keys.
      */
     @Autowired
-    private KeyStore keyStore;
+    private ECKeyStore keyStore;
 
     @Autowired
     private KeymanagerDBHelper dbHelper;

@@ -38,7 +38,7 @@ import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
@@ -79,7 +79,7 @@ public class CryptographicServiceIntegrationTest {
 	private ObjectMapper objectMapper;
 
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	/** The key manager. */
 	@MockBean

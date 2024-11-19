@@ -65,7 +65,7 @@ public class KeymanagerConstant {
 	/**
 	 * The constant Getting public key from DB Store
 	 */
-	public static final String GETPUBLICKEYDB = "Getting public key from DB Store";
+	public static final String GETPUBLICKEYDB = "Getting Certificate from DB Store";
 
 	/**
 	 * The constant Getting public key from SoftHSM
@@ -205,5 +205,25 @@ public class KeymanagerConstant {
 
 	public static final String COMMA = ",";
 
+	public static final String GENERATE_ECC_MASTER_KEY = "Request received to generate the ECC Master Key pair.";
+
+	public static final String ECC_CURVE = "Curve";
+
+	public static final String MISSING_INPUT_PARAMETER = "Missing Input Parameter - ";
+
+	public static final String VALIDATE = "Validate";
+
+	public static final String INVALID_CURVE_VALUE = "Invalid Curve Value - ";
+
 	public static final String IDA_APP_ID = "IDA";
+
+	public static final String EC_KEY_TYPE = "EC";
+
+	public static final String ED25519_KEY_TYPE = "Ed25519";
+
+	public static final String EDDSA_KEY_TYPE = "EdDSA";
+
+	public static final String ED25519_ALG_OID = "1.3.101.112";
+
+	public static final String APP_REF_ID_SEP = "#";
 }

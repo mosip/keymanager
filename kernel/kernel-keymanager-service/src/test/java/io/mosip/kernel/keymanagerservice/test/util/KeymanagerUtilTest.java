@@ -22,7 +22,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -37,7 +37,7 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 public class KeymanagerUtilTest {
 
 	@MockBean
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
 	@MockBean
 	private KeyAliasRepository keyAliasRepository;

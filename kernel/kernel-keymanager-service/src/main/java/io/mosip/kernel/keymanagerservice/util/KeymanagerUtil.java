@@ -26,6 +26,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 import javax.crypto.SecretKey;
@@ -145,6 +146,24 @@ public class KeymanagerUtil {
 	 */
 	@Value("${mosip.kernel.certificate.sign.algorithm:SHA256withRSA}")
 	private String signAlgorithm;
+
+	/**
+	 * Certificate Signing Algorithm
+	 * 
+	 */
+	@Value("${mosip.kernel.certificate.ec.sign.algorithm:SHA256WithECDSA}")
+	private String ecSignAlgorithm;
+
+	/**
+	 * Certificate Signing Algorithm
+	 * 
+	 */
+	@Value("${mosip.kernel.certificate.ed.sign.algorithm:Ed25519}")
+	private String edSignAlgorithm;
+
+
+	@Value("#{'${mosip.kernel.keymgr.ed25519.allowed.appids:ID_REPO}'.split(',')}")
+	private List<String> allowedAppIds;
 
 	/**
 	 * KeyGenerator instance to generate asymmetric key pairs
@@ -375,7 +394,11 @@ public class KeymanagerUtil {
 				String appId) {
 
 		CertificateParameters certParams = new CertificateParameters();
-		String appIdCommonName = commonName + " (" + appId.toUpperCase() + ")";
+		String refId = request.getReferenceId();
+		if (refId.trim().length() > 0) {
+			refId = '-' + refId.toUpperCase();
+		}
+		String appIdCommonName = commonName + " (" + appId.toUpperCase() + refId + ")";
 		certParams.setCommonName(getParamValue(request.getCommonName(), appIdCommonName));
 		certParams.setOrganizationUnit(getParamValue(request.getOrganizationUnit(), organizationUnit));
 		certParams.setOrganization(getParamValue(request.getOrganization(), organization));
@@ -422,13 +445,13 @@ public class KeymanagerUtil {
 		return defaultValue;
 	}
 	
-	public String getCSR(PrivateKey privateKey, PublicKey publicKey, CertificateParameters certParams) {
+	public String getCSR(PrivateKey privateKey, PublicKey publicKey, CertificateParameters certParams, String keyAlgorithm) {
 
 		try {
 			X500Principal csrSubject = new X500Principal("CN=" + certParams.getCommonName() + ", OU=" + certParams.getOrganizationUnit() +
 												", O=" + certParams.getOrganization() + ", L=" + certParams.getLocation() + 
 												", S=" + certParams.getState() + ", C=" + certParams.getCountry());
-			ContentSigner contentSigner = new JcaContentSignerBuilder(signAlgorithm).build(privateKey);
+			ContentSigner contentSigner = new JcaContentSignerBuilder(getSignatureAlgorithm(keyAlgorithm)).build(privateKey);
 			PKCS10CertificationRequestBuilder pcks10Builder = new JcaPKCS10CertificationRequestBuilder(csrSubject, publicKey);
 			PKCS10CertificationRequest csrObject = pcks10Builder.build(contentSigner);
 			return getPEMFormatedData(csrObject);
@@ -436,6 +459,18 @@ public class KeymanagerUtil {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage(), exp);
 		}
+	}
+
+	private String getSignatureAlgorithm(String keyAlgorithm) {
+
+		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE)) 
+			return ecSignAlgorithm;
+		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) || 
+				 keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) || 
+				 keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE)) 
+			return edSignAlgorithm;
+
+		return signAlgorithm;
 	}
 
 	public void destoryKey(PrivateKey privateKey) {
@@ -468,5 +503,12 @@ public class KeymanagerUtil {
 	@SuppressWarnings("java:S4790") // added suppress for sonarcloud, sha1 hash is used for value identification only not for any sensitive data.
 	public String getUniqueIdentifier(String inputStr) {
 		return Hex.toHexString(DigestUtils.sha1(inputStr)).toUpperCase();
+	}
+
+	public void checkAppIdAllowedForEd25519KeyGen(String applicationId) {
+		if (!allowedAppIds.contains(applicationId)) {
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorCode(), 
+			KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorMessage());
+		}
 	}
 }

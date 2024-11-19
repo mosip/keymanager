@@ -31,13 +31,13 @@
 		<kernel.dataaccess.hibernate.version>1.2.1-SNAPSHOT</kernel.dataaccess.hibernate.version>
 
 		<!-- data -->
-		<h2.version>1.4.197</h2.version>
+		<h2.version>2.2.220</h2.version>
 
-		<jose4j.version>0.6.5</jose4j.version>
+		<jose4j.version>0.9.6</jose4j.version>
 		<tss.version>0.3.0</tss.version>
 		<cache2k-version>2.4.1.Final</cache2k-version>
 		<spring.boot.configuration.processor>3.2.3</spring.boot.configuration.processor>
-		<com.nimbusds.nimbus-jose-jwt.version>9.14</com.nimbusds.nimbus-jose-jwt.version>
+		<com.nimbusds.nimbus-jose-jwt.version>9.37.2</com.nimbusds.nimbus-jose-jwt.version>
 		<io.projectreactor.reactor-core.version>3.1.7.RELEASE</io.projectreactor.reactor-core.version>
 		<de.mkammerer.argon2-jvm-nolibs.version>2.11</de.mkammerer.argon2-jvm-nolibs.version>
 		<net.java.dev.jna.version>5.13.0</net.java.dev.jna.version>
@@ -45,7 +45,7 @@
 		<jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
 		<junit.version>4.12</junit.version>
 		<postgresql.version>42.7.3</postgresql.version>
-		<springdoc.openapi.starter.webmvc.ui.version>2.5.0</springdoc.openapi.starter.webmvc.ui.version>
+		<springdoc.openapi.starter.webmvc.ui.version>2.6.0</springdoc.openapi.starter.webmvc.ui.version>
 		<bcprov.jdk18on.version>1.78.1</bcprov.jdk18on.version>
 		<bcpkix.jdk18on.version>1.78.1</bcpkix.jdk18on.version>
 		<mockito.core.version>3.4.3</mockito.core.version>
@@ -313,7 +313,7 @@
 			<plugin>
 				<groupId>org.sonatype.plugins</groupId>
 				<artifactId>nexus-staging-maven-plugin</artifactId>
-				<version>1.6.7</version>
+				<version>1.6.14</version>
 				<extensions>true</extensions>
 				<executions>
 					<execution>

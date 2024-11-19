@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import io.mosip.kernel.core.crypto.exception.InvalidDataException;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
@@ -44,6 +44,7 @@ import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.repository.DataEncryptKeystoreRepository;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.keymigrate.constant.KeyMigratorConstants;
 import io.mosip.kernel.keymigrate.dto.KeyMigrateBaseKeyRequestDto;
@@ -100,7 +101,7 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 	 * Keystore instance to handles and store cryptographic keys.
 	 */
 	@Autowired
-	private KeyStore keyStore;
+	private ECKeyStore keyStore;
 
     /**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
@@ -113,6 +114,9 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 
     @Autowired
 	CryptomanagerUtils cryptomanagerUtil;
+
+    @Autowired
+	KeyAliasRepository keyAliasRepository;
 
     @Override
     public KeyMigrateBaseKeyResponseDto migrateBaseKey(KeyMigrateBaseKeyRequestDto baseKeyMigrateRequest){
@@ -137,9 +141,17 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 					KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
 		}
 
-        if (isValidKeyExists(appId, refId, notBefore, notAfter, localDateTimeStamp)) {
+        // Re-Signing any base key Certificate is not possible because thumbprint will not match with the prepended thumbprint in encrypted data.
+        // Re-signing of partner certificate is not required because existing trust certificates (MOSIP_ROOT & PMS) from old KM might 
+        // have got synced with other components performing trust validation. New KM certificates (MOSIP_ROOT & PMS) will get synced
+        // with other components and both will be used to validate the trust.
+        //String reSignedCert = reSignCertificate(appId, masterKeyAlias, certificateData, localDateTimeStamp, notBefore, notAfter);
+        X509Certificate reqX509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
+        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(reqX509Cert);
+
+        if (isValidKeyExists(appId, refId, certThumbprint)) {
             LOGGER.error(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.EMPTY,
-                            KeyMigratorConstants.EMPTY, "Valid Key Already exists, not allowed to migrate.");
+                        KeyMigratorConstants.EMPTY, "Valid Key Already exists, not allowed to migrate.");
             KeyMigrateBaseKeyResponseDto responseDto = new KeyMigrateBaseKeyResponseDto();
             responseDto.setStatus(KeyMigratorConstants.MIGRAION_NOT_ALLOWED);
             responseDto.setTimestamp(localDateTimeStamp);
@@ -148,16 +160,18 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         String baseKeyAlias = UUID.randomUUID().toString();
         String masterKeyAlias = currentKeyAlias.isEmpty() ? baseKeyAlias : currentKeyAlias.get(0).getAlias();
 
-        // Re-Signing any base key Certificate is not possible because thumbprint will not match with the prepended thumbprint in encrypted data.
-        // Re-signing of partner certificate is not required because existing trust certificates (MOSIP_ROOT & PMS) from old KM might 
-        // have got synced with other components performing trust validation. New KM certificates (MOSIP_ROOT & PMS) will get synced
-        // with other components and both will be used to validate the trust.
-        //String reSignedCert = reSignCertificate(appId, masterKeyAlias, certificateData, localDateTimeStamp, notBefore, notAfter);
-        X509Certificate reqX509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
-        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(reqX509Cert);
+       
         dbHelper.storeKeyInDBStore(baseKeyAlias, masterKeyAlias, certificateData, encryptedPrivateKey);
-        String uniqueValue = appId + KeymanagerConstant.UNDER_SCORE + refId + KeymanagerConstant.UNDER_SCORE +
+        
+        String uniqueValue = null;
+        // Fixed bug: MOSIP-33317
+        if (!appId.equals(KeymanagerConstant.PARTNER_APP_ID)) {
+            uniqueValue = appId + KeymanagerConstant.UNDER_SCORE + refId + KeymanagerConstant.UNDER_SCORE +
                                 notBefore.format(KeymanagerConstant.DATE_FORMATTER);
+        } else {
+            uniqueValue = appId + KeymanagerConstant.UNDER_SCORE + refId + KeymanagerConstant.UNDER_SCORE +
+                                certThumbprint;
+        }
 		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
 								"Unique Value formatter: " + uniqueValue);
 		String uniqueIdentifier = keymanagerUtil.getUniqueIdentifier(uniqueValue);
@@ -173,9 +187,8 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         return responseDto;
     }
 
-    private boolean isValidKeyExists(String applicationId, String referenceId, LocalDateTime notBefore, 
-                    LocalDateTime notAfter, LocalDateTime localDateTimeStamp) {
-        Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(applicationId, referenceId, localDateTimeStamp);
+    private boolean isValidKeyExists(String applicationId, String referenceId, String certThumbprint ) {
+        /* Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(applicationId, referenceId, localDateTimeStamp);
         List<KeyAlias> currentKeyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
         // Current key alias is empty, no need to check whether migrated key is valid or expired. Simply migrate it.
         if (currentKeyAlias.isEmpty()) {
@@ -186,6 +199,13 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         // Both valid, do not allowed to migrate the key. 
         if (localDateTimeStamp.isEqual(notBefore) || localDateTimeStamp.isEqual(notAfter)
 				|| (localDateTimeStamp.isAfter(notBefore) && localDateTimeStamp.isBefore(notAfter))) {
+            return true;
+        }
+        return false; */
+
+        List<KeyAlias> keyAliasesWithAppId = keyAliasRepository.findByApplicationIdAndReferenceIdAndCertThumbprint(applicationId, 
+                                                    referenceId, certThumbprint);
+        if (keyAliasesWithAppId.size() > 0) {
             return true;
         }
         return false;

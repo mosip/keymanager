@@ -100,6 +100,14 @@ public class KeymanagerExceptionHandler {
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<ResponseWrapper<ServiceError>> illegalArgumentException(HttpServletRequest httpServletRequest,
 			final IllegalArgumentException e) throws IOException {
+		ExceptionUtils.logRootCause(e);
+		if (e.getMessage().contains("Illegal base64 character"))
+			return new ResponseEntity<>(
+				getErrorResponse(httpServletRequest,
+						CryptomanagerErrorCode.INVALID_DATA.getErrorCode(),
+						CryptomanagerErrorCode.INVALID_DATA.getErrorMessage(), HttpStatus.OK),
+				HttpStatus.OK);
+
 		return new ResponseEntity<>(
 				getErrorResponse(httpServletRequest,
 						CryptomanagerErrorCode.INVALID_DATA_WITHOUT_KEY_BREAKER.getErrorCode(),
@@ -110,6 +118,7 @@ public class KeymanagerExceptionHandler {
 	@ExceptionHandler(InvalidFormatException.class)
 	public ResponseEntity<ResponseWrapper<ServiceError>> invalidFormatException(HttpServletRequest httpServletRequest,
 			final InvalidFormatException e) throws IOException {
+		ExceptionUtils.logRootCause(e);
 		return new ResponseEntity<>(
 				getErrorResponse(httpServletRequest, KeymanagerErrorConstant.DATE_TIME_PARSE_EXCEPTION.getErrorCode(),
 						e.getMessage() + KeymanagerConstant.WHITESPACE
@@ -121,6 +130,7 @@ public class KeymanagerExceptionHandler {
 	@ExceptionHandler(DateTimeParseException.class)
 	public ResponseEntity<ResponseWrapper<ServiceError>> dateTimeParseException(HttpServletRequest httpServletRequest,
 			final DateTimeParseException e) throws IOException {
+		ExceptionUtils.logRootCause(e);
 		return new ResponseEntity<>(
 				getErrorResponse(httpServletRequest, KeymanagerErrorConstant.DATE_TIME_PARSE_EXCEPTION.getErrorCode(),
 						e.getMessage() + KeymanagerConstant.WHITESPACE

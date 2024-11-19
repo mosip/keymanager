@@ -2,6 +2,7 @@ package io.mosip.kernel.signature.service.impl;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
@@ -28,11 +29,11 @@ public class RS256SignatureProviderImpl implements SignatureProvider {
     public String sign(PrivateKey privateKey, byte[] signData, String providerName) {
         
         try {
-            Signature signatureObj = Signature.getInstance(SignatureConstant.RS256_ALGORITHM);
+            Signature signatureObj = Signature.getInstance(SignatureConstant.RS256_ALGORITHM, providerName);
             signatureObj.initSign(privateKey);
             signatureObj.update(signData);
             return CryptoUtil.encodeToURLSafeBase64(signatureObj.sign());
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | NoSuchProviderException e) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
 					"Error while signing the data.");
             throw new SignatureFailureException(SignatureErrorCode.SIGN_ERROR.getErrorCode(), 

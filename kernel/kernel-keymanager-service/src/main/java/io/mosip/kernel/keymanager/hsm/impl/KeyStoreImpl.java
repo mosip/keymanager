@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
-import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
@@ -42,7 +42,7 @@ import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
  */
 @ConfigurationProperties(prefix = "mosip.kernel.keymanager.hsm")
 @Component
-public class KeyStoreImpl implements KeyStore, InitializingBean {
+public class KeyStoreImpl implements ECKeyStore, InitializingBean {
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(KeyStoreImpl.class);
 
@@ -112,6 +112,12 @@ public class KeyStoreImpl implements KeyStore, InitializingBean {
 	private boolean enableKeyReferenceCache;
 
 	/**
+	 * EC Asymmetric key algorithm Name
+	 */
+	@Value("${mosip.kernel.keygenerator.asymmetric.ec.algorithm-name:EC}")
+	private String asymmetricECKeyAlgorithm;
+
+	/**
 	 * JCE Implementation Clazz Name and other required information.
 	 * 
 	 */
@@ -127,7 +133,7 @@ public class KeyStoreImpl implements KeyStore, InitializingBean {
 	 * Delegate Object.
 	 * 
 	 */
-	private KeyStore keyStore = null;
+	private ECKeyStore keyStore = null;
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -153,7 +159,7 @@ public class KeyStoreImpl implements KeyStore, InitializingBean {
 		if (resConstructor.isPresent()) {
 			Constructor<?> constructor = resConstructor.get();
 			constructor.setAccessible(true);
-			keyStore = (KeyStore) constructor.newInstance(keystoreParams);
+			keyStore = (ECKeyStore) constructor.newInstance(keystoreParams);
 		} else {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_NO_CONSTRUCTOR_FOUND.getErrorCode(),
 						KeymanagerErrorCode.KEYSTORE_NO_CONSTRUCTOR_FOUND.getErrorMessage());
@@ -168,6 +174,7 @@ public class KeyStoreImpl implements KeyStore, InitializingBean {
 		keystoreParams.put(KeymanagerConstant.ASYM_KEY_SIZE, Integer.toString(asymmetricKeyLength));
 		keystoreParams.put(KeymanagerConstant.CERT_SIGN_ALGORITHM, signAlgorithm);
 		keystoreParams.put(KeymanagerConstant.FLAG_KEY_REF_CACHE, Boolean.toString(enableKeyReferenceCache));
+		keystoreParams.put(KeymanagerConstant.ASYM_KEY_EC_ALGORITHM, asymmetricECKeyAlgorithm);
 	}
 
 	private void addPKCSParams() {
@@ -313,4 +320,14 @@ public class KeyStoreImpl implements KeyStore, InitializingBean {
 	public void setJce(Map<String, String> jce) {
 		this.jceParams = jce;
 	}
+
+	@Override
+	public void generateAndStoreAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams, String ecCurve) {
+		keyStore.generateAndStoreAsymmetricKey(alias, signKeyAlias, certParams, ecCurve);
+	}
+
+	/* @Override
+	public void generateAndStoreEDAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams) {
+		keyStore.generateAndStoreEDAsymmetricKey(alias, signKeyAlias, certParams);
+	} */
 }

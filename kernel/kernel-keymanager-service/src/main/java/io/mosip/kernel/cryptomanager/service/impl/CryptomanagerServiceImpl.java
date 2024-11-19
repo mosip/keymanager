@@ -1,3 +1,4 @@
+
 package io.mosip.kernel.cryptomanager.service.impl;
 
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.CACHE_INT_COUNTER;
@@ -44,7 +45,6 @@ import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
-import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
 import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
@@ -53,14 +53,15 @@ import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
-import io.mosip.kernel.cryptomanager.dto.JWTEncryptRequestDto;
 import io.mosip.kernel.cryptomanager.dto.JWTCipherResponseDto;
 import io.mosip.kernel.cryptomanager.dto.JWTDecryptRequestDto;
+import io.mosip.kernel.cryptomanager.dto.JWTEncryptRequestDto;
 import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keygenerator.bouncycastle.util.KeyGeneratorUtils;
+import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -162,7 +163,8 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 			LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(),
 					CryptomanagerConstant.GEN_ARGON2_HASH, "Loading Creating Cache for Object Key: " + objectKey);
 			if (objectKey.equals(CryptomanagerConstant.CACHE_AES_KEY)) {
-				javax.crypto.KeyGenerator keyGenerator = KeyGeneratorUtils.getKeyGenerator(AES_KEY_TYPE, AES_KEY_SIZE);
+				javax.crypto.KeyGenerator keyGenerator = KeyGeneratorUtils.getKeyGenerator(AES_KEY_TYPE, 
+							AES_KEY_SIZE, new SecureRandom());
 				return keyGenerator.generateKey();
 			} else if (objectKey.equals(CACHE_INT_COUNTER)) {
 				if(secureRandom == null)
@@ -568,7 +570,13 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		if (!cryptomanagerUtil.isDataValid(saltData)) {
 			SecretKey aesKey = (SecretKey) saltGenParamsCache.get(CryptomanagerConstant.CACHE_AES_KEY);
 			AtomicLong intCounter = (AtomicLong) saltGenParamsCache.get(CryptomanagerConstant.CACHE_INT_COUNTER);
-			long saltInput = intCounter.getAndIncrement();
+			if (Objects.isNull(intCounter)) {
+				if(secureRandom == null)
+					secureRandom = new SecureRandom();
+				intCounter = new AtomicLong(secureRandom.nextLong());
+			}
+            long saltInput = intCounter.getAndIncrement();
+
 			saltGenParamsCache.put(CryptomanagerConstant.CACHE_INT_COUNTER, intCounter);
 			saltBytes = getSaltBytes(getLongBytes(saltInput), aesKey);
 			saltData = CryptoUtil.encodeToURLSafeBase64(saltBytes);

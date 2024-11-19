@@ -56,4 +56,14 @@ public final class KeymanagerConstant {
 
 	public static final String FLAG_KEY_REF_CACHE = "FLAG_KEY_REF_CACHE";
 
+	public static final String RSA_KEY_TYPE = "RSA";
+
+	public static final String ASYM_KEY_EC_ALGORITHM = "ASYM_KEY_EC_ALGORITHM";
+
+	public static final String EC_CURVE_NAME = "EC_CURVE_NAME";
+
+	public static final String ED25519_KEY_TYPE = "Ed25519";
+
+	public static final String ASYM_KEY_ED_ALGORITHM = "ASYM_KEY_ED_ALGORITHM";
+
 }

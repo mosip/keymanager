@@ -125,6 +125,16 @@ public interface KeymanagerService {
 	 * @return {@link AllCertificatesDataResponseDto} instance
 	 */
 	public AllCertificatesDataResponseDto getAllCertificates(String appId, Optional<String> refId);
+
+
+	/**
+	 * Function to generate ECC key for the provided app id and ref id.
+	 * 
+	 * @param objectType - return Object type can be a certificate or CSR
+	 * @param request - request details like appId, refIds, etc.
+	 * @return {@link KeyPairGenerateResponseDto} instance
+	 */
+	public KeyPairGenerateResponseDto generateECSignKey(String objectType, KeyPairGenerateRequestDto request);
 	
 }
 

@@ -96,4 +96,6 @@ public interface PartnerCertManagerConstants {
 	String ROOT_APP_ID = "ROOT";
 
 	String AUTH_DOMAIN = "AUTH";
+
+	String PMS_APP_ID = "PMS";
 }

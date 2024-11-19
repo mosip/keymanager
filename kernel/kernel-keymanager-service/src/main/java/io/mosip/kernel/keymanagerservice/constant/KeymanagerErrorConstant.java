@@ -37,9 +37,9 @@ public enum KeymanagerErrorConstant {
 
 	KEY_NOT_MATCHING("KER-KMS-014", "Certificate Key Not Matching with stored Key."),
 
-	UPLOAD_NOT_ALLOWED("KER-KMS-015", "Upload of certificate will not be allowed to update other domain certificate."),
+	UPLOAD_NOT_ALLOWED("KER-KMS-015", "Upload of certificate will not be allowed to update other domain certificate.(Refer Logs for error reason)"),
 
-	GENERATION_NOT_ALLOWED("KER-KMS-016", "Not allowed to generate new key pair for other domains or not allowed to generate base key."),
+	GENERATION_NOT_ALLOWED("KER-KMS-016", "Not allowed to generate new key pair for other domains or not allowed to generate base key. (%s)"),
 
 	CERTIFICATE_NOT_FOUND("KER-KMS-017", "Certificate Not found in keystore table."),
 
@@ -58,6 +58,26 @@ public enum KeymanagerErrorConstant {
 	APP_ID_REFERENCE_ID_NOT_MATCHING("KER-KMS-024", "Application Id & Reference Id not matching with the input thumbprint."),
 
 	KEY_NOT_FOUND_BY_THUMBPRINT("KER-KMS-025", "Key Not found for the thumbprint prepended in encrypted data."),
+
+	KEY_GEN_NOT_ALLOWED_FOR_APPID("KER-KMS-026", "Key Generation Not allowed for the input application id."),
+
+	UPLOAD_DUPLICATE_CERT_NOT_ALLOWED("KER-KMS-027", "Upload of certificate will not be allowed, Current certificate thumbprint in DB matching with input certificate thumbprint."),
+
+	MISSING_PARAMETER_VALUE("KER-KMS-028", "Missing Input Parameter - "),
+
+	NOT_SUPPORTED_CURVE_VALUE("KER-KMS-029", "Unsupported EC Curve - "),
+
+	EC_SIGN_REFERENCE_ID_NOT_SUPPORTED("KER-KMS-030", "EC Sign Reference Id Not Supported for the Application ID."),
+
+	SIGN_APP_ID_REFERENCEID_NOT_ALLOWED("KER-KMS-031", "Application Id with KERNEL & Reference Id with Sign not allowed to upload Partner certificate."),
+
+	VALID_KEY_ALREADY_EXIST("KER-KMS-032", "Valid Key already Exist, not allowed to upload another Certificate."),
+
+	OTHER_DOMAIN_VALID_KEY_NOT_EXIST("KER-KMS-033", "Other Domain Valid key not available, Upload other domain valid Key certificate."),
+
+	PRIVATE_KEY_FOUND("KER-KMS-034", "PrivateKey available, for Other Domain Certificate, Private Key should not available."),
+
+	CERTIFICATE_ALREADY_EXIST("KER-KMS-035", "Certificate Already Exist, not allowed to upload same certificate again"),
 
 	INTERNAL_SERVER_ERROR("KER-KMS-500", "Internal server error");
 

@@ -1,5 +1,6 @@
 package io.mosip.kernel.partnercertservice.controller;
 
+import io.mosip.kernel.partnercertservice.dto.*;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,14 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.partnercertservice.dto.CACertificateRequestDto;
-import io.mosip.kernel.partnercertservice.dto.CACertificateResponseDto;
-import io.mosip.kernel.partnercertservice.dto.CertificateTrustRequestDto;
-import io.mosip.kernel.partnercertservice.dto.CertificateTrustResponeDto;
-import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadRequestDto;
-import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
-import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
-import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
@@ -103,7 +96,7 @@ public class PartnerCertManagerController {
 	}
 
     /**
-	 * To Download Partner Certificate.
+	 * To Download Partner MOSIP CA Signed Certificate.
 	 * 
 	 * @param certDownloadRequestDto {@link PartnerCertDownloadRequestDto} request
 	 * @return {@link PartnerCertDownloadResponeDto} encrypted Data
@@ -154,5 +147,54 @@ public class PartnerCertManagerController {
 		response.setResponse(partnerCertManagerService.verifyCertificateTrust(certificateTrustRequestDto.getRequest()));
 		return response;
 	}
-    
+
+	/**
+	 * To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.
+	 * 
+	 * @param certDownloadRequestDto {@link PartnerCertDownloadRequestDto} request
+	 * @return {@link PartnerCertDownloadResponeDto} encrypted Data
+	 */
+	@Operation(summary = "To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.", 
+			   description = "To Download Partner CA Signed Certificate & MOSIP CA Signed Certificate.", tags = { "partnercertmanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getGetgetpartnersignedcertificatepartnercertid())")
+	@GetMapping(value = "/getPartnerSignedCertificate/{partnerCertId}")
+	public ResponseWrapper<PartnerSignedCertDownloadResponseDto> getPartnerSignedCertificate(
+			@ApiParam("To download CA Signed partner certificate.") @PathVariable("partnerCertId") String partnerCertId) {
+		PartnerCertDownloadRequestDto certDownloadRequestDto = new PartnerCertDownloadRequestDto();
+		certDownloadRequestDto.setPartnerCertId(partnerCertId);
+		ResponseWrapper<PartnerSignedCertDownloadResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.getPartnerSignedCertificate(certDownloadRequestDto));
+		return response;
+	}
+
+	/**
+	 * To get the Previously uploaded CA and IntermediateCA Certificate
+	 *
+	 * @param certListRequestDto {@link CaCertTypeListRequestDto} request
+	 * @return {@link CaCertTypeListRequestDto} Cetificate List data
+	 */
+	@Operation(summary = "To Download CA Type Certificate List.",
+			description = "To Download CA Type Certificate List.", tags = { "cacertmanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getPostgetcacertificates())")
+	@PostMapping(value = "/getCaCertificates", produces = "application/json")
+	public ResponseWrapper<CaCertificateChainResponseDto> getCaCertificateList(
+			@ApiParam("To get List of Certificate Based on CA certificate Type.") @RequestBody @Valid RequestWrapper<CaCertTypeListRequestDto> certListRequestDto) {
+
+		ResponseWrapper<CaCertificateChainResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.getCaCertificateChain(certListRequestDto.getRequest()));
+		return response;
+	}
 }
