@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CAp7bFileDownloadResponseDto {
+public class CACertificateTrustPathResponseDto {
 //
 //    /**
 //     * format of certificate

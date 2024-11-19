@@ -5,12 +5,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
@@ -201,8 +196,8 @@ public class PartnerCertManagerController {
 	/**
 	 * To Download p7b file for a CA / Intermediate CA certificate along with the trust chain
 	 *
-	 * @param p7bFileDownloadRequestDto {@link CAp7bFileDownloadRequestDto} request
-	 * @return {@link CAp7bFileDownloadResponseDto} p7b data
+	 * @param caCertId {@link CACertificateTrustPathRequestDto} request
+	 * @return {@link CACertificateTrustPathResponseDto} p7b data
 	 */
 	@Operation(summary = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.",
 			description = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.", tags = { "cacertmanager" })
@@ -212,14 +207,14 @@ public class PartnerCertManagerController {
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
 	@ResponseFilter
-	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getGetcap7bfilecacertid())")
-	@GetMapping(value = "/getp7bCACertificateTrust/{caCertId}")
-	public ResponseWrapper<CAp7bFileDownloadResponseDto> getp7bCACertificateTrust(
+	@PreAuthorize("hasAnyRole(@keyManAuthRoles.getGetcacertificatetrustpath())")
+	@GetMapping(value = "/getCACertificateTrustPath/{caCertId}")
+	public ResponseWrapper<CACertificateTrustPathResponseDto> getCACertificateTrustPath(
 			@ApiParam("To Download p7b file CA certificate along with trust.") @PathVariable("caCertId") String caCertId) {
-		CAp7bFileDownloadRequestDto p7bFileDownloadRequestDto = new CAp7bFileDownloadRequestDto();
-		p7bFileDownloadRequestDto.setCaCertId(caCertId);
-		ResponseWrapper<CAp7bFileDownloadResponseDto> response = new ResponseWrapper<>();
-		response.setResponse(partnerCertManagerService.getp7bCACertificateWithTrust(p7bFileDownloadRequestDto));
+		CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto = new CACertificateTrustPathRequestDto();
+		caCertificateTrustPathRequestDto.setCaCertId(caCertId);
+		ResponseWrapper<CACertificateTrustPathResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.getCACertificateTrustPath(caCertificateTrustPathRequestDto));
 		return response;
 	}
 

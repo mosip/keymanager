@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @ApiModel(description = "Model representing request to download p7b file for ca certificate")
-public class CAp7bFileDownloadRequestDto {
+public class CACertificateTrustPathRequestDto {
 
     /**
      * Certificate ID of CA Certificate

@@ -713,13 +713,13 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @Override
-    public CAp7bFileDownloadResponseDto getp7bCACertificateWithTrust(CAp7bFileDownloadRequestDto p7bFileDownloadRequestDto) {
+    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto) {
 
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT_TRUST,
                 PartnerCertManagerConstants.EMPTY, "Get CA Certificate with trust request: " );
 
-        String caCertId = p7bFileDownloadRequestDto.getCaCertId();
+        String caCertId = caCertificateTrustPathRequestDto.getCaCertId();
         CACertificateStore caCertificateStore = getCACertificate(caCertId);
         X509Certificate caCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(String.valueOf(caCertificateStore.getCertData()));
         String partnerDomain = caCertificateStore.getPartnerDomain();
@@ -735,10 +735,13 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         if (certList != null) {
             chain.addAll(certList);
         }
-        String p7bFile = PartnerCertificateManagerUtil.buildp7bFile(chain.toArray(new Certificate[0]));
+        String buildTrustPath = PartnerCertificateManagerUtil.buildp7bFile(chain.toArray(new Certificate[0]));
 
-        CAp7bFileDownloadResponseDto responseDto = new CAp7bFileDownloadResponseDto();
-        responseDto.setP7bFile(p7bFile);
+        CACertificateTrustPathResponseDto responseDto = new CACertificateTrustPathResponseDto();
+        responseDto.setP7bFile(buildTrustPath);
+        responseDto.setTimestamp(timestamp);
+        return responseDto;
+    }
         responseDto.setTimestamp(timestamp);
         return responseDto;
     }
