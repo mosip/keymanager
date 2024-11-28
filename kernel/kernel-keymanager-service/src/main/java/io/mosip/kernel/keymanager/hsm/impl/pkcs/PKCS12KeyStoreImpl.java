@@ -472,7 +472,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 
 	private KeyPair generateKeyPair(String keyType) {
 		List<String> ecCurvesList = Stream.of(ECCurves.values()).filter(value -> !value.name().equals(ECCurves.ED25519.name()))
-									.map(value -> value.toString())
+									.map(value -> value.toString().toLowerCase())
 									.collect(Collectors.toList());
 		if (KeymanagerConstant.RSA_KEY_TYPE.equals(keyType))
 			return generateRSAKeyPair();
