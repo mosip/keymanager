@@ -742,9 +742,6 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         responseDto.setTimestamp(timestamp);
         return responseDto;
     }
-        responseDto.setTimestamp(timestamp);
-        return responseDto;
-    }
 
     private CACertificateStore getCACertificate(String caCertId) {
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT, PartnerCertManagerConstants.EMPTY,
