@@ -177,4 +177,9 @@ public class PartnerCertManagerDBHelper {
             certThumbprints.add(certThumbprint);
         }
     }
+
+    public CACertificateStore getCACert(String certId) {
+        return caCertificateStoreRepository.findByCertId(certId);
+    }
+
 }

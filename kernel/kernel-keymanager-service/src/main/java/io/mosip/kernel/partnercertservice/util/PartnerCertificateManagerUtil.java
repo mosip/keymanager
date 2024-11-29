@@ -240,6 +240,10 @@ public class PartnerCertificateManagerUtil {
         return buildCertChain(chain.toArray(new Certificate[0]));
     }
 
+    public static String buildp7bFile(Certificate[] chain) {
+        return buildCertChain(chain);
+    }
+
     private static String buildCertChain(Certificate[] chain) {
         
         try {

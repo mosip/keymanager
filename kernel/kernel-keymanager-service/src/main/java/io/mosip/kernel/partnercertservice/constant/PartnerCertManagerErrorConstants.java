@@ -43,7 +43,9 @@ public enum PartnerCertManagerErrorConstants {
 
 	CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED("KER-PCM-017","The CA Certificate validity is less than required minimum validity."),
 
-	INVALID_CA_CERTIFICATE_TYPE("KER-PCM-017", "Invalid Certificate Type");
+	INVALID_CA_CERTIFICATE_TYPE("KER-PCM-017", "Invalid Certificate Type"),
+
+	CA_CERT_ID_NOT_FOUND("KER-PMS-017", "CA Certificate not found for the given ID."),
     ;
 
 	/**

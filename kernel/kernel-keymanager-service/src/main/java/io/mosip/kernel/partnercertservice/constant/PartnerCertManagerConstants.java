@@ -98,4 +98,8 @@ public interface PartnerCertManagerConstants {
 	String AUTH_DOMAIN = "AUTH";
 
 	String PMS_APP_ID = "PMS";
+
+	String GET_CA_CERT = "GetCACertificate";
+
+	String GET_CA_CERT_TRUST = "GetCACertificateWithTrustChain";
 }
