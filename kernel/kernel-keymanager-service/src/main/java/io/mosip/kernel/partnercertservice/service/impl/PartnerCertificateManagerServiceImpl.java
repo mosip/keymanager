@@ -235,6 +235,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
 
             foundError = validateBasicCaCertificateParams(reqX509Cert, certThumbprint, certsCount, partnerDomain);
+            if (foundError)
+                continue;
 
             String certSubject = PartnerCertificateManagerUtil
                     .formatCertificateDN(reqX509Cert.getSubjectX500Principal().getName());
@@ -794,7 +796,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 "Request to get Certificate for Domain and Certificate Type: " + requestDto.getPartnerDomain());
 
         Boolean excludeMosipCert = requestDto.getExcludeMosipCA() == null ? Boolean.FALSE : requestDto.getExcludeMosipCA();
-        String partnerDomain = validateAllowedDomains(requestDto.getPartnerDomain());
+        String partnerDomain = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getPartnerDomain()) == null ? null : validateAllowedDomains(requestDto.getPartnerDomain());
         String caCertificateType = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getCaCertificateType()) == null ? null : validateAllowedCaCertificateType(requestDto.getCaCertificateType());
         int offSet = requestDto.getPageNumber() < 1 ? 0 : requestDto.getPageNumber() - 1;
         int pageSize = requestDto.getPageSize() < 1 ? 10 : requestDto.getPageSize();
