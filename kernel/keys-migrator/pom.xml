@@ -39,7 +39,7 @@
 		<maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
 
 		<!-- spring -->
-		<spring.boot.version>2.0.2.RELEASE</spring.boot.version>
+		<spring.boot.version>2.5.12</spring.boot.version>
 		<spring.data.jpa.version>2.0.7.RELEASE</spring.data.jpa.version>
 		<spring.security.test.version>5.0.5.RELEASE</spring.security.test.version>
 		<spring-cloud-config.version>2.0.4.RELEASE</spring-cloud-config.version>
