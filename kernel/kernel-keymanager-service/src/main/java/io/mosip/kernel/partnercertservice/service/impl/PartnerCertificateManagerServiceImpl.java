@@ -235,6 +235,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
 
             foundError = validateBasicCaCertificateParams(reqX509Cert, certThumbprint, certsCount, partnerDomain);
+            if (foundError)
+                continue;
 
             String certSubject = PartnerCertificateManagerUtil
                     .formatCertificateDN(reqX509Cert.getSubjectX500Principal().getName());
@@ -712,6 +714,59 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return responseDto;
     }
 
+    @Override
+    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto) {
+
+
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT_TRUST,
+                PartnerCertManagerConstants.EMPTY, "Get CA Certificate with trust request: " );
+
+        String caCertId = caCertificateTrustPathRequestDto.getCaCertId();
+        CACertificateStore caCertificateStore = getCACertificate(caCertId);
+        X509Certificate caCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(String.valueOf(caCertificateStore.getCertData()));
+        String partnerDomain = caCertificateStore.getPartnerDomain();
+        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        List<? extends Certificate> certList = null;
+        if (!PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)){
+            certList = getCertificateTrustPath(caCertificate, partnerDomain);
+        }
+
+
+        List<Certificate> chain = new ArrayList<>();
+        chain.add(caCertificate);
+        if (certList != null) {
+            chain.addAll(certList);
+        }
+        String buildTrustPath = PartnerCertificateManagerUtil.buildp7bFile(chain.toArray(new Certificate[0]));
+
+        CACertificateTrustPathResponseDto responseDto = new CACertificateTrustPathResponseDto();
+        responseDto.setP7bFile(buildTrustPath);
+        responseDto.setTimestamp(timestamp);
+        return responseDto;
+    }
+
+    private CACertificateStore getCACertificate(String caCertId) {
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT, PartnerCertManagerConstants.EMPTY,
+                "Request to get CA Certificate for caCertId: " + caCertId);
+
+        if (!PartnerCertificateManagerUtil.isValidCertificateID(caCertId)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Invalid CA Certificate ID provided to get the CA Certificate.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorCode(),
+                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE_ID.getErrorMessage());
+        }
+        CACertificateStore caCertificateStore = certDBHelper.getCACert(caCertId);
+        if (Objects.isNull(caCertificateStore)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "CA Certificate not found for the provided ID.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.CA_CERT_ID_NOT_FOUND.getErrorCode(),
+                    PartnerCertManagerErrorConstants.CA_CERT_ID_NOT_FOUND.getErrorMessage());
+        }
+        return caCertificateStore;
+    }
+
     private PartnerCertificateStore getPartnerCertificate(String partnetCertId) {
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT, PartnerCertManagerConstants.EMPTY,
                 "Request to get Certificate for partnerId: " + partnetCertId);        
@@ -741,7 +796,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 "Request to get Certificate for Domain and Certificate Type: " + requestDto.getPartnerDomain());
 
         Boolean excludeMosipCert = requestDto.getExcludeMosipCA() == null ? Boolean.FALSE : requestDto.getExcludeMosipCA();
-        String partnerDomain = validateAllowedDomains(requestDto.getPartnerDomain());
+        String partnerDomain = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getPartnerDomain()) == null ? null : validateAllowedDomains(requestDto.getPartnerDomain());
         String caCertificateType = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getCaCertificateType()) == null ? null : validateAllowedCaCertificateType(requestDto.getCaCertificateType());
         int offSet = requestDto.getPageNumber() < 1 ? 0 : requestDto.getPageNumber() - 1;
         int pageSize = requestDto.getPageSize() < 1 ? 10 : requestDto.getPageSize();

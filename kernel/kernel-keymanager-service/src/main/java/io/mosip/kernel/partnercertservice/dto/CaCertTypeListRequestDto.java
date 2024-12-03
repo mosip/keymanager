@@ -33,8 +33,7 @@ public class CaCertTypeListRequestDto {
     /**
      * Domain Name
      */
-    @ApiModelProperty(notes = "Domain Name", required = true)
-    @NotBlank(message = KeymanagerConstant.INVALID_REQUEST)
+    @ApiModelProperty(notes = "Domain Name", required = false)
     String partnerDomain;
 
     @ApiModelProperty(notes = "Flag to force exclude the mosip CA Certificates", example = "false", required = false)

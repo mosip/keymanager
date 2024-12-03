@@ -77,4 +77,13 @@ public interface PartnerCertificateManagerService {
      * @return {@link CaCertificateChainResponseDto} response
      */
     public CaCertificateChainResponseDto getCaCertificateChain(CaCertTypeListRequestDto certListRequestDto);
+
+    /**
+     * Function to Download p7b file for CA Certificates along with trust
+     *
+     * @param caCertificateTrustPathRequestDto p7bFileDownloadRequestDto
+     * @return {@link CACertificateTrustPathResponseDto} respponse
+     */
+    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto);
+
 }
