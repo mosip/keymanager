@@ -50,6 +50,12 @@ public class CaCertTypeListResponseDto {
     private String issuedBy;
 
     /**
+     * Certificate Thumbprint
+     */
+    @ApiModelProperty(notes = "Certificate Thumbprint", required = true)
+    private String certThumbprint;
+
+    /**
      * Ca Certificate Valid From
      */
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")

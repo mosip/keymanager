@@ -480,6 +480,16 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                     PartnerCertManagerErrorConstants.CERTIFICATE_EXIST_ERROR.getErrorMessage()); */
         }
 
+        boolean futureDated = PartnerCertificateManagerUtil.isFutureDatedCertificate(reqX509Cert);
+        if (!futureDated) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Certificate is Future Dated.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.FUTURE_DATED_CERT_NOT_ALLOWED.getErrorCode(),
+                    PartnerCertManagerErrorConstants.FUTURE_DATED_CERT_NOT_ALLOWED.getErrorMessage()
+            );
+        }
+
         boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
         if (!validDates) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
@@ -506,6 +516,15 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorCode(),
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorMessage());
         }
+
+        boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
+        if (!minimumValidity) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
+                    PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
+        }
     }
 
     private boolean validateBasicCaCertificateParams(X509Certificate reqX509Cert, String certThumbprint, int certsCount,
@@ -523,28 +542,39 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 foundError = true;
             }
 
-            boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
-            if (!validDates) {
-                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                        PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
-                if(certsCount == 1) {
-                    throw new PartnerCertManagerException(
-                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
-                            PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
-                }
-                foundError = true;
+        boolean futureDated = PartnerCertificateManagerUtil.isFutureDatedCertificate(reqX509Cert);
+        if (!futureDated) {
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Future Dated Certificate.");
+            if (certsCount == 1) {
+                throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.FUTURE_DATED_CERT_NOT_ALLOWED.getErrorCode(),
+                        PartnerCertManagerErrorConstants.FUTURE_DATED_CERT_NOT_ALLOWED.getErrorMessage());
             }
+            foundError = true;
+        }
 
-            boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
-            if(!minimumValidity) {
-                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                        PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
-                if (certsCount == 1) {
-                    throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
-                            PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
-                }
-                foundError = true;
+        boolean validDates = PartnerCertificateManagerUtil.isCertificateDatesValid(reqX509Cert);
+        if (!validDates) {
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
+            if(certsCount == 1) {
+                throw new PartnerCertManagerException(
+                        PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
+                        PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
             }
+            foundError = true;
+        }
+
+        boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
+        if(!minimumValidity) {
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
+            if (certsCount == 1) {
+                throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
+                        PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
+            }
+            foundError = true;
+        }
 
         int certVersion = reqX509Cert.getVersion();
         if (certVersion != 3) {
@@ -727,13 +757,14 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         String partnerDomain = caCertificateStore.getPartnerDomain();
         LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
         List<? extends Certificate> certList = null;
-        if (!PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)){
+        List<Certificate> chain = new ArrayList<>();
+
+        if (PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)){
+            chain.add(caCertificate);
+        } else {
             certList = getCertificateTrustPath(caCertificate, partnerDomain);
         }
 
-
-        List<Certificate> chain = new ArrayList<>();
-        chain.add(caCertificate);
         if (certList != null) {
             chain.addAll(certList);
         }
@@ -827,6 +858,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                     certResponseDto.setCertId(certificate.getCertId());
                     certResponseDto.setIssuedTo(certificate.getCertSubject());
                     certResponseDto.setIssuedBy(certificate.getCertIssuer());
+                    certResponseDto.setCertThumbprint(certificate.getCertThumbprint());
                     certResponseDto.setValidFromDate(certificate.getCertNotBefore());
                     certResponseDto.setValidTillDate(certificate.getCertNotAfter());
                     certResponseDto.setUploadTime(certificate.getCreatedtimes());

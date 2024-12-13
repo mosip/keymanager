@@ -175,7 +175,7 @@ public class PartnerCertManagerController {
 	 * @return {@link CaCertTypeListRequestDto} Cetificate List data
 	 */
 	@Operation(summary = "To Download CA Type Certificate List.",
-			description = "To Download CA Type Certificate List.", tags = { "cacertmanager" })
+			description = "To Download CA Type Certificate List.", tags = { "partnercertmanager" })
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
@@ -200,7 +200,7 @@ public class PartnerCertManagerController {
 	 * @return {@link CACertificateTrustPathResponseDto} p7b data
 	 */
 	@Operation(summary = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.",
-			description = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.", tags = { "cacertmanager" })
+			description = "To Download p7b file for a CA / Intermediate CA certificate along with the trust chain.", tags = { "partnercertmanager" })
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),

@@ -31,13 +31,13 @@ public class CACertificateStoreSpec {
                 predicates.add(criteriaBuilder.equal(root.get("partnerDomain"), partnerDomain));
             }
             if (certId != null) {
-                predicates.add(criteriaBuilder.equal(root.get("certId"), certId));
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("certId")), "%" + certId.toLowerCase() + "%"));
             }
             if (issuedTo != null) {
-                predicates.add(criteriaBuilder.like(root.get("certSubject"), "%" + issuedTo + "%"));
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("certSubject")), "%" + issuedTo.toLowerCase() + "%"));
             }
             if (issuedBy != null) {
-                predicates.add(criteriaBuilder.like(root.get("certIssuer"), "%" + issuedBy + "%"));
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("certIssuer")), "%" + issuedBy.toLowerCase() + "%"));
             }
             if (validFrom != null) {
                 predicates.add(criteriaBuilder.equal(root.get("certNotBefore"), validFrom));

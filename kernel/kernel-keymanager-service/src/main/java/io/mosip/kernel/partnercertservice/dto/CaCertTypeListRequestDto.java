@@ -28,13 +28,13 @@ public class CaCertTypeListRequestDto {
      * Certificate Type
      */
     @ApiModelProperty(notes = "Partner Certificate Type", required = false)
-    String caCertificateType;
+    private String caCertificateType;
 
     /**
      * Domain Name
      */
     @ApiModelProperty(notes = "Domain Name", required = false)
-    String partnerDomain;
+    private String partnerDomain;
 
     @ApiModelProperty(notes = "Flag to force exclude the mosip CA Certificates", example = "false", required = false)
     private Boolean excludeMosipCA;
@@ -49,14 +49,14 @@ public class CaCertTypeListRequestDto {
      */
     @ApiModelProperty(notes = "Page Number", required = false)
     @NotNull(message = KeymanagerConstant.INVALID_REQUEST)
-    int pageNumber;
+    private int pageNumber;
 
     /**
      * Number of Certificate
      */
     @ApiModelProperty(notes = "Number of Certificate", required = false)
     @NotNull(message = KeymanagerConstant.INVALID_REQUEST)
-    int pageSize;
+    private int pageSize;
 
     /**
      * CA Certificate Id

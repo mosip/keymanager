@@ -81,12 +81,24 @@ public class PartnerCertificateManagerUtil {
         try {
             LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity);
             LocalDateTime expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
-            return  !expiredate.isBefore(timeStamp);
+            return !expiredate.isBefore(timeStamp);
         } catch (Exception exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.PCM_UTIL, "Error minimum Validity of Certificate: " + exp.getMessage());
             return false;
         }
+    }
+
+    public static boolean isFutureDatedCertificate(X509Certificate x509Certificate) {
+        try {
+            LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
+            LocalDateTime createdDate = x509Certificate.getNotBefore().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
+            return !createdDate.isAfter(timeStamp);
+        } catch (Exception exp) {
+            LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.PCM_UTIL, "Future Dated Certificated Not allowed to upload.");
+        }
+        return false;
     }
 
     /**
