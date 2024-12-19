@@ -48,6 +48,8 @@ public enum PartnerCertManagerErrorConstants {
 	CA_CERT_ID_NOT_FOUND("KER-PMS-019", "CA Certificate not found for the given ID."),
 
 	FUTURE_DATED_CERT_NOT_ALLOWED("KER-PMS-020", "Future Dated Certificate not allowed to upload."),
+
+	P7B_CONVERSION_ERROR("KER-KMS-021", "Failed to create p7b file format.")
     ;
 
 	/**

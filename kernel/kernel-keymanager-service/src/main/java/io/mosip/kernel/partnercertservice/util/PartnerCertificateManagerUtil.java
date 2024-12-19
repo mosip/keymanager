@@ -293,8 +293,8 @@ public class PartnerCertificateManagerUtil {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT_TRUST,
                     PartnerCertManagerConstants.PCM_UTIL, "Error generating p7b certificates chain.");
             throw new PartnerCertManagerException(
-                    PartnerCertManagerErrorConstants.CERTIFICATE_THUMBPRINT_ERROR.getErrorCode(),
-                    PartnerCertManagerErrorConstants.CERTIFICATE_THUMBPRINT_ERROR.getErrorMessage(), e);
+                    PartnerCertManagerErrorConstants.P7B_CONVERSION_ERROR.getErrorCode(),
+                    PartnerCertManagerErrorConstants.P7B_CONVERSION_ERROR.getErrorMessage(), e);
         }
     }
 
