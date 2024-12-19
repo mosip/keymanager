@@ -298,7 +298,6 @@ public class PartnerCertificateManagerUtil {
         }
     }
 
-
     public static String handleNullOrEmpty(String value) {
         return (value == null || value.trim().isEmpty()) ? null : value;
     }
