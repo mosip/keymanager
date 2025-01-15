@@ -9,6 +9,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
+import io.mosip.kernel.partnercertservice.dto.*;
 
 /**
  * This interface provides the methods for Partner Certificate Management Service.
@@ -68,4 +69,20 @@ public interface PartnerCertificateManagerService {
      * @return {@link PartnerCertDownloadResponeDto} instance
     */
     public PartnerSignedCertDownloadResponseDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto);
+
+    /**
+     * Function to list the Certificate Based on certificate type.
+     *
+     * @param CaCertTypeListRequestDto certListRequestDto
+     * @return {@link CaCertificateChainResponseDto} response
+     */
+    public CaCertificateChainResponseDto getCaCertificateChain(CaCertTypeListRequestDto certListRequestDto);
+
+    /**
+     * Function to Download p7b file for CA Certificates along with trust
+     *
+     * @param caCertificateTrustPathRequestDto p7bFileDownloadRequestDto
+     * @return {@link CACertificateTrustPathResponseDto} respponse
+     */
+    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto);
 }

@@ -91,5 +91,10 @@ public class CACertificateStore extends BaseEntity {
 	 */
     @Column(name = "partner_domain")
     private String partnerDomain;
-    
+
+    /**
+     * The field CA Certificate Type
+     */
+    @Column(name = "ca_cert_type")
+    private String caCertificateType;
 }
