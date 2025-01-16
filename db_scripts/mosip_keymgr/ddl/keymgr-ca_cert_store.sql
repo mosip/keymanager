@@ -20,6 +20,7 @@ CREATE TABLE keymgr.ca_cert_store(
 	upd_dtimes timestamp,
 	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
+	ca_cert_type character varying(25),
 	CONSTRAINT pk_cacs_id PRIMARY KEY (cert_id),
 	CONSTRAINT cert_thumbprint_unique UNIQUE (cert_thumbprint,partner_domain)
 
@@ -60,4 +61,6 @@ COMMENT ON COLUMN keymgr.ca_cert_store.upd_dtimes IS 'Updated DateTimestamp : Da
 COMMENT ON COLUMN keymgr.ca_cert_store.is_deleted IS 'IS_Deleted : Flag to mark whether the record is Soft deleted.';
 -- ddl-end --
 COMMENT ON COLUMN keymgr.ca_cert_store.del_dtimes IS 'Deleted DateTimestamp : Date and Timestamp when the record is soft deleted with is_deleted=TRUE';
+-- ddl-end --
+COMMENT ON COLUMN keymgr.ca_cert_store.ca_cert_type IS 'CA Certificate Type : Indicates if the certificate is a ROOT or INTERMEDIATE CA certificate';
 -- ddl-end --
