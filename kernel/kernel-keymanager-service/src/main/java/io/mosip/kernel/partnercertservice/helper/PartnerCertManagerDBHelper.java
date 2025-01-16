@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ import io.mosip.kernel.keymanagerservice.entity.PartnerCertificateStore;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.repository.CACertificateStoreRepository;
 import io.mosip.kernel.keymanagerservice.repository.PartnerCertificateStoreRepository;
+import io.mosip.kernel.keymanagerservice.dto.CertificateDataResponseDto;
+import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.partnercertservice.constant.PartnerCertManagerConstants;
 import io.mosip.kernel.partnercertservice.util.PartnerCertificateManagerUtil;
@@ -55,6 +58,9 @@ public class PartnerCertManagerDBHelper {
 	*/
 	@Autowired
     KeymanagerUtil keymanagerUtil;
+
+    @Autowired
+    KeymanagerService keymanagerService;
     
     public boolean isCertificateExist(String certThumbprint, String partnerDomain){
         CACertificateStore caCertificate = caCertificateStoreRepository
@@ -75,7 +81,7 @@ public class PartnerCertManagerDBHelper {
     }
 
     public void storeCACertificate(String certId, String certSubject, String certIssuer, String issuerId, 
-                    X509Certificate reqX509Cert, String certThumbprint, String partnerDomain) {
+                    X509Certificate reqX509Cert, String certThumbprint, String partnerDomain, String caCertType) {
 
         String certSerialNo = reqX509Cert.getSerialNumber().toString();
         LocalDateTime notBeforeDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
@@ -92,6 +98,7 @@ public class PartnerCertManagerDBHelper {
         certStoreObj.setCertThumbprint(certThumbprint);
         certStoreObj.setCertSerialNo(certSerialNo);
         certStoreObj.setPartnerDomain(partnerDomain);
+        certStoreObj.setCaCertificateType(caCertType);
         caCertificateStoreRepository.saveAndFlush(keymanagerUtil.setMetaData(certStoreObj));
     }
 
@@ -161,4 +168,18 @@ public class PartnerCertManagerDBHelper {
     public PartnerCertificateStore getPartnerCert(String certId) {
         return partnerCertificateStoreRepository.findByCertId(certId);
     }
+
+    public void getCertThumbprints(String appId, Optional<String> refId, List<String> certThumbprints) {
+        CertificateDataResponseDto[] certificates = keymanagerService.getAllCertificates(appId, refId).getAllCertificates();
+        for (CertificateDataResponseDto certData : certificates) {
+            X509Certificate certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certData.getCertificateData());
+            String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(certificate);
+            certThumbprints.add(certThumbprint);
+        }
+    }
+
+    public CACertificateStore getCACert(String certId) {
+        return caCertificateStoreRepository.findByCertId(certId);
+    }
+
 }

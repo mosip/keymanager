@@ -40,6 +40,16 @@ public enum PartnerCertManagerErrorConstants {
 	SELF_SIGNED_CERT_NOT_ALLOWED("KER-PCM-015", "Self Signed Certificate not allowed as partner."),
 
 	SIGN_CERT_NOT_ALLOWED("KER-PCM-016", "Sign Certificate not allowed for the authenticated token."),
+
+	CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED("KER-PCM-017","The CA Certificate validity is less than required minimum validity."),
+
+	INVALID_CA_CERTIFICATE_TYPE("KER-PCM-018", "Invalid Certificate Type"),
+
+	CA_CERT_ID_NOT_FOUND("KER-PMS-019", "CA Certificate not found for the given ID."),
+
+	FUTURE_DATED_CERT_NOT_ALLOWED("KER-PMS-020", "Future Dated Certificate not allowed to upload."),
+
+	P7B_CONVERSION_ERROR("KER-KMS-021", "Failed to create p7b file format."),
     ;
 
 	/**
