@@ -14,10 +14,7 @@ import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -253,7 +250,7 @@ public class PartnerCertificateManagerUtil {
     }
 
     public static String buildp7bFile(Certificate[] chain) {
-        return buildCertChain(chain);
+        return buildCertChainWithPKCS7(chain);
     }
 
     private static String buildCertChain(Certificate[] chain) {
@@ -271,6 +268,33 @@ public class PartnerCertificateManagerUtil {
                     PartnerCertManagerConstants.PCM_UTIL, "Error generating p7b certificates chain.");
             throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.CERTIFICATE_THUMBPRINT_ERROR.getErrorCode(),
                     PartnerCertManagerErrorConstants.CERTIFICATE_THUMBPRINT_ERROR.getErrorMessage(), e);
+        }
+    }
+
+    public static String buildCertChainWithPKCS7(Certificate[] chain) {
+        try {
+            CMSSignedDataGenerator generator = new CMSSignedDataGenerator();
+            JcaCertStore jcaStore = new JcaCertStore(Arrays.asList(chain));
+            generator.addCertificates(jcaStore);
+
+            CMSTypedData cmsTypedData = new CMSAbsentContent();
+            CMSSignedData cmsSignedData = generator.generate(cmsTypedData);
+
+            byte[] encodedData = cmsSignedData.getEncoded();
+            String base64Encoded = Base64.getEncoder().encodeToString(encodedData);
+
+            StringBuilder pkcs7Formatted = new StringBuilder();
+            pkcs7Formatted.append("-----BEGIN PKCS7-----\n");
+            pkcs7Formatted.append(base64Encoded.replaceAll("(.{64})", "$1\n"));
+            pkcs7Formatted.append("\n-----END PKCS7-----");
+
+            return pkcs7Formatted.toString();
+        } catch (CertificateEncodingException | CMSException | IOException e) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT_TRUST,
+                    PartnerCertManagerConstants.PCM_UTIL, "Error generating p7b certificates chain.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.P7B_CONVERSION_ERROR.getErrorCode(),
+                    PartnerCertManagerErrorConstants.P7B_CONVERSION_ERROR.getErrorMessage(), e);
         }
     }
 
