@@ -96,29 +96,15 @@ public class SignatureUtil {
 			boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate, String uniqueIdentifier, 
 			boolean includeKeyId) {
 
-		JWSAlgorithm jwsAlgorithm;
-		switch (signAlgorithm) {
-			case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.RS256; 
-				break;
-			case SignatureConstant.JWS_PS256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.PS256;
-				break;
-			case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.ES256;
-				break;
-			case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.ES256K;
-				break;
-			case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.EdDSA;
-				break;
-			default:
-				jwsAlgorithm = JWSAlgorithm.PS256; 
-				break;
-		}
-		
-		JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
+		JWSAlgorithm jwsAlgorithm = switch (signAlgorithm) {
+            case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST -> JWSAlgorithm.RS256;
+            case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST -> JWSAlgorithm.ES256;
+            case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST -> JWSAlgorithm.ES256K;
+            case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST -> JWSAlgorithm.EdDSA;
+            default -> JWSAlgorithm.PS256;
+        };
+
+        JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
 
 		if (!b64JWSHeaderParam) 
 			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
@@ -189,4 +175,13 @@ public class SignatureUtil {
 		return null;
 	}
 
+	public static String getSignAlgorithm(String referenceId) {
+		if (referenceId == null || referenceId.isBlank()) return SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		else return switch (referenceId) {
+			case SignatureConstant.EC_SECP256R1_SIGN -> SignatureConstant.JWS_ES256_SIGN_ALGO_CONST;
+			case SignatureConstant.EC_SECP256K1_SIGN -> SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST;
+			case SignatureConstant.ED25519_SIGN -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
+			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		};
+	}
 }
