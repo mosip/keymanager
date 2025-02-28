@@ -584,8 +584,8 @@ public class SignatureServiceImpl implements SignatureService {
 		String certificateUrl = SignatureUtil.isDataValid(
 								jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
 		boolean b64JWSHeaderParam = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getB64JWSHeaderParam());
-		String signAlgorithm = SignatureUtil.isDataValid(jwsSignRequestDto.getSignAlgorithm()) ? 
-									jwsSignRequestDto.getSignAlgorithm(): SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank()) ?
+				SignatureUtil.getSignAlgorithm(referenceId) : jwsSignRequestDto.getSignAlgorithm();
 		
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 									Optional.of(referenceId), timestamp);
