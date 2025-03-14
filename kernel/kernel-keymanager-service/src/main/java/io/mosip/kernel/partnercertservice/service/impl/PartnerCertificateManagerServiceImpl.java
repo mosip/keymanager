@@ -837,6 +837,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         LocalDateTime validFrom = requestDto.getValidFromDate();
         LocalDateTime validTill = requestDto.getValidTillDate();
         LocalDateTime uploadTime = requestDto.getUploadTime();
+        LocalDateTime expiringWithinDate = requestDto.getExpiringWithinDate();
         String sortFieldName = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getSortByFieldName()) == null ? "createdtimes" : requestDto.getSortByFieldName();
 
         Sort.Direction direction = "DESC".equalsIgnoreCase(requestDto.getSortOrder()) ? Sort.Direction.DESC : Sort.Direction.ASC;
@@ -845,7 +846,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         List<String> certThumbprints = getMosipCertThumbprints(excludeMosipCert);
 
         Specification<CACertificateStore> spec = CACertificateStoreSpec.filterCertificates(
-                caCertificateType, partnerDomain, certId, issuedTo, issuedBy, validFrom, validTill, uploadTime, certThumbprints);
+                caCertificateType, partnerDomain, certId, issuedTo, issuedBy, validFrom, validTill, uploadTime, expiringWithinDate, certThumbprints);
 
         Page<CACertificateStore> partnerCertificateList = caCertificateStoreRepository.findAll(spec, pageRequest);
 
