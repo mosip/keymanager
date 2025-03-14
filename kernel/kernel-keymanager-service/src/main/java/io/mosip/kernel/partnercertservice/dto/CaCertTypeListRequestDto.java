@@ -97,6 +97,13 @@ public class CaCertTypeListRequestDto {
     private LocalDateTime uploadTime;
 
     /**
+     * Get Expiring Ca Certificates within the Date
+     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    @ApiModelProperty(notes = "expiring within Dates", required = false)
+    private LocalDateTime expiringWithinDate;
+
+    /**
      * Sort By Field Name
      */
     @ApiModelProperty(notes = "Sort By Field", required = false)
