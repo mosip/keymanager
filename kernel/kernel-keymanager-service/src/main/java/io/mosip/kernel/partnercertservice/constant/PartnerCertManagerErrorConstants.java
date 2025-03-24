@@ -50,6 +50,8 @@ public enum PartnerCertManagerErrorConstants {
 	FUTURE_DATED_CERT_NOT_ALLOWED("KER-PMS-020", "Future Dated Certificate not allowed to upload."),
 
 	P7B_CONVERSION_ERROR("KER-KMS-021", "Failed to create p7b file format."),
+
+	PARTNER_CERT_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED("KER-KMS-021", "The PARTNER Certificate validity is less than required minimum validity"),
     ;
 
 	/**
