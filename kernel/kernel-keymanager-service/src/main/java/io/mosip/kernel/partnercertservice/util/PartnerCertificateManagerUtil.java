@@ -11,6 +11,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -76,8 +77,8 @@ public class PartnerCertificateManagerUtil {
 
     public static boolean isMinValidityCertificate(X509Certificate x509Certificate, int minimumValidity) {
         try {
-            LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity);
-            LocalDateTime expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
+            LocalDate timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity).toLocalDate();
+            LocalDate expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return !expiredate.isBefore(timeStamp);
         } catch (Exception exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
@@ -88,8 +89,8 @@ public class PartnerCertificateManagerUtil {
 
     public static boolean isFutureDatedCertificate(X509Certificate x509Certificate) {
         try {
-            LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
-            LocalDateTime createdDate = x509Certificate.getNotBefore().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
+            LocalDate timeStamp = DateUtils.getUTCCurrentDateTime().toLocalDate();
+            LocalDate createdDate = x509Certificate.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return !createdDate.isAfter(timeStamp);
         } catch (Exception exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
