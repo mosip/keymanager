@@ -78,7 +78,7 @@ public class PartnerCertificateManagerUtil {
     public static boolean isMinValidityCertificate(X509Certificate x509Certificate, int minimumValidity) {
         try {
             LocalDate timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity).toLocalDate();
-            LocalDate expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime().toLocalDate();
+            LocalDate expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return !expiredate.isBefore(timeStamp);
         } catch (Exception exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
