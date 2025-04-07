@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -96,6 +95,13 @@ public class CaCertTypeListRequestDto {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     @ApiModelProperty(notes = "Upload Time", required = false)
     private LocalDateTime uploadTime;
+
+    /**
+     * Get Expiring Ca Certificates within the Date
+     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    @ApiModelProperty(notes = "expiring within Dates", required = false)
+    private LocalDateTime expiringWithinDate;
 
     /**
      * Sort By Field Name

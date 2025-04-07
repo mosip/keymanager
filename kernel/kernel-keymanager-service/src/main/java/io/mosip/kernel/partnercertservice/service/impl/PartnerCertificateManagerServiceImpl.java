@@ -504,8 +504,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
                     PartnerCertManagerConstants.EMPTY, "Certificate Dates are not in allowed range.");
             throw new PartnerCertManagerException(
-                    PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
-                    PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
+                    PartnerCertManagerErrorConstants.PARTNER_CERT_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
+                    PartnerCertManagerErrorConstants.PARTNER_CERT_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
         }
 
         boolean selfSigned = PartnerCertificateManagerUtil.isSelfSignedCertificate(reqX509Cert);
@@ -515,15 +515,6 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             throw new PartnerCertManagerException(
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorCode(),
                         PartnerCertManagerErrorConstants.SELF_SIGNED_CERT_NOT_ALLOWED.getErrorMessage());
-        }
-
-        boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
-        if (!minimumValidity) {
-            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                    PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
-            throw new PartnerCertManagerException(
-                    PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorCode(),
-                    PartnerCertManagerErrorConstants.CERT_VALIDITY_LESS_THAN_MIN_VALIDITY_NOT_ALLOWED.getErrorMessage());
         }
     }
 
@@ -837,6 +828,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         LocalDateTime validFrom = requestDto.getValidFromDate();
         LocalDateTime validTill = requestDto.getValidTillDate();
         LocalDateTime uploadTime = requestDto.getUploadTime();
+        LocalDateTime expiringWithinDate = requestDto.getExpiringWithinDate();
         String sortFieldName = PartnerCertificateManagerUtil.handleNullOrEmpty(requestDto.getSortByFieldName()) == null ? "createdtimes" : requestDto.getSortByFieldName();
 
         Sort.Direction direction = "DESC".equalsIgnoreCase(requestDto.getSortOrder()) ? Sort.Direction.DESC : Sort.Direction.ASC;
@@ -845,7 +837,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         List<String> certThumbprints = getMosipCertThumbprints(excludeMosipCert);
 
         Specification<CACertificateStore> spec = CACertificateStoreSpec.filterCertificates(
-                caCertificateType, partnerDomain, certId, issuedTo, issuedBy, validFrom, validTill, uploadTime, certThumbprints);
+                caCertificateType, partnerDomain, certId, issuedTo, issuedBy, validFrom, validTill, uploadTime, expiringWithinDate, certThumbprints);
 
         Page<CACertificateStore> partnerCertificateList = caCertificateStoreRepository.findAll(spec, pageRequest);
 
