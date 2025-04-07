@@ -80,6 +80,24 @@ public class PartnerCertManagerController {
 		return response;
 	}
 
+	/**
+	 * To Upload Partner Certificate.
+	 * 
+	 * @param partnerCertRequestDto {@link PartnerCertificateRequestDto} request
+	 * @return {@link PartnerCertificateResponseDto} signed certificate response
+	 */
+	// @PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL',
+	// 'ID_AUTHENTICATION', 'PMS_USER')")
+	@ResponseFilter
+	@PostMapping(value = "/v2/uploadPartnerCertificate", produces = "application/json")
+	public ResponseWrapper<PartnerCertificateResponseDto> uploadPartnerCertificateV2(
+			@ApiParam("Upload Partner Certificates.") @RequestBody @Valid RequestWrapper<PartnerCertificateRequestDto> partnerCertRequestDto) {
+
+		ResponseWrapper<PartnerCertificateResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.uploadPartnerCertificateV2(partnerCertRequestDto.getRequest()));
+		return response;
+	}
+
     /**
 	 * To Download Partner Certificate.
 	 * 

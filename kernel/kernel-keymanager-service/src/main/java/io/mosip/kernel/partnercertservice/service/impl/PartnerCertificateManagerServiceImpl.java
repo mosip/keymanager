@@ -290,6 +290,52 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return responseDto;
     }
 
+    @Override
+    public PartnerCertificateResponseDto uploadPartnerCertificateV2(PartnerCertificateRequestDto partnerCertRequesteDto) {
+
+        String certificateData = partnerCertRequesteDto.getCertificateData();
+        if (!keymanagerUtil.isValidCertificateData(certificateData)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY,
+                    "Invalid Certificate Data provided to upload the partner certificate.");
+            throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.INVALID_CERTIFICATE.getErrorCode(),
+                    PartnerCertManagerErrorConstants.INVALID_CERTIFICATE.getErrorMessage());
+        }
+        X509Certificate reqX509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
+        String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
+        String reqOrgName = partnerCertRequesteDto.getOrganizationName();
+        String partnerDomain = validateAllowedDomains(partnerCertRequesteDto.getPartnerDomain());
+
+        validateBasicPartnerCertParams(reqX509Cert, certThumbprint, reqOrgName, partnerDomain);
+
+        String certSubject = PartnerCertificateManagerUtil
+                .formatCertificateDN(reqX509Cert.getSubjectX500Principal().getName());
+        String certIssuer = PartnerCertificateManagerUtil
+                .formatCertificateDN(reqX509Cert.getIssuerX500Principal().getName());
+        String issuerId = certDBHelper.getIssuerCertId(certIssuer);
+        String certId = UUID.randomUUID().toString();
+
+        X509Certificate rootCert = (X509Certificate) keymanagerUtil.convertToCertificate(
+                                    keymanagerService.getCertificate(PartnerCertManagerConstants.ROOT_APP_ID,
+                                            Optional.of(PartnerCertManagerConstants.EMPTY)).getCertificate());
+        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(masterSignKeyAppId,
+                                                Optional.of(PartnerCertManagerConstants.EMPTY), timestamp);
+        X509Certificate pmsCert = certificateResponse.getCertificateEntry().getChain()[0];
+
+        X509Certificate resignedCert = reSignPartnerKey(reqX509Cert);
+        String signedCertData = keymanagerUtil.getPEMFormatedData(resignedCert);
+        certDBHelper.storePartnerCertificate(certId, certSubject, certIssuer, issuerId, reqX509Cert, certThumbprint,
+                reqOrgName, partnerDomain, signedCertData);
+
+        String p7bCertChain = PartnerCertificateManagerUtil.buildP7BCertificateChain(resignedCert, rootCert, pmsCert);
+        PartnerCertificateResponseDto responseDto = new PartnerCertificateResponseDto();
+        responseDto.setCertificateId(certId);
+        responseDto.setSignedCertificateData(p7bCertChain);
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        return responseDto;
+    }
+
     private void validateBasicPartnerCertParams(X509Certificate reqX509Cert, String certThumbprint, String reqOrgName,
             String partnerDomain) {
         boolean certExist = certDBHelper.isPartnerCertificateExist(certThumbprint, partnerDomain);

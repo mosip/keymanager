@@ -3,6 +3,7 @@ package io.mosip.kernel.partnercertservice.helper;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -115,16 +116,25 @@ public class PartnerCertManagerDBHelper {
         return hashMap;
     }
 
-
     public String getIssuerCertId(String certIssuerDn) {
         LocalDateTime currentDateTime = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime finalCurrentDateTime = currentDateTime;
         List<CACertificateStore> certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
-                        .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(currentDateTime, cert))
+                        .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(finalCurrentDateTime, cert))
                         .collect(Collectors.toList());
+
+        if (certificates.size() == 0) {
+            currentDateTime = LocalDateTime.now(ZoneId.systemDefault());
+            LocalDateTime finalCurrentDateTime1 = currentDateTime;
+            certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
+                    .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(finalCurrentDateTime1, cert))
+                    .collect(Collectors.toList());
+        }
 
         if (certificates.size() == 1) {
             return certificates.get(0).getCertId();
         }
+
         List<CACertificateStore> sortedCerts = certificates.stream()
                                                .sorted((cert1, cert2) -> cert1.getCertNotBefore().compareTo(cert2.getCertNotBefore()))
                                                .collect(Collectors.toList());
