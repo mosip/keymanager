@@ -118,16 +118,15 @@ public class PartnerCertManagerDBHelper {
 
     public String getIssuerCertId(String certIssuerDn) {
         LocalDateTime currentDateTime = DateUtils.getUTCCurrentDateTime();
-        LocalDateTime finalCurrentDateTime = currentDateTime;
+
         List<CACertificateStore> certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
-                        .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(finalCurrentDateTime, cert))
+                        .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(currentDateTime, cert))
                         .collect(Collectors.toList());
 
         if (certificates.size() == 0) {
-            currentDateTime = LocalDateTime.now(ZoneId.systemDefault());
-            LocalDateTime finalCurrentDateTime1 = currentDateTime;
+            LocalDateTime curDateTime = LocalDateTime.now(ZoneId.systemDefault());
             certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
-                    .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(finalCurrentDateTime1, cert))
+                    .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(curDateTime, cert))
                     .collect(Collectors.toList());
         }
 

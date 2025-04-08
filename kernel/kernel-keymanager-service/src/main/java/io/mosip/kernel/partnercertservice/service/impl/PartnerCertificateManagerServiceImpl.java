@@ -4,21 +4,10 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.CertPathBuilder;
-import java.security.cert.CertPathBuilderException;
-import java.security.cert.CertStore;
-import java.security.cert.CollectionCertStoreParameters;
-import java.security.cert.PKIXBuilderParameters;
-import java.security.cert.TrustAnchor;
-import java.security.cert.X509CertSelector;
-import java.security.cert.X509Certificate;
+import java.security.cert.*;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
@@ -90,6 +79,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
     @Value("${mosip.kernel.partner.issuer.certificate.allowed.grace.duration:30}")
     private int gracePeriod;
+
+    @Value("${mosip.kernel.partner.resign.ftm.domain.certs:false}")
+    private boolean resignFTMDomainCerts;
         
     /**
      * Utility to generate Metadata
@@ -254,6 +246,45 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return false;
     }
 
+    private List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain) {
+
+        try {
+            Map<String, Set<?>> trustStoreMap = (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain); //certDBHelper.getTrustAnchors(partnerDomain);
+            Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap
+                    .get(PartnerCertManagerConstants.TRUST_ROOT);
+            Set<X509Certificate> interCerts = (Set<X509Certificate>) trustStoreMap
+                    .get(PartnerCertManagerConstants.TRUST_INTER);
+
+            X509CertSelector certToVerify = new X509CertSelector();
+            certToVerify.setCertificate(reqX509Cert);
+
+            PKIXBuilderParameters pkixBuilderParams = new PKIXBuilderParameters(rootTrustAnchors, certToVerify);
+            pkixBuilderParams.setRevocationEnabled(false);
+
+            CertStore interCertStore = CertStore.getInstance("Collection",
+                    new CollectionCertStoreParameters(interCerts));
+            pkixBuilderParams.addCertStore(interCertStore);
+
+            // Building the cert path and verifying the certification chain
+            CertPathBuilder certPathBuilder = CertPathBuilder.getInstance("PKIX");
+            //certPathBuilder.build(pkixBuilderParams);
+            PKIXCertPathBuilderResult result = (PKIXCertPathBuilderResult) certPathBuilder.build(pkixBuilderParams);
+            X509Certificate rootCert = result.getTrustAnchor().getTrustedCert();
+            List<? extends Certificate> certList = result.getCertPath().getCertificates();
+            List<Certificate> trustCertList = new ArrayList<>();
+            certList.stream().forEach(cert -> {
+                trustCertList.add(cert);
+            });
+            trustCertList.add(rootCert);
+            return trustCertList;
+        } catch (CertPathBuilderException | InvalidAlgorithmParameterException | NoSuchAlgorithmException exp) {
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                    PartnerCertManagerConstants.EMPTY,
+                    "Ignore this exception, the exception thrown when trust validation failed.");
+        }
+        return null;
+    }
+
     @Override
     public PartnerCertificateResponseDto uploadPartnerCertificate(PartnerCertificateRequestDto partnerCertRequesteDto) {
 
@@ -308,6 +339,16 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
         validateBasicPartnerCertParams(reqX509Cert, certThumbprint, reqOrgName, partnerDomain);
 
+        List<? extends Certificate>certList = getCertificateTrustPath(reqX509Cert, partnerDomain);
+        if (Objects.isNull(certList)) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
+                    PartnerCertManagerConstants.EMPTY,
+                    "Partner Certificate not allowed to upload as root CA/Intermediate CAs are not found in trust cert path.");
+            throw new PartnerCertManagerException(
+                    PartnerCertManagerErrorConstants.ROOT_INTER_CA_NOT_FOUND.getErrorCode(),
+                    PartnerCertManagerErrorConstants.ROOT_INTER_CA_NOT_FOUND.getErrorMessage());
+        }
+
         String certSubject = PartnerCertificateManagerUtil
                 .formatCertificateDN(reqX509Cert.getSubjectX500Principal().getName());
         String certIssuer = PartnerCertificateManagerUtil
@@ -328,7 +369,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         certDBHelper.storePartnerCertificate(certId, certSubject, certIssuer, issuerId, reqX509Cert, certThumbprint,
                 reqOrgName, partnerDomain, signedCertData);
 
-        String p7bCertChain = PartnerCertificateManagerUtil.buildP7BCertificateChain(resignedCert, rootCert, pmsCert);
+        String p7bCertChain = PartnerCertificateManagerUtil.buildP7BCertificateChain(certList, resignedCert,
+                partnerDomain, resignFTMDomainCerts, rootCert, pmsCert);
         PartnerCertificateResponseDto responseDto = new PartnerCertificateResponseDto();
         responseDto.setCertificateId(certId);
         responseDto.setSignedCertificateData(p7bCertChain);

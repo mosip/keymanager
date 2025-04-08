@@ -199,7 +199,13 @@ public class PartnerCertificateManagerUtil {
         return IETFUtils.valueToString((rdns[0]).getFirst().getValue());
     }
 
-    public static String buildP7BCertificateChain(X509Certificate resignedCert, X509Certificate rootCert, X509Certificate pmsCert) {
+    public static String buildP7BCertificateChain(List<? extends Certificate> certList, X509Certificate resignedCert,
+                                                  String partnerDomain, boolean resignFTMDomainCerts, X509Certificate rootCert, X509Certificate pmsCert) {
+
+        if (partnerDomain.toUpperCase().equals(PartnerCertManagerConstants.FTM_PARTNER_DOMAIN) && !resignFTMDomainCerts) {
+            return buildCertChain(certList.toArray(new Certificate[0]));
+        }
+
         List<Certificate> chain = new ArrayList<>();
         chain.add(resignedCert);
         chain.add(pmsCert);
