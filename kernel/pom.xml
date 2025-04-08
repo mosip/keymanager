@@ -30,7 +30,7 @@
 
 	<modules>
 		<module>kernel-keymanager-service</module>
-		<!-- <module>keys-generator</module> -->
+		<module>keys-generator</module>
 	</modules>
 
 	
