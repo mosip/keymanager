@@ -67,7 +67,10 @@ ADD configure_start.sh configure_start.sh
 
 RUN chmod +x configure_start.sh
 
-ADD target/keys-generator-*.jar keys-generator.jar
+ADD ./target/*.jar /target/
+RUN find /target -name '*.jar' -executable -type f "-print0" | xargs "-0" cp -t / \
+    && rm -rf /target \
+    && mv /*.jar ${work_dir}/keys-generator.jar
 
 ENTRYPOINT [ "/configure_start.sh" ]
 
