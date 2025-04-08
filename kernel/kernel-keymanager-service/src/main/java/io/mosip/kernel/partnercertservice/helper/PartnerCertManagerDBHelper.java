@@ -3,6 +3,7 @@ package io.mosip.kernel.partnercertservice.helper;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -115,16 +116,24 @@ public class PartnerCertManagerDBHelper {
         return hashMap;
     }
 
-
     public String getIssuerCertId(String certIssuerDn) {
         LocalDateTime currentDateTime = DateUtils.getUTCCurrentDateTime();
+
         List<CACertificateStore> certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
                         .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(currentDateTime, cert))
                         .collect(Collectors.toList());
 
+        if (certificates.size() == 0) {
+            LocalDateTime curDateTime = LocalDateTime.now(ZoneId.systemDefault());
+            certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
+                    .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(curDateTime, cert))
+                    .collect(Collectors.toList());
+        }
+
         if (certificates.size() == 1) {
             return certificates.get(0).getCertId();
         }
+
         List<CACertificateStore> sortedCerts = certificates.stream()
                                                .sorted((cert1, cert2) -> cert1.getCertNotBefore().compareTo(cert2.getCertNotBefore()))
                                                .collect(Collectors.toList());

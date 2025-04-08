@@ -3,6 +3,7 @@ package io.mosip.kernel.partnercertservice.controller;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,8 +51,7 @@ public class PartnerCertManagerController {
 	 * @param caCertRequestDto {@link CACertificateRequestDto} request
 	 * @return {@link CACertficateResponseDto} Upload Success
 	 */
-		// @PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL',
-		// 'PMS_ADMIN')")
+	@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','PMS_ADMIN','PARTNER_ADMIN','POLICYMANAGER')")
 	@ResponseFilter
 	@PostMapping(value = "/uploadCACertificate", produces = "application/json")
 	public ResponseWrapper<CACertificateResponseDto> uploadCACertificate(
@@ -68,8 +68,7 @@ public class PartnerCertManagerController {
 	 * @param partnerCertRequestDto {@link PartnerCertificateRequestDto} request
 	 * @return {@link PartnerCertificateResponseDto} signed certificate response
 	 */
-	// @PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL',
-	// 'ID_AUTHENTICATION', 'PMS_USER')")
+	@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION','PMS_USER','PMS_ADMIN','PARTNER_ADMIN','POLICYMANAGER')")
 	@ResponseFilter
 	@PostMapping(value = "/uploadPartnerCertificate", produces = "application/json")
 	public ResponseWrapper<PartnerCertificateResponseDto> uploadPartnerCertificate(
@@ -80,14 +79,30 @@ public class PartnerCertManagerController {
 		return response;
 	}
 
+	/**
+	 * To Upload Partner Certificate.
+	 * 
+	 * @param partnerCertRequestDto {@link PartnerCertificateRequestDto} request
+	 * @return {@link PartnerCertificateResponseDto} signed certificate response
+	 */
+	@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION','PMS_USER','PMS_ADMIN','PARTNER_ADMIN','POLICYMANAGER')")
+	@ResponseFilter
+	@PostMapping(value = "/v2/uploadPartnerCertificate", produces = "application/json")
+	public ResponseWrapper<PartnerCertificateResponseDto> uploadPartnerCertificateV2(
+			@ApiParam("Upload Partner Certificates.") @RequestBody @Valid RequestWrapper<PartnerCertificateRequestDto> partnerCertRequestDto) {
+
+		ResponseWrapper<PartnerCertificateResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(partnerCertManagerService.uploadPartnerCertificateV2(partnerCertRequestDto.getRequest()));
+		return response;
+	}
+
     /**
 	 * To Download Partner Certificate.
 	 * 
 	 * @param certDownloadRequestDto {@link PartnerCertDownloadRequestDto} request
 	 * @return {@link PartnerCertDownloadResponeDto} encrypted Data
 	 */
-	// @PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL',
-	// 'ID_AUTHENTICATION', 'PMS_USER')")
+	@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION','PMS_USER','PMS_ADMIN','PARTNER_ADMIN','POLICYMANAGER')")
 	@ResponseFilter
 	@GetMapping(value = "/getPartnerCertificate/{partnerCertId}")
 	public ResponseWrapper<PartnerCertDownloadResponeDto> getPartnerCertificate(
@@ -105,8 +120,7 @@ public class PartnerCertManagerController {
 	 * @param certificateTrustRequestDto {@CertificateTrustRequestDto CertificateTrustDto} request
 	 * @return {@link CertificateTrustResponeDto} certificate verify response
 	 */
-	// @PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL',
-	// 'ID_AUTHENTICATION', 'PMS_USER')")
+	@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION','PMS_USER','PMS_ADMIN','PARTNER_ADMIN','POLICYMANAGER')")
 	@ResponseFilter
 	@PostMapping(value = "/verifyCertificateTrust", produces = "application/json")
 	public ResponseWrapper<CertificateTrustResponeDto> verifyCertificateTrust(

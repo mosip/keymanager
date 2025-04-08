@@ -36,6 +36,14 @@ public interface PartnerCertificateManagerService {
     public PartnerCertificateResponseDto uploadPartnerCertificate(PartnerCertificateRequestDto partnerCertResponseDto);
 
     /**
+     * Function to Upload Partner certificates
+     * 
+     * @param PartnerCertificateRequestDto partnerCertResponseDto
+     * @return {@link PartnerCertificateResponseDto} instance
+    */
+    public PartnerCertificateResponseDto uploadPartnerCertificateV2(PartnerCertificateRequestDto partnerCertResponseDto);
+
+    /**
      * Function to Download Partner certificates
      * 
      * @param PartnerCertDownloadRequestDto certDownloadRequestDto

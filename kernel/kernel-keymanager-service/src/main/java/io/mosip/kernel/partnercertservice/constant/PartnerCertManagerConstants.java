@@ -76,4 +76,9 @@ public interface PartnerCertManagerConstants {
 	String HASH_SHA2 = "SHA2";
 
 	int YEAR_DAYS = 365;
+
+	String FTM_PARTNER_DOMAIN = "FTM";
+
+	String ROOT_APP_ID = "ROOT";
+
 }
