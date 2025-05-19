@@ -115,7 +115,7 @@ jobs:
       run: |
         cd kernel && mvn -B deploy  -DaltDeploymentRepository=ossrh::default::${{ secrets.RELEASE_URL }} -s $GITHUB_WORKSPACE/settings.xml -f pom.xml
       env:
-        GITHUB_TOKEN: ${{secrets.RELEASE_TOKEN}}
+        GITHUB_TOKEN: ${{secrets.OSSRH_SNAPSHOT_URL}}
         GPG_TTY: $(tty)
     - uses: 8398a7/action-slack@v3
       with:
