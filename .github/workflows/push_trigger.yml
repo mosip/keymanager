@@ -115,7 +115,7 @@ jobs:
       run: |
         cd kernel && mvn -B deploy  -DaltDeploymentRepository=ossrh::default::${{ secrets.RELEASE_URL }} -s $GITHUB_WORKSPACE/settings.xml -f pom.xml
       env:
-        GITHUB_TOKEN: ${{secrets.OSSRH_SNAPSHOT_URL}}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_URL }}
         GPG_TTY: $(tty)
     - uses: 8398a7/action-slack@v3
       with:
@@ -124,7 +124,6 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_DEVOPS_WEBHOOK }} # required
       if: failure() # Pick up events even if the job fails or is canceled.
-
 
   docker-kernel-keymanager-service:
     needs: build
