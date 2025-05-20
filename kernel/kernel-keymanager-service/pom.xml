@@ -94,9 +94,6 @@
 		<lombok.version>1.18.8</lombok.version>
 		<jsch.version>0.1.54</jsch.version>
 		<sshd.version>1.4.0</sshd.version>
-		<itextcore.version>7.1.0</itextcore.version>
-		<itexthtml2pdf.version>2.0.0</itexthtml2pdf.version>
-		<itext.version>5.5.13</itext.version>
 		<freemarker.version>2.3.23</freemarker.version>
 		<velocity.version>1.7</velocity.version>
 		<velocity.tool.version>2.0</velocity.tool.version>
@@ -138,7 +135,7 @@
 		<kernel.core.version>1.2.0.1</kernel.core.version>
 		<kernel-dataaccess-hibernate.version>1.2.0.1</kernel-dataaccess-hibernate.version>
 		<kernel.logger.logback.version>1.2.0.1</kernel.logger.logback.version>
-		<kernel.pdfgenerator.itext.version>1.2.0.1</kernel.pdfgenerator.itext.version>
+		<kernel.pdfgenerator.version>1.2.1.0-SNAPSHOT</kernel.pdfgenerator.version>
 		<jose4j.version>0.6.5</jose4j.version>
 		<tss.version>0.3.0</tss.version>
 		<cache2k-version>2.4.1.Final</cache2k-version>
@@ -184,8 +181,8 @@
 		</dependency>
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-pdfgenerator-itext</artifactId>
-			<version>${kernel.pdfgenerator.itext.version}</version>
+			<artifactId>kernel-pdfgenerator</artifactId>
+			<version>${kernel.pdfgenerator.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
