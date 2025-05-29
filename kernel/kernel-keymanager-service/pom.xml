@@ -145,6 +145,7 @@
 		<io.projectreactor.reactor-core.version>3.1.7.RELEASE</io.projectreactor.reactor-core.version>
 		<de.mkammerer.argon2-jvm-nolibs.version>2.11</de.mkammerer.argon2-jvm-nolibs.version>
 		<net.java.dev.jna.version>5.13.0</net.java.dev.jna.version>
+		<kernel.pdfgenerator.version>1.2.1.0-SNAPSHOT</kernel.pdfgenerator.version>
 	</properties>
 
 	<dependencies>
@@ -181,7 +182,7 @@
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
 			<artifactId>kernel-pdfgenerator</artifactId>
-			<version>1.2.1.0-SNAPSHOT</version>
+			<version>${kernel.pdfgenerator.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
