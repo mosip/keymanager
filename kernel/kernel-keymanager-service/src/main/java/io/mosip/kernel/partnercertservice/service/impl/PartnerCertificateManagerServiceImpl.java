@@ -86,6 +86,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
     private static final Logger LOGGER = KeymanagerLogger.getLogger(PartnerCertificateManagerServiceImpl.class);
 
+    @Value("${mosip.root.key.applicationid:ROOT}")
+    private String rootKeyApplicationId;
+
     @Value("${mosip.kernel.partner.sign.masterkey.application.id}")
     private String masterSignKeyAppId;
 
@@ -397,7 +400,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         String certId = UUID.randomUUID().toString();
 
         X509Certificate rootCert = (X509Certificate) keymanagerUtil.convertToCertificate(
-                                        keymanagerService.getCertificate(PartnerCertManagerConstants.ROOT_APP_ID, 
+                                        keymanagerService.getCertificate(rootKeyApplicationId,
                                                         Optional.of(PartnerCertManagerConstants.EMPTY)).getCertificate());
         String timestamp = DateUtils.getUTCCurrentDateTimeString();
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(masterSignKeyAppId,

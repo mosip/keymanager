@@ -163,8 +163,6 @@ public class KeymanagerConstant {
 	 */
 	public static final String KS_PK_NA = "NA";
 
-	public static final String ROOT = "ROOT";
-
 	public static final String REQ_SYM_KEY_GEN = "Request for Symmetric Key Generation.";
 
 	public static final int SYMMETRIC_KEY_VALIDITY = 365 * 10;
