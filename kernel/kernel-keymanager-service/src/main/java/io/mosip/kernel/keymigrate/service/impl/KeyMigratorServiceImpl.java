@@ -88,6 +88,13 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
     @Value("${mosip.kernel.zkcrypto.wrap.algorithm-name:AES/ECB/NoPadding}")
 	private String aesECBTransformation;
 
+    /** Master Key generation algorithm */
+    @Value("${mosip.kernel.keygenerator.asymmetric-algorithm-name:RSA}")
+    private String keyAlgorithm;
+
+    @Value("${mosip.kernel.keygenerator.ecc-curve-name:SECP256R1}")
+    private String ecCurveName;
+
     /**
 	 * KeymanagerDBHelper instance to handle all DB operations
 	 */
@@ -283,7 +290,12 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 		LocalDateTime expiryDateTime = localDateTimeStamp.plusDays(1);
 		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(KeyMigratorConstants.ZK_CERT_COMMON_NAME, 
                                 localDateTimeStamp, expiryDateTime);
-		keyStore.generateAndStoreAsymmetricKey(alias, null, certParams);
+
+        if (keyAlgorithm.equalsIgnoreCase(KeymanagerConstant.RSA)) {
+            keyStore.generateAndStoreAsymmetricKey(alias, null, certParams);
+        } else {
+            keyStore.generateAndStoreAsymmetricKey(alias, null, certParams, ecCurveName);
+        }
         X509Certificate x509Cert = (X509Certificate) keyStore.getCertificate(alias);
 		String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(x509Cert);
         // Using certThumbprint not generation time because in case more than one migration master key may be 

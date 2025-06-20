@@ -476,7 +476,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 									.collect(Collectors.toList());
 		if (KeymanagerConstant.RSA_KEY_TYPE.equals(keyType))
 			return generateRSAKeyPair();
-		else if (ecCurvesList.contains(keyType))
+		else if (ecCurvesList.contains(keyType.toUpperCase()))
 			return generateECKeyPair(keyType);
 		else if (KeymanagerConstant.ED25519_KEY_TYPE.equals(keyType))
 			return generateEd25519KeyPair();

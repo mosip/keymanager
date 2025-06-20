@@ -1,5 +1,6 @@
 package io.mosip.kernel.keymanagerservice.constant;
 
+import java.security.PublicKey;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -226,4 +227,8 @@ public class KeymanagerConstant {
 	public static final String ED25519_ALG_OID = "1.3.101.112";
 
 	public static final String APP_REF_ID_SEP = "#";
+
+	public static final String EC_SECP256R1_OID = "1.2.840.10045.3.1.7";
+
+	public static final String EC_SECP256K1_OID = "1.3.132.0.10";
 }
