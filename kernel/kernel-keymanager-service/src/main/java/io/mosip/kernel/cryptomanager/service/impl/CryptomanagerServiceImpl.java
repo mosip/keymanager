@@ -205,6 +205,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 		Certificate certificate = cryptomanagerUtil.getCertificate(cryptoRequestDto);
 		PublicKey publicKey = certificate.getPublicKey();
+		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
 
 		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
 
@@ -246,7 +247,6 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 			return cryptoResponseDto;
 		} */
 			//---------------------
-			byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
 			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
 			byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
 			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData,
@@ -267,7 +267,8 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 			byte[] headerBytes = cryptomanagerUtil.getHeaderByte(ecCurveName);
 
-			byte[] finalEncKeyBytes = CryptoUtil.combineByteArray(encryptedDataWithIv, headerBytes, keySplitter);
+			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedDataWithIv);
+			byte[] finalEncKeyBytes = CryptoUtil.combineByteArray(concatedData, headerBytes, keySplitter);
 			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(finalEncKeyBytes));
 		}
 		return cryptoResponseDto;
@@ -341,11 +342,13 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, KeymanagerConstant.EC_KEY_TYPE,
 					"Decrytping the data with EC Key.");
 			String ecCurveName = algorithmName;
-			byte[] encryptedDataWithIv = copyOfRange(encryptedHybridData, keyDemiliterIndex + keySplitter.length(),
+			byte[] thumbprint = copyOfRange(encryptedHybridData, keyDemiliterIndex + keySplitter.length(), keyDemiliterIndex + keySplitter.length() + CryptomanagerConstant.THUMBPRINT_LENGTH);
+			byte[] encryptedDataWithIv = copyOfRange(encryptedHybridData, keyDemiliterIndex + keySplitter.length() + CryptomanagerConstant.THUMBPRINT_LENGTH,
 					encryptedHybridData.length);
 
+			String certThumbprintHex = Hex.toHexString(thumbprint).toUpperCase();
 			PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getEncryptedPrivateKey(cryptoRequestDto.getApplicationId(),
-					Optional.ofNullable(cryptoRequestDto.getReferenceId()))[0];
+					Optional.ofNullable(cryptoRequestDto.getReferenceId()), certThumbprintHex)[0];
 
 			byte[] aad = Arrays.copyOfRange(encryptedDataWithIv, 0, CryptomanagerConstant.GCM_AAD_LENGTH);
 			byte[] encryptedData = Arrays.copyOfRange(encryptedDataWithIv, CryptomanagerConstant.GCM_AAD_LENGTH,encryptedDataWithIv.length);

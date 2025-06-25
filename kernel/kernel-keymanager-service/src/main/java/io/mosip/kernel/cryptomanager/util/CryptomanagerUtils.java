@@ -31,6 +31,7 @@ import io.mosip.kernel.keymanagerservice.constant.KeyReferenceIdConsts;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
+import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,6 +119,9 @@ public class CryptomanagerUtils {
 
 	@Autowired
 	private ECKeyStore keyStore;
+
+	@Autowired
+	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;
 
 	/** Flag to generate and store Ed25519 key in real HSM. */
 	@Value("${mosip.kernel.keymanager.ed25519.hsm.support.enabled:false}")
@@ -247,12 +251,12 @@ public class CryptomanagerUtils {
         return Hex.toHexString(getCertificateThumbprint(cert)).toUpperCase();
 	}
 
-	public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
-		byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
-		System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
-		System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
-		return finalData;
-	}
+		public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
+			byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
+			System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
+			System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
+			return finalData;
+		}
 
 	public byte[] generateRandomBytes(int size) {
 		byte[] randomBytes = new byte[size];
@@ -428,7 +432,7 @@ public class CryptomanagerUtils {
 		}
 	}
 
-	public Object[] getEncryptedPrivateKey(String appId, Optional<String> refId) {
+	public Object[] getEncryptedPrivateKey(String appId, Optional<String> refId, String certThumbprint) {
 
 		LocalDateTime localDateTime = DateUtils.getUTCCurrentDateTime();
 		Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, refId.get(), localDateTime);
@@ -459,15 +463,17 @@ public class CryptomanagerUtils {
 			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
 					"Reference Id is present. Will get Certificate from DB store");
 
-			Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore = dbHelper.getKeyStoreFromDB(ksAlias);
-			if (!dbKeyStore.isPresent()) {
+			String referenceId = refId.get();
+			io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore = privateKeyDecryptorHelper.getDBKeyStoreData(certThumbprint,
+					appId, referenceId);
+			if (dbKeyStore.getAlias().isEmpty()) {
 				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, dbKeyStore.toString(),
 						"Key in DBStore does not exist for this alias. Throwing exception");
 				throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
 						KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
 			}
-			String masterKeyAlias = dbKeyStore.get().getMasterAlias();
-			String privateKeyObj = dbKeyStore.get().getPrivateKey();
+			String masterKeyAlias = dbKeyStore.getMasterAlias();
+			String privateKeyObj = dbKeyStore.getPrivateKey();
 
 			if (ksAlias.equals(masterKeyAlias) || privateKeyObj.equals(KeymanagerConstant.KS_PK_NA)) {
 				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
@@ -476,7 +482,7 @@ public class CryptomanagerUtils {
 						KeymanagerErrorConstant.DECRYPTION_NOT_ALLOWED.getErrorMessage());
 			}
 
-			KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(dbKeyStore.get().getMasterAlias());
+			KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(dbKeyStore.getMasterAlias());
 			PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
 			PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
 			/**
@@ -495,11 +501,11 @@ public class CryptomanagerUtils {
 		}
     }
 
-	public Object[] getObjects(Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore, PrivateKey masterPrivateKey, PublicKey masterPublicKey) {
-		byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.get().getPrivateKey()),
+	public Object[] getObjects(io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore, PrivateKey masterPrivateKey, PublicKey masterPublicKey) {
+		byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.getPrivateKey()),
 				masterPrivateKey, masterPublicKey);
 
-		PublicKey publicKey = keymanagerUtil.convertToCertificate(dbKeyStore.get().getCertificateData()).getPublicKey();
+		PublicKey publicKey = keymanagerUtil.convertToCertificate(dbKeyStore.getCertificateData()).getPublicKey();
 		String algorithmName = publicKey.getAlgorithm();
         KeyFactory keyFactory = null;
 		PrivateKey privateKey = null;
@@ -509,7 +515,7 @@ public class CryptomanagerUtils {
         } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.get().getCertificateData());
+        Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.getCertificateData());
 		return new Object[]{privateKey, certificate};
 	}
 

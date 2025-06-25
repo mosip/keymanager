@@ -9,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -432,6 +433,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		String kyAlias = null;
 		String encRandomKey = null;
 		byte[] encRandomKeyBytes = null;
+		String certificateThumbprint = null;
 		for (String encKey : encryptedKeyArr) {
 			byte[] encKeyBytes = CryptoUtil.decodeURLSafeBase64(encKey);
 			byte[] certThumbprint = Arrays.copyOfRange(encKeyBytes, 0, CryptomanagerConstant.THUMBPRINT_LENGTH);
@@ -440,6 +442,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			Optional<KeyAlias> keyAlias = keyAliases.stream().filter(alias -> alias.getCertThumbprint().equals(certThumbprintHex))
 													.findFirst();
 			kyAlias = keyAlias.map(KeyAlias::getAlias).orElse(null);
+			certificateThumbprint = certThumbprintHex;
 			if (!keyAlias.isPresent()) {
 				continue;
 			}
@@ -459,7 +462,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 						ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorMessage());
 		}
 
-		PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getEncryptedPrivateKey(keyAliasObj.get().getApplicationId(), Optional.ofNullable(keyAliasObj.get().getReferenceId()))[0];
+		PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getEncryptedPrivateKey(keyAliasObj.get().getApplicationId(), Optional.ofNullable(keyAliasObj.get().getReferenceId()), certificateThumbprint)[0];
 		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encRandomKey, true);
 
 		String randomKey = x509Cert.getPublicKey().getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA) ? keyManagerService.decryptSymmetricKey(symmetricKeyRequestDto).getSymmetricKey() :
