@@ -15,6 +15,7 @@ import java.util.Objects;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
@@ -35,6 +36,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Certificate utility to generate and sign X509 Certificate
@@ -45,7 +47,6 @@ import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
  */
 public class CertificateUtility {
 
-	
 	/**
 	 * Private constructor for CertificateUtility
 	 */
@@ -97,7 +98,7 @@ public class CertificateUtility {
 		if (certSubject.equals(certIssuer)) {
 			basicConstraints = new BasicConstraints(2);
 		}
-		return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName, 
+		return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, getSignatureAlgorithm(signPrivateKey), providerName,
 									certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints);
 	}
 
@@ -106,8 +107,8 @@ public class CertificateUtility {
 						BasicConstraints basicConstraints) {
 		try {
 			BigInteger certSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
-			
-			ContentSigner certContentSigner = new JcaContentSignerBuilder(signAlgorithm).setProvider(providerName).build(signPrivateKey);
+
+			ContentSigner certContentSigner = new JcaContentSignerBuilder(getSignatureAlgorithm(signPrivateKey)).setProvider(providerName).build(signPrivateKey);
 			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certIssuer, certSerialNum, getDateFromLocalDateTime(notBefore), 
 													getDateFromLocalDateTime(notAfter), certSubject, publicKey);
 			JcaX509ExtensionUtils certExtUtils = new JcaX509ExtensionUtils();
@@ -187,5 +188,18 @@ public class CertificateUtility {
 	private static void addRDN(String dnValue, X500NameBuilder builder, ASN1ObjectIdentifier identifier) {
 		if (dnValue != null && !dnValue.isEmpty())
 			builder.addRDN(identifier, dnValue);
+	}
+
+	private static String getSignatureAlgorithm(PrivateKey privateKey) {
+
+		String keyAlgorithm = privateKey.getAlgorithm();
+		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE))
+			return io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.EC_SIGN_ALGORITHM;
+		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) ||
+				keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) ||
+				keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE))
+			return io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.ED_SIGN_ALGORITHM;
+
+		return io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.RSA_SIGN_ALGORITHM;
 	}
 }

@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -120,6 +119,13 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	@Value("${mosip.kernel.keymanager.ed25519.hsm.support.enabled:false}")
 	private boolean ed25519SupportFlag;
 
+	/** Master Key generation algorithm */
+	@Value("${mosip.kernel.keygenerator.asymmetric-algorithm-name:RSA}")
+	private String masterKeyAlgorithm;
+
+	/** ECC algorithm curve name */
+	@Value("${mosip.kernel.keygenerator.ecc-curve-name:SECP256R1}")
+	private String eccCurve;
 
 	/**
 	 * Keystore instance to handles and store cryptographic keys.
@@ -157,7 +163,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	@Autowired
 	private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
 
-	private static Map<String, String> ecRefIdsAlgoNamesMap = new HashMap<>();
+	private static final Map<String, String> ecRefIdsAlgoNamesMap = new HashMap<>();
 
 	static {
 		ecRefIdsAlgoNamesMap.put(KeyReferenceIdConsts.EC_SECP256K1_SIGN.name(), ECCurves.SECP256K1.name());
@@ -223,7 +229,12 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		X500Principal latestCertPrincipal = getLatestCertPrincipal(keyAlias);
 		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(latestCertPrincipal,
 				generationDateTime, expiryDateTime);
-		keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams);
+		if (!masterKeyAlgorithm.equals(KeymanagerConstant.RSA) || (Arrays.stream(KeyReferenceIdConsts.values())
+				.noneMatch((rId) -> rId.name().equals(referenceId)))) {
+			keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams, eccCurve);
+		} else {
+			keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams);
+		}
 		X509Certificate x509Cert = (X509Certificate) keyStore.getCertificate(alias);
 		String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(x509Cert);
 		String uniqueValue = applicationId + KeymanagerConstant.UNDER_SCORE + referenceId + KeymanagerConstant.UNDER_SCORE +
@@ -342,17 +353,23 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			String encryptedPrivateKey;
 			alias = UUID.randomUUID().toString();
 			KeyPair keypair = null;
+
+			CertificateInfo<X509Certificate> certInfo;
 			if (referenceId.equals(KeyReferenceIdConsts.ED25519_SIGN.name()) && isSignKey) {
 				keypair = keyGenerator.getEd25519KeyPair();
+				certInfo = getCertificateFromHSM(applicationId, timeStamp, KeymanagerConstant.EMPTY);
+			} else if (!masterKeyAlgorithm.equals(KeymanagerConstant.RSA)) {
+				keypair = keyGenerator.getECKeyPair();
+				certInfo = getCertificateFromHSM(applicationId, timeStamp, KeymanagerConstant.EMPTY);
 			} else {
 				keypair = keyGenerator.getAsymmetricKey();
+				certInfo = getCertificateFromHSM(applicationId, timeStamp, KeymanagerConstant.EMPTY);
 			}
 			PrivateKey privateKey = keypair.getPrivate();
 			/**
 			 * Will get application's master key information from HSM. On first request for
 			 * an applicationId and duration, will create a new keypair.
 			 */
-			CertificateInfo<X509Certificate> certInfo = getCertificateFromHSM(applicationId, timeStamp, KeymanagerConstant.EMPTY);
 			X509Certificate hsmX509Cert = certInfo.getCertificate();
 			PublicKey masterPublicKey = hsmX509Cert.getPublicKey();
 
@@ -670,8 +687,13 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 				genAlias = certificateInfo.getAlias();
 			}
 			return new CertificateInfo<>(genAlias, x509Cert);
-		} 
-		keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams);
+		}
+
+		if (!masterKeyAlgorithm.trim().equals(KeymanagerConstant.RSA)) {
+			keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams, eccCurve);
+		} else {
+			keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams);
+		}
 		x509Cert = (X509Certificate) keyStore.getCertificate(alias);
 		storeAsymmetricKey(alias, applicationId, refId, keyAliasMap, x509Cert, generationDateTime, expiryDateTime);
 		return new CertificateInfo<>(genAlias, x509Cert);
@@ -895,7 +917,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 					keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE)) {
 				signPrivateKey = keyGenerator.buildPrivateKey(decryptedPrivateKey);
 			} else {
-				signPrivateKey = KeyFactory.getInstance(KeymanagerConstant.RSA).generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
+				signPrivateKey = KeyFactory.getInstance(keyAlgorithm).generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
 			}
 			
 			return new Object[] {signPrivateKey, x509Cert};

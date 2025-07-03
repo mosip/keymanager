@@ -14,14 +14,11 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
 import org.apache.commons.codec.binary.Base64;
 import org.jose4j.jca.ProviderContext;
 import org.jose4j.jwa.AlgorithmFactory;
@@ -126,6 +123,9 @@ public class SignatureServiceImpl implements SignatureService {
 	@Value("${mosip.kernel.keymanager.jwtsign.enable.secp256k1.algorithm:true}")
 	private boolean enableSecp256k1Algo;
 
+	@Value("${mosip.sign-certificate-refid:SIGN}")
+	private String certificateSignRefID;
+
 	/**
 	 * Utility to generate Metadata
 	 */
@@ -161,11 +161,12 @@ public class SignatureServiceImpl implements SignatureService {
 
 	private static Map<String, String> JWT_SIGNATURE_ALGO_IDENT = new HashMap<>();
 	static {
-		JWT_SIGNATURE_ALGO_IDENT.put(SignatureConstant.BLANK, AlgorithmIdentifiers.RSA_USING_SHA256);
-		JWT_SIGNATURE_ALGO_IDENT.put(SignatureConstant.REF_ID_SIGN_CONST, AlgorithmIdentifiers.RSA_USING_SHA256);
+		JWT_SIGNATURE_ALGO_IDENT.put(KeymanagerConstant.RSA, AlgorithmIdentifiers.RSA_USING_SHA256);
 		JWT_SIGNATURE_ALGO_IDENT.put(KeyReferenceIdConsts.EC_SECP256K1_SIGN.name(), AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256);
 		JWT_SIGNATURE_ALGO_IDENT.put(KeyReferenceIdConsts.EC_SECP256R1_SIGN.name(), AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
 		JWT_SIGNATURE_ALGO_IDENT.put(KeyReferenceIdConsts.ED25519_SIGN.name(), AlgorithmIdentifiers.EDDSA);
+		JWT_SIGNATURE_ALGO_IDENT.put(ECCurves.SECP256R1.name(), AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
+		JWT_SIGNATURE_ALGO_IDENT.put(ECCurves.SECP256K1.name(), AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256);
 	}
 
 	@PostConstruct
@@ -345,8 +346,9 @@ public class SignatureServiceImpl implements SignatureService {
 		if (includeKeyId && Objects.nonNull(keyId))
 			jwSign.setKeyIdHeaderValue(keyId);
 
+		String algoString = (referenceId.equals(KeymanagerConstant.EMPTY) || referenceId.equals(certificateSignRefID)) ?
+				SignatureUtil.getJwtSignAlgorithm(x509Certificate) : JWT_SIGNATURE_ALGO_IDENT.get(referenceId);
 		jwSign.setPayload(dataToSign);
-		String algoString = JWT_SIGNATURE_ALGO_IDENT.get(referenceId);
 		if (!KeyReferenceIdConsts.ED25519_SIGN.name().equals(referenceId)) {
 			ProviderContext provContext = new ProviderContext();
 			provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
@@ -357,7 +359,7 @@ public class SignatureServiceImpl implements SignatureService {
 				AlgorithmFactoryFactory.getInstance().getJwsAlgorithmFactory().getSupportedAlgorithms());
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"Signature Algorithm for the input RefId: " + algoString);
-		
+
 		jwSign.setAlgorithmHeaderValue(algoString);
 		jwSign.setKey(privateKey);
 		jwSign.setDoKeyValidation(false);

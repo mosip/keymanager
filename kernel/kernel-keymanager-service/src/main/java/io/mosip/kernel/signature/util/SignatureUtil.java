@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
@@ -24,6 +25,9 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -34,6 +38,11 @@ import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.jose4j.jws.AlgorithmIdentifiers;
+
+import java.lang.*;
 
 /**
  * Utility class for Signature Service
@@ -182,6 +191,28 @@ public class SignatureUtil {
 			case SignatureConstant.EC_SECP256K1_SIGN -> SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST;
 			case SignatureConstant.ED25519_SIGN -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
 			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		};
+	}
+
+	public static String getJwtSignAlgorithm(X509Certificate x509Certificate) {
+		PublicKey publicKey = x509Certificate.getPublicKey();
+		String algorithm = publicKey.getAlgorithm();
+
+		if (KeymanagerConstant.EC_KEY_TYPE.equalsIgnoreCase(algorithm)) {
+			SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+			ASN1ObjectIdentifier curveOid = (ASN1ObjectIdentifier) subjectPublicKeyInfo.getAlgorithm().getParameters();
+
+			return mapCurveOidToCurveName(curveOid.getId());
+		}
+		return AlgorithmIdentifiers.RSA_USING_SHA256;
+	}
+
+	private static String mapCurveOidToCurveName(String oid) {
+		return switch (oid) {
+			case KeymanagerConstant.EC_SECP256R1_OID -> AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256;
+			case KeymanagerConstant.EC_SECP256K1_OID -> AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256;
+			default -> throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorCode(),
+					KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorMessage());
 		};
 	}
 }

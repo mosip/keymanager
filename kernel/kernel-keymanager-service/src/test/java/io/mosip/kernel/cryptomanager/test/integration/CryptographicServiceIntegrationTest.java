@@ -124,6 +124,7 @@ public class CryptographicServiceIntegrationTest {
 		requestWithPinWrapper.setId(ID);
 		requestWithPinWrapper.setVersion(VERSION);
 		requestWithPinWrapper.setRequesttime(LocalDateTime.now(ZoneId.of("UTC")));
+		when(cryptomanagerUtil.getAlgorithmNameFromHeader(Mockito.any())).thenReturn("RSA");
 	}
 
 	@WithUserDetails("reg-processor")
@@ -190,7 +191,7 @@ public class CryptographicServiceIntegrationTest {
 		requestDto.setTimeStamp(timeStamp);
 		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(appid, timeStamp, refid, data, true);
 		when(keyManagerService.decryptSymmetricKey(Mockito.any())).thenReturn(symmetricKeyResponseDto);
-		when(cryptomanagerUtil.parseEncryptKeyHeader(Mockito.any())).thenReturn("".getBytes());
+		when(cryptomanagerUtil.parseEncryptKeyHeader(Mockito.any())).thenReturn("RSA".getBytes());
 		when(cryptomanagerUtil.decodeBase64Data(data))
 				.thenReturn("MOCKENCRYPTEDKEY#KEY_SPLITTER#MOCKENCRYPTEDDATA".getBytes());
 		when(cryptomanagerUtil.hasKeyAccess(Mockito.anyString())).thenReturn(true);

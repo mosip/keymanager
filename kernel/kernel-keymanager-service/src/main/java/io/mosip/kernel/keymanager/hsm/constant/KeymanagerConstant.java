@@ -66,4 +66,10 @@ public final class KeymanagerConstant {
 
 	public static final String ASYM_KEY_ED_ALGORITHM = "ASYM_KEY_ED_ALGORITHM";
 
+	public static final String RSA_SIGN_ALGORITHM = "SHA256withRSA";
+
+	public static final String EC_SIGN_ALGORITHM = "SHA256withECDSA";
+
+	public static final String ED_SIGN_ALGORITHM = "Ed25519";
+
 }

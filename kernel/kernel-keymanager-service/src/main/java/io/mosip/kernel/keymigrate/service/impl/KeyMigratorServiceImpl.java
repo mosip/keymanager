@@ -22,6 +22,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.cryptomanager.service.EcCryptoOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -88,6 +89,13 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
     @Value("${mosip.kernel.zkcrypto.wrap.algorithm-name:AES/ECB/NoPadding}")
 	private String aesECBTransformation;
 
+    /** Master Key generation algorithm */
+    @Value("${mosip.kernel.keygenerator.asymmetric-algorithm-name:RSA}")
+    private String keyAlgorithm;
+
+    @Value("${mosip.kernel.keygenerator.ecc-curve-name:SECP256R1}")
+    private String ecCurveName;
+
     /**
 	 * KeymanagerDBHelper instance to handle all DB operations
 	 */
@@ -117,6 +125,9 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 
     @Autowired
 	KeyAliasRepository keyAliasRepository;
+
+    @Autowired
+    EcCryptoOperation ecCrypto;
 
     @Override
     public KeyMigrateBaseKeyResponseDto migrateBaseKey(KeyMigrateBaseKeyRequestDto baseKeyMigrateRequest){
@@ -283,7 +294,12 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 		LocalDateTime expiryDateTime = localDateTimeStamp.plusDays(1);
 		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(KeyMigratorConstants.ZK_CERT_COMMON_NAME, 
                                 localDateTimeStamp, expiryDateTime);
-		keyStore.generateAndStoreAsymmetricKey(alias, null, certParams);
+
+        if (keyAlgorithm.equalsIgnoreCase(KeymanagerConstant.RSA)) {
+            keyStore.generateAndStoreAsymmetricKey(alias, null, certParams);
+        } else {
+            keyStore.generateAndStoreAsymmetricKey(alias, null, certParams, ecCurveName);
+        }
         X509Certificate x509Cert = (X509Certificate) keyStore.getCertificate(alias);
 		String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(x509Cert);
         // Using certThumbprint not generation time because in case more than one migration master key may be 
@@ -378,18 +394,34 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
 	}
 
     private byte[] encryptRandomKey(byte[] encryptedKeyBytes, Key zkMasterKey, PrivateKey tempPrivateKey, PublicKey tempPublicKey) {
-		try {
-            byte[] secretDataBytes = cryptoCore.asymmetricDecrypt(tempPrivateKey, tempPublicKey, encryptedKeyBytes);
-			Cipher cipher = Cipher.getInstance(aesECBTransformation);
 
-			cipher.init(Cipher.ENCRYPT_MODE, zkMasterKey);
-			return cipher.doFinal(secretDataBytes, 0, secretDataBytes.length);
-		} catch(NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
-			| IllegalBlockSizeException | BadPaddingException | IllegalArgumentException 
-            | InvalidDataException | io.mosip.kernel.core.crypto.exception.InvalidKeyException e) {
-			LOGGER.error(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.ZK_KEYS, 
-                        KeyMigratorConstants.EMPTY,	"Error in encrypting random Key in key migration process.", e);
-		}
+        if (tempPublicKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA)) {
+
+            try {
+                byte[] secretDataBytes = cryptoCore.asymmetricDecrypt(tempPrivateKey, tempPublicKey, encryptedKeyBytes);
+                Cipher cipher = Cipher.getInstance(aesECBTransformation);
+
+                cipher.init(Cipher.ENCRYPT_MODE, zkMasterKey);
+                return cipher.doFinal(secretDataBytes, 0, secretDataBytes.length);
+            } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
+                     | IllegalBlockSizeException | BadPaddingException | IllegalArgumentException
+                     | InvalidDataException | io.mosip.kernel.core.crypto.exception.InvalidKeyException e) {
+                LOGGER.error(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.ZK_KEYS,
+                        KeyMigratorConstants.EMPTY, "Error in encrypting random Key in key migration process.", e);
+            }
+        } else {
+            try {
+                byte[] secreteDataBytes = ecCrypto.asymmetricEcDecrypt(tempPrivateKey, encryptedKeyBytes, null, keymanagerUtil.getEcCurveName(tempPublicKey));
+                Cipher cipher = Cipher.getInstance(aesECBTransformation);
+                cipher.init(Cipher.ENCRYPT_MODE, zkMasterKey);
+                return cipher.doFinal(secreteDataBytes, 0, secreteDataBytes.length);
+            } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
+                    | IllegalBlockSizeException | BadPaddingException | IllegalArgumentException
+                    | InvalidDataException | io.mosip.kernel.core.crypto.exception.InvalidKeyException e) {
+                LOGGER.error(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.ZK_KEYS,
+                        KeyMigratorConstants.EMPTY, "Error in encrypting random Key in key migration process.", e);
+            }
+        }
         return null;
 	}
 
