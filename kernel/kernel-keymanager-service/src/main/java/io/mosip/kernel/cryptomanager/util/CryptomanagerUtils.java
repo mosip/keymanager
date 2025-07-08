@@ -14,10 +14,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,6 +24,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -390,6 +388,15 @@ public class CryptomanagerUtils {
 			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.INVALID_REQUEST.getErrorCode(),
 					CryptomanagerErrorCode.INVALID_REQUEST.getErrorMessage());
 		}
+	}
+
+	public boolean isJWSData(String data) {
+
+		String [] dataParts = data.split(SignatureConstant.PERIOD);
+		if (dataParts.length != 3) {
+			return false;
+		}
+		return true;
 	}
 
 }
