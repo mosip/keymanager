@@ -334,14 +334,14 @@ public class SignatureServiceImpl implements SignatureService {
 		if (Objects.nonNull(certificateUrl))
 			jwSign.setHeader("x5u", certificateUrl);
 
-		String effectiveKidPrefix = kidPrepend;
+		String kidPrefix = kidPrepend;
 		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
-			effectiveKidPrefix = SignatureUtil.getIssuerFromPayload(dataToSign).concat(SignatureConstant.KEY_ID_SEPARATOR);
+			kidPrefix = SignatureUtil.getIssuerFromPayload(dataToSign).concat(SignatureConstant.KEY_ID_SEPARATOR);
 		}
 
 		String keyId = SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier());
 		if (includeKeyId && Objects.nonNull(keyId))
-			jwSign.setKeyIdHeaderValue(effectiveKidPrefix.concat(keyId));
+			jwSign.setKeyIdHeaderValue(kidPrefix.concat(keyId));
 
 		jwSign.setPayload(dataToSign);
 		String algoString = JWT_SIGNATURE_ALGO_IDENT.get(referenceId);
@@ -568,9 +568,9 @@ public class SignatureServiceImpl implements SignatureService {
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}
 
-		String effectiveKidPrefix = kidPrepend;
+		String kidPrefix = kidPrepend;
 		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
-			effectiveKidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
+			kidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
 		}
 
 		String timestamp = DateUtils.getUTCCurrentDateTimeString();
@@ -599,7 +599,7 @@ public class SignatureServiceImpl implements SignatureService {
 		String providerName = certificateResponse.getProviderName();
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
 		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signAlgorithm, b64JWSHeaderParam, includeCertificate, 
-					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, effectiveKidPrefix);
+					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix);
 		
 		if (b64JWSHeaderParam) {
 			dataToSign = reqDataToSign.getBytes(StandardCharsets.UTF_8);

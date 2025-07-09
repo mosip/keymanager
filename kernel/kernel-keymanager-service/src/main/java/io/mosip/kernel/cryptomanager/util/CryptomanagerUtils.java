@@ -391,7 +391,6 @@ public class CryptomanagerUtils {
 	}
 
 	public boolean isJWSData(String data) {
-
 		String [] dataParts = data.split(SignatureConstant.PERIOD);
 		if (dataParts.length != 3) {
 			return false;
