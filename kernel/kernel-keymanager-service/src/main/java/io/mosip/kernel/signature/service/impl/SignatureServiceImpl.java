@@ -22,6 +22,7 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.signature.dto.*;
 import org.apache.commons.codec.binary.Base64;
 import org.jose4j.jca.ProviderContext;
 import org.jose4j.jwa.AlgorithmFactory;
@@ -67,17 +68,6 @@ import io.mosip.kernel.partnercertservice.dto.CertificateTrustResponeDto;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
-import io.mosip.kernel.signature.dto.JWSSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureResponseDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyResponseDto;
-import io.mosip.kernel.signature.dto.PDFSignatureRequestDto;
-import io.mosip.kernel.signature.dto.SignRequestDto;
-import io.mosip.kernel.signature.dto.SignatureRequestDto;
-import io.mosip.kernel.signature.dto.SignatureResponseDto;
-import io.mosip.kernel.signature.dto.TimestampRequestDto;
-import io.mosip.kernel.signature.dto.ValidatorResponseDto;
 import io.mosip.kernel.signature.exception.CertificateNotValidException;
 import io.mosip.kernel.signature.exception.PublicKeyParseException;
 import io.mosip.kernel.signature.exception.RequestException;
@@ -125,6 +115,9 @@ public class SignatureServiceImpl implements SignatureService {
 
 	@Value("${mosip.kernel.keymanager.jwtsign.enable.secp256k1.algorithm:true}")
 	private boolean enableSecp256k1Algo;
+
+	@Value("${mosip.kernel.keymanager.signature.kid.prepend:}")
+	private String kidPrepend;
 
 	/**
 	 * Utility to generate Metadata
@@ -340,10 +333,15 @@ public class SignatureServiceImpl implements SignatureService {
 
 		if (Objects.nonNull(certificateUrl))
 			jwSign.setHeader("x5u", certificateUrl);
-		
+
+		String kidPrefix = kidPrepend;
+		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
+			kidPrefix = SignatureUtil.getIssuerFromPayload(dataToSign).concat(SignatureConstant.KEY_ID_SEPARATOR);
+		}
+
 		String keyId = SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier());
 		if (includeKeyId && Objects.nonNull(keyId))
-			jwSign.setKeyIdHeaderValue(keyId);
+			jwSign.setKeyIdHeaderValue(kidPrefix.concat(keyId));
 
 		jwSign.setPayload(dataToSign);
 		String algoString = JWT_SIGNATURE_ALGO_IDENT.get(referenceId);
@@ -570,6 +568,11 @@ public class SignatureServiceImpl implements SignatureService {
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}
 
+		String kidPrefix = kidPrepend;
+		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
+			kidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
+		}
+
 		String timestamp = DateUtils.getUTCCurrentDateTimeString();
 		String applicationId = jwsSignRequestDto.getApplicationId();
 		String referenceId = jwsSignRequestDto.getReferenceId();
@@ -596,7 +599,7 @@ public class SignatureServiceImpl implements SignatureService {
 		String providerName = certificateResponse.getProviderName();
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
 		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signAlgorithm, b64JWSHeaderParam, includeCertificate, 
-					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId);
+					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix);
 		
 		if (b64JWSHeaderParam) {
 			dataToSign = reqDataToSign.getBytes(StandardCharsets.UTF_8);

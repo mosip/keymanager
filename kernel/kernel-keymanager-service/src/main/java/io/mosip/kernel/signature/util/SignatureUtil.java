@@ -16,6 +16,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
@@ -94,7 +95,7 @@ public class SignatureUtil {
 
 	public static JWSHeader getJWSHeader(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificate, 
 			boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate, String uniqueIdentifier, 
-			boolean includeKeyId) {
+			boolean includeKeyId, String kidPrepend) {
 
 		JWSAlgorithm jwsAlgorithm = switch (signAlgorithm) {
             case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST -> JWSAlgorithm.RS256;
@@ -145,7 +146,7 @@ public class SignatureUtil {
 
 		String keyId = convertHexToBase64(uniqueIdentifier);
 		if (includeKeyId && Objects.nonNull(keyId)) {
-			jwsHeaderBuilder.keyID(keyId);
+			jwsHeaderBuilder.keyID(kidPrepend.concat(keyId));
 		}
 
 		return jwsHeaderBuilder.build();
@@ -183,5 +184,23 @@ public class SignatureUtil {
 			case SignatureConstant.ED25519_SIGN -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
 			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 		};
+	}
+
+	public static String getIssuerFromPayload(String jsonPayload) {
+		try {
+			JsonNode jsonNode = mapper.readTree(jsonPayload);
+
+			if (jsonNode.has(SignatureConstant.ISSUER)) {
+				return jsonNode.get(SignatureConstant.ISSUER).asText();
+			} else {
+				LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.ISSUER, SignatureConstant.BLANK,
+						"Missing 'iss' field in provided JSON data.");
+				return SignatureConstant.BLANK;
+			}
+		} catch (IOException e) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+					"Provided JSON Data to sign is invalid.");
+			return SignatureConstant.BLANK;
+		}
 	}
 }

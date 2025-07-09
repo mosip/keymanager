@@ -413,8 +413,12 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		String dataToEncrypt = jwtEncryptRequestDto.getData();
 		cryptomanagerUtil.validateEncryptData(dataToEncrypt);
 
-		String decodedDataToEncrypt = new String(CryptoUtil.decodeURLSafeBase64(dataToEncrypt));
-		cryptomanagerUtil.checkForValidJsonData(decodedDataToEncrypt);
+		String decodedDataToEncrypt = dataToEncrypt;
+		if (!cryptomanagerUtil.isJWSData(dataToEncrypt)) {
+			decodedDataToEncrypt = new String(CryptoUtil.decodeURLSafeBase64(dataToEncrypt));
+			cryptomanagerUtil.checkForValidJsonData(decodedDataToEncrypt);
+		}
+
 		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
 						"Input Data validated, proceeding with JWE Encryption.");
 

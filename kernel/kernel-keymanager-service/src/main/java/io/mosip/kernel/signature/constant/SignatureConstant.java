@@ -79,4 +79,10 @@ public class SignatureConstant {
 	public static final String EC_SECP256R1_SIGN = "EC_SECP256R1_SIGN";
 
 	public static final String ED25519_SIGN = "ED25519_SIGN";
+
+	public static final String ISSUER = "iss";
+
+	public static final String KEY_ID_PREFIX = "PAYLOAD_ISSUER";
+
+	public static final String KEY_ID_SEPARATOR = "#";
 }
