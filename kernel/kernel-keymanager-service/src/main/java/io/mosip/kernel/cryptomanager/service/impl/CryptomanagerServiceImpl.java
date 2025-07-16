@@ -232,8 +232,6 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
 		byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
 		byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Reponse cert thumbprint: " + CryptoUtil.encodeToURLSafeBase64(certThumbprint));
 		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, 
 							finalEncKeyBytes, keySplitter)));
 		return cryptoResponseDto;
