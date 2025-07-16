@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -1312,14 +1311,11 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		KeyPair keyPair = keyGenerator.getEd25519KeyPair();
 		PrivateKey privateKey = keyPair.getPrivate();
 		String encryptedPrivateKey;
-		String alias = UUID.randomUUID().toString();
 
 		CertificateInfo<X509Certificate> certificateInfo = getCertificateFromHSM(appId, timeStamp, KeymanagerConstant.EMPTY);
 		X509Certificate hsmX509Cert = certificateInfo.getCertificate();
 		PublicKey masterPublicKey = hsmX509Cert.getPublicKey();
 		String masterAlias = certificateInfo.getAlias();
-		LocalDateTime generationDateTime = timeStamp;
-		LocalDateTime expiryDateTime = dbHelper.getExpiryPolicy(appId, generationDateTime, keyAlias);
 		/**
 		 * Before storing a keypair in db, will first encrypt its private key with
 		 * application's master public key from softhsm's/HSM's keystore
@@ -1331,14 +1327,21 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
 					KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorMessage() + e.getErrorText());
 		}
+		Object[] keyObjArr = storeKeysAndGetCertificateDetails(appId, refId, masterAlias, encryptedPrivateKey, timeStamp, keyAlias, keyPair);
+		return new Object[] {privateKey, (X509Certificate) keyObjArr[0], (String) keyObjArr[1]};
+	}
+
+	public Object[] storeKeysAndGetCertificateDetails(String appId, String refId, String masterAlias, String encryptedPrivateKey,
+													  LocalDateTime timeStamp, List<KeyAlias> keyAlias, KeyPair keyPair) {
+		String alias = UUID.randomUUID().toString();
+		LocalDateTime generationDateTime = timeStamp;
 		PrivateKeyEntry signKeyEntry = keyStore.getAsymmetricKey(masterAlias);
+		LocalDateTime expiryDateTime = dbHelper.getExpiryPolicy(appId, generationDateTime, keyAlias);
 		PrivateKey signPrivateKey = signKeyEntry.getPrivateKey();
 		X509Certificate signCert = (X509Certificate) signKeyEntry.getCertificate();
 		X500Principal signerPrincipal = signCert.getSubjectX500Principal();
-
 		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(signerPrincipal,
 				generationDateTime, expiryDateTime);
-		certParams.setCommonName(appId + "-" + refId);
 		X509Certificate x509Cert = (X509Certificate) CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(),
 				certParams, signerPrincipal, signAlgorithm, keyStore.getKeystoreProviderName(), KeymanagerConstant.ENCRYPTION_KEY);
 		String certificateData = keymanagerUtil.getPEMFormatedData(x509Cert);
@@ -1350,6 +1353,6 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 				"Unique Value formatter: " + uniqueValue);
 		String uniqueIdentifier = keymanagerUtil.getUniqueIdentifier(uniqueValue);
 		dbHelper.storeKeyInAlias(appId, generationDateTime, refId, alias, expiryDateTime, certThumbprint, uniqueIdentifier);
-		return new Object[] {privateKey, x509Cert, uniqueIdentifier};
+		return new Object[] {x509Cert, uniqueIdentifier};
 	}
 }
