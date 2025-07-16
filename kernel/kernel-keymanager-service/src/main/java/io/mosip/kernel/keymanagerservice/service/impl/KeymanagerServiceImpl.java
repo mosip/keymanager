@@ -1327,11 +1327,11 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
 					KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorMessage() + e.getErrorText());
 		}
-		Object[] keyObjArr = storeKeysAndGetCertificateDetails(appId, refId, masterAlias, encryptedPrivateKey, timeStamp, keyAlias, keyPair);
+		Object[] keyObjArr = generateCertificateAndStoreKeyMetadata(appId, refId, masterAlias, encryptedPrivateKey, timeStamp, keyAlias, keyPair);
 		return new Object[] {privateKey, (X509Certificate) keyObjArr[0], (String) keyObjArr[1]};
 	}
 
-	public Object[] storeKeysAndGetCertificateDetails(String appId, String refId, String masterAlias, String encryptedPrivateKey,
+	public Object[] generateCertificateAndStoreKeyMetadata(String appId, String refId, String masterAlias, String encryptedPrivateKey,
 													  LocalDateTime timeStamp, List<KeyAlias> keyAlias, KeyPair keyPair) {
 		String alias = UUID.randomUUID().toString();
 		LocalDateTime generationDateTime = timeStamp;
