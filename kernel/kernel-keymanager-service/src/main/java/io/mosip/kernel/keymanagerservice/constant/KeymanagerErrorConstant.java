@@ -79,6 +79,8 @@ public enum KeymanagerErrorConstant {
 
 	CERTIFICATE_ALREADY_EXIST("KER-KMS-035", "Certificate Already Exist, not allowed to upload same certificate again"),
 
+	INVALID_FORMAT_ERROR("KER-KMS-036", "Unsupported output format for the signature"),
+
 	INTERNAL_SERVER_ERROR("KER-KMS-500", "Internal server error");
 
 	/**
