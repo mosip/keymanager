@@ -85,4 +85,6 @@ public class SignatureConstant {
 	public static final String KEY_ID_PREFIX = "PAYLOAD_ISSUER";
 
 	public static final String KEY_ID_SEPARATOR = "#";
+
+	public static final String RAW_SIGN = "RAW_SIGN";
 }
