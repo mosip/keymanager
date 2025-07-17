@@ -688,12 +688,13 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
 		SignResponseDto signedData = new SignResponseDto();
 		signedData.setTimestamp(DateUtils.getUTCCurrentDateTime());
-		switch (signatureReq.getResponseEncodingFormat()) {
-			case "base64url":
+		String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
+		switch (encodingFromat) {
+			case SignatureConstant.BASE64URL:
 				signedData.setSignature(
 						Multibase.encode(Multibase.Base.Base64Url, data));
 				break;
-			case "base58btc":
+			case SignatureConstant.BASE58BTC:
 				signedData.setSignature(
 						Multibase.encode(Multibase.Base.Base58BTC, data));
 				break;

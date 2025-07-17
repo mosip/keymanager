@@ -1,6 +1,7 @@
 package io.mosip.kernel.signature.controller;
 
 import io.mosip.kernel.signature.dto.*;
+import io.mosip.kernel.signature.service.SignatureServicev2;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,9 @@ public class SignatureController {
 	 */
 	@Autowired
 	SignatureService service;
+
+	@Autowired
+	SignatureServicev2 serviceV2;
 
 	/**
 	 * Function to sign response
@@ -174,6 +178,30 @@ public class SignatureController {
 			@RequestBody @Valid RequestWrapper<JWSSignatureRequestDto> requestDto) {
 		JWTSignatureResponseDto signatureResponse = service.jwsSign(requestDto.getRequest());
 		ResponseWrapper<JWTSignatureResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(signatureResponse);
+		return response;
+	}
+
+	/**
+	 * Function to do JSON Web Signature(JWS) for the input raw data using input algorithm. Default Algorithm PS256.
+	 *
+	 * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+	 * @return The {@link JWTSignatureResponseDto}
+	 */
+	@Operation(summary = "Function to do JSON Web Signature(JWS) for the input raw data using input algorithm. Default Algorithm PS256.",
+			description = "Function to JWT sign data", tags = { "signaturecontroller" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwssignv2())")
+	@PostMapping(value = "/v2/jwsSign")
+	public ResponseWrapper<SignResponseDto> jwsSignV2(
+			@RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
+		SignResponseDto signatureResponse = serviceV2.signv2(requestDto.getRequest());
+		ResponseWrapper<SignResponseDto> response = new ResponseWrapper<>();
 		response.setResponse(signatureResponse);
 		return response;
 	}
