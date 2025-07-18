@@ -197,8 +197,8 @@ public class SignatureController {
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
 	@ResponseFilter
 	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwssignv2())")
-	@PostMapping(value = "/v2/jwsSign")
-	public ResponseWrapper<SignResponseDto> jwsSignV2(
+	@PostMapping(value = "/signV2")
+	public ResponseWrapper<SignResponseDto> signV2(
 			@RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
 		SignResponseDto signatureResponse = serviceV2.signv2(requestDto.getRequest());
 		ResponseWrapper<SignResponseDto> response = new ResponseWrapper<>();
