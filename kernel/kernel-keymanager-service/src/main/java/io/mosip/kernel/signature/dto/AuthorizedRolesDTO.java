@@ -28,5 +28,5 @@ public class AuthorizedRolesDTO
 
 	private List<String> postjwssign;
 
-	private List<String> postjwssignv2;
+	private List<String> postsignv2;
 }
