@@ -183,20 +183,20 @@ public class SignatureController {
 	}
 
 	/**
-	 * Function to do JSON Web Signature(JWS) for the input raw data using input algorithm. Default Algorithm PS256.
+	 * Function to do Signature input raw data using input algorithm. Default Algorithm PS256.
 	 *
 	 * @param requestDto {@link JWTSignatureRequestDto} having required fields.
 	 * @return The {@link JWTSignatureResponseDto}
 	 */
-	@Operation(summary = "Function to do JSON Web Signature(JWS) for the input raw data using input algorithm. Default Algorithm PS256.",
-			description = "Function to JWT sign data", tags = { "signaturecontroller" })
+	@Operation(summary = "Function to do Signature for the input raw data using input algorithm. Default Algorithm PS256.",
+			description = "Function to sign raw data", tags = { "signaturecontroller" })
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
 	@ResponseFilter
-	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwssignv2())")
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostsignv2())")
 	@PostMapping(value = "/signV2")
 	public ResponseWrapper<SignResponseDto> signV2(
 			@RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
