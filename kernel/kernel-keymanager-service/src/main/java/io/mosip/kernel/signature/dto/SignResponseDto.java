@@ -25,6 +25,16 @@ public class SignResponseDto {
 	private String signature;
 
 	/**
+	 * certificate used for signing
+	 */
+	private String certificate;
+
+	/**
+	 * algorithm used for signing
+	 */
+	private String signAlgorithm;
+
+	/**
 	 * response time.
 	 */
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")

@@ -17,7 +17,6 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.ipfs.multibase.Multibase;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -671,7 +670,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			referenceId = signRefid;
 		}
 		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-				signatureReq.getSignAlgorithm(): SignatureConstant.ED25519_ALGORITHM;
+				SignatureUtil.getSignAlgorithmFromAlgoName(signatureReq.getSignAlgorithm()): SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
@@ -686,22 +685,23 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
 		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
-		SignResponseDto signedData = new SignResponseDto();
-		signedData.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		SignResponseDto signedDataResponse = new SignResponseDto();
+		signedDataResponse.setTimestamp(DateUtils.getUTCCurrentDateTime());
 		String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
 		switch (encodingFromat) {
 			case SignatureConstant.BASE64URL:
-				signedData.setSignature(
-						Multibase.encode(Multibase.Base.Base64Url, data));
+				signedDataResponse.setSignature(signature);
 				break;
 			case SignatureConstant.BASE58BTC:
-				signedData.setSignature(
+				signedDataResponse.setSignature(
 						Multibase.encode(Multibase.Base.Base58BTC, data));
 				break;
 			default:
 				throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
 		}
-		return signedData;
+		signedDataResponse.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
+		signedDataResponse.setSignAlgorithm(signatureReq.getSignAlgorithm());
+		return signedDataResponse;
 	}
 }

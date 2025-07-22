@@ -25,6 +25,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -182,6 +183,16 @@ public class SignatureUtil {
 			case SignatureConstant.EC_SECP256R1_SIGN -> SignatureConstant.JWS_ES256_SIGN_ALGO_CONST;
 			case SignatureConstant.EC_SECP256K1_SIGN -> SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST;
 			case SignatureConstant.ED25519_SIGN -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
+			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		};
+	}
+
+	public static String getSignAlgorithmFromAlgoName(String algorithmName) {
+		if (algorithmName == null || algorithmName.isBlank()) return SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		else return switch (algorithmName) {
+			case KeymanagerConstant.RSA -> SignatureConstant.JWS_RS256_SIGN_ALGO_CONST;
+			case SignatureConstant.ECC -> SignatureConstant.JWS_ES256_SIGN_ALGO_CONST;
+			case SignatureConstant.ED25519_ALGORITHM -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
 			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 		};
 	}
