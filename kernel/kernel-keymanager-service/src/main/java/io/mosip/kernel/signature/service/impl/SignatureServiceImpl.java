@@ -670,7 +670,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			referenceId = signRefid;
 		}
 		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-				SignatureUtil.getSignAlgorithmFromAlgoName(signatureReq.getSignAlgorithm()): SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+				signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
@@ -684,7 +684,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
 		}
 		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
-		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
 		SignResponseDto signedDataResponse = new SignResponseDto();
 		signedDataResponse.setTimestamp(DateUtils.getUTCCurrentDateTime());
 		String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
@@ -693,6 +692,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				signedDataResponse.setSignature(signature);
 				break;
 			case SignatureConstant.BASE58BTC:
+                byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
 				signedDataResponse.setSignature(
 						Multibase.encode(Multibase.Base.Base58BTC, data));
 				break;
@@ -700,8 +700,69 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
 		}
-		signedDataResponse.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
-		signedDataResponse.setSignAlgorithm(signatureReq.getSignAlgorithm());
 		return signedDataResponse;
 	}
+
+    @Override
+    public SignResponseDtoV2 rawSign(SignRequestDtoV2 signatureReq) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                "Raw Sign Signature Request.");
+        String applicationId = signatureReq.getApplicationId();
+        String referenceId = signatureReq.getReferenceId();
+        boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(applicationId);
+        String reqDataToSign = signatureReq.getDataToSign();
+        if (!hasAcccess) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Signing Data is not allowed for the authenticated user for the provided application id.");
+            throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+                    SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
+        }
+
+        if (!SignatureUtil.isDataValid(reqDataToSign)) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Provided Data to sign is invalid.");
+            throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+                    SignatureErrorCode.INVALID_INPUT.getErrorMessage());
+        }
+        byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
+        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+            applicationId = signApplicationid;
+            referenceId = signRefid;
+        }
+        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
+                signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+
+        SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
+                Optional.of(referenceId), timestamp);
+        keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+                DateUtils.parseUTCToDate(timestamp));
+        PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
+        certificateResponse.getCertificateEntry().getChain();
+        String providerName = certificateResponse.getProviderName();
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
+        if (Objects.isNull(signatureProvider)) {
+            signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
+        }
+        String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
+        SignResponseDtoV2 responseDto = new SignResponseDtoV2();
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
+        switch (encodingFromat) {
+            case SignatureConstant.BASE64URL:
+                responseDto.setSignedData(signature);
+                break;
+            case SignatureConstant.BASE58BTC:
+                byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
+                responseDto.setSignedData(Multibase.encode(Multibase.Base.Base58BTC, data));
+                break;
+            default:
+                throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
+                        KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
+        }
+        responseDto.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
+        responseDto.setSignatureAlgorithm(signAlgorithm);
+        responseDto.setKeyId(SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier()));
+        return responseDto;
+    }
 }

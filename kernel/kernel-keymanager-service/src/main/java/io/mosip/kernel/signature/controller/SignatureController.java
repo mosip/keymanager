@@ -205,4 +205,28 @@ public class SignatureController {
 		response.setResponse(signatureResponse);
 		return response;
 	}
+
+    /**
+     * Function to do Signature input raw data using input algorithm. Default Algorithm PS256.
+     *
+     * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+     * @return The {@link JWTSignatureResponseDto}
+     */
+    @Operation(summary = "Function to do Signature for the input raw data using input algorithm. Default Algorithm PS256.",
+            description = "Function to sign raw data", tags = { "signaturecontroller" })
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+    @ResponseFilter
+    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostsignrawdata())")
+    @PostMapping(value = "/signRawData")
+    public ResponseWrapper<SignResponseDtoV2> signRawData(
+            @RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
+        SignResponseDtoV2 signatureResponse = serviceV2.rawSign(requestDto.getRequest());
+        ResponseWrapper<SignResponseDtoV2> response = new ResponseWrapper<>();
+        response.setResponse(signatureResponse);
+        return response;
+    }
 }

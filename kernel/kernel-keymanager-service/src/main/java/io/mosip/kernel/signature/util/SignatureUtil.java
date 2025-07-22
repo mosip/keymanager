@@ -187,16 +187,6 @@ public class SignatureUtil {
 		};
 	}
 
-	public static String getSignAlgorithmFromAlgoName(String algorithmName) {
-		if (algorithmName == null || algorithmName.isBlank()) return SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
-		else return switch (algorithmName) {
-			case KeymanagerConstant.RSA -> SignatureConstant.JWS_RS256_SIGN_ALGO_CONST;
-			case SignatureConstant.ECC -> SignatureConstant.JWS_ES256_SIGN_ALGO_CONST;
-			case SignatureConstant.ED25519_ALGORITHM -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
-			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
-		};
-	}
-
 	public static String getIssuerFromPayload(String jsonPayload) {
 		try {
 			JsonNode jsonNode = mapper.readTree(jsonPayload);
