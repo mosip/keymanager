@@ -91,8 +91,4 @@ public class SignatureConstant {
 	public static final String BASE58BTC = "base58btc";
 
 	public static final String BASE64URL = "base64url";
-
-	public static final String RSA_PSS = "RSA-PSS";
-
-	public static final String ECC = "ECC";
 }
