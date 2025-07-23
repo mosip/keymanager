@@ -87,4 +87,8 @@ public class SignatureConstant {
 	public static final String KEY_ID_SEPARATOR = "#";
 
 	public static final String RAW_SIGN = "RAW_SIGN";
+
+	public static final String BASE58BTC = "base58btc";
+
+	public static final String BASE64URL = "base64url";
 }
