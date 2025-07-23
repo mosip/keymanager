@@ -13,6 +13,8 @@ import java.time.ZoneOffset;
 
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.signature.service.SignatureServicev2;
+import io.mosip.kernel.signature.service.impl.SignatureServiceImpl;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,7 +75,7 @@ public class CryptoSignatureIntegrationTest {
 	private KeymanagerService keyManagerService;
 
 	@MockBean
-	private SignatureService signatureService;
+	private SignatureServiceImpl signatureService;
 
 	@MockBean
 	private RestTemplate restTemplate;
