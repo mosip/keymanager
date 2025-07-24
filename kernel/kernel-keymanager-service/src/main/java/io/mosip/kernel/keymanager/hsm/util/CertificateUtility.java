@@ -14,19 +14,10 @@ import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
-import io.mosip.kernel.core.util.CryptoUtil;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
-import io.mosip.kernel.keymanagerservice.dto.SanDto;
-import io.mosip.kernel.signature.constant.SignatureErrorCode;
-import io.mosip.kernel.signature.exception.RequestException;
-import io.mosip.kernel.signature.util.SignatureUtil;
+import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
 import org.bouncycastle.asn1.*;
-import org.bouncycastle.asn1.x500.DirectoryString;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -44,7 +35,6 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
-import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Certificate utility to generate and sign X509 Certificate
@@ -110,7 +100,7 @@ public class CertificateUtility {
 
 		if (certParams instanceof ExtendedCertificateParameters) {
 			ExtendedCertificateParameters extendedCertParams = (ExtendedCertificateParameters) certParams;
-			List<SanDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
+			List<SubjectAlternativeNamesDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
 			GeneralName[] sanArray = getCertificateSAN(sanDtoList, publicKey);
 			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
 					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints, sanArray);
@@ -188,7 +178,7 @@ public class CertificateUtility {
 		BasicConstraints basicConstraints = new BasicConstraints(false);
 		if (certParams instanceof ExtendedCertificateParameters) {
 			ExtendedCertificateParameters extendedCertParams = (ExtendedCertificateParameters) certParams;
-			List<SanDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
+			List<SubjectAlternativeNamesDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
 			GeneralName[] sanArray = getCertificateSAN(sanDtoList, publicKey);
 			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
 					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints, sanArray);
@@ -240,7 +230,7 @@ public class CertificateUtility {
 			builder.addRDN(identifier, dnValue);
 	}
 
-	private static GeneralName[] getCertificateSAN(List<SanDto> sanDtoList, PublicKey publicKey) {
+	private static GeneralName[] getCertificateSAN(List<SubjectAlternativeNamesDto> sanDtoList, PublicKey publicKey) {
 		if (sanDtoList == null || sanDtoList.isEmpty()) {
 			return new GeneralName[0];
 		}
@@ -249,40 +239,40 @@ public class CertificateUtility {
 			ASN1ObjectIdentifier oid = subjectPublicKeyInfo.getAlgorithm().getAlgorithm();
 			List<GeneralName> sanList = new ArrayList<>();
 
-			for (SanDto san : sanDtoList) {
+			for (SubjectAlternativeNamesDto san : sanDtoList) {
 				String type = san.getType();
 				String value = san.getValue();
 				if (type == null || value == null) continue;
 
 				switch (type) {
-					case "otherName":
+					case KeymanagerConstant.OTHER_NAME:
 						sanList.add(new GeneralName(GeneralName.otherName,
 								new org.bouncycastle.asn1.x509.OtherName(oid, new DERUTF8String(value.trim()))
 						));
 						break;
-					case "email":
+					case KeymanagerConstant.EMAIL_Address:
 						sanList.add(new GeneralName(GeneralName.rfc822Name, value.trim()));
 						break;
-					case "dns":
+					case KeymanagerConstant.DNS_NAME:
 						sanList.add(new GeneralName(GeneralName.dNSName, value.trim()));
 						break;
-					case "x400Address":
+					case KeymanagerConstant.X400_ADDRESS:
 						DERUTF8String derValue = new DERUTF8String(value.trim());
 						ASN1EncodableVector vector = new ASN1EncodableVector();
 						vector.add(derValue);
 						DERSequence sequence = new DERSequence(vector);
 						sanList.add(new GeneralName(GeneralName.x400Address, sequence));
 						break;
-					case "directoryName":
+					case KeymanagerConstant.DIRECTORY_NAME:
 						sanList.add(new GeneralName(GeneralName.directoryName, value.trim()));
 						break;
-					case "uri":
+					case KeymanagerConstant.URI:
 						sanList.add(new GeneralName(GeneralName.uniformResourceIdentifier, value.trim()));
 						break;
-					case "ip":
+					case KeymanagerConstant.IP_ADDRESS:
 						sanList.add(new GeneralName(GeneralName.iPAddress, value.trim()));
 						break;
-					case "registeredId":
+					case KeymanagerConstant.REGISTERED_ID:
 						sanList.add(new GeneralName(GeneralName.registeredID, value.trim()));
 						break;
 					default:

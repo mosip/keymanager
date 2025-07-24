@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SanDto {
+public class SubjectAlternativeNamesDto {
     /**
      * Type of SAN entry (e.g., DNS, IP, URI, etc.)
      */

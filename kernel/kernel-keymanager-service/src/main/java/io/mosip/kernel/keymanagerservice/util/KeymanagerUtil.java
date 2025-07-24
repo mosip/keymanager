@@ -32,8 +32,11 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
-import io.mosip.kernel.keymanagerservice.dto.SanDto;
+import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
+import io.mosip.kernel.keymanagerservice.service.impl.SubjectAlternatuveNamesImpl;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -165,9 +168,6 @@ public class KeymanagerUtil {
 	@Value("#{'${mosip.kernel.keymgr.ed25519.allowed.appids:ID_REPO}'.split(',')}")
 	private List<String> allowedAppIds;
 
-	@Value("#{${mosip.kernel.keymanager.certificate.san.values.map}}")
-	private Map<String, String> altValuesMap;
-
 	/**
 	 * KeyGenerator instance to generate asymmetric key pairs
 	 */
@@ -179,6 +179,11 @@ public class KeymanagerUtil {
 	 */
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+
+	@Autowired
+	SubjectAlternatuveNamesImpl sanService;
+
+	ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * Function to check valid timestamp
@@ -385,7 +390,7 @@ public class KeymanagerUtil {
 		return certParams;
 	}
 
-	public CertificateParameters getCertificateParametersIncludeSAN(X500Principal latestCertPrincipal, LocalDateTime notBefore, LocalDateTime notAfter) {
+	public CertificateParameters getCertificateParametersIncludeSAN(X500Principal latestCertPrincipal, LocalDateTime notBefore, LocalDateTime notAfter, Map<String, String> altValuesMap) {
 
 		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
 		X500Name x500Name = new X500Name(latestCertPrincipal.getName());
@@ -399,7 +404,7 @@ public class KeymanagerUtil {
 		certParams.setNotBefore(notBefore);
 		certParams.setNotAfter(notAfter);
 
-		List<SanDto> sanDtoList = new ArrayList<>();
+		List<SubjectAlternativeNamesDto> sanDtoList = new ArrayList<>();
 		if (altValuesMap == null && altValuesMap.isEmpty()) {
 			return certParams;
 		}
@@ -411,7 +416,7 @@ public class KeymanagerUtil {
 				String[] values = valueStr.split("\\|");
 				for (String value : values) {
 					if (value != null && !value.trim().isEmpty()) {
-						sanDtoList.add(new SanDto(type, value.trim()));
+						sanDtoList.add(new SubjectAlternativeNamesDto(type, value.trim()));
 					}
 				}
 			}
@@ -450,7 +455,7 @@ public class KeymanagerUtil {
 	}
 
 	public ExtendedCertificateParameters getCertificateParametersIncludeSAN(KeyPairGenerateRequestDto request, LocalDateTime notBefore, LocalDateTime notAfter,
-																			String appId) {
+																			String appId, Map<String, String> altValuesMap) {
 
 		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
 		String refId = request.getReferenceId();
@@ -467,7 +472,7 @@ public class KeymanagerUtil {
 		certParams.setNotBefore(notBefore);
 		certParams.setNotAfter(notAfter);
 
-		List<SanDto> sanDtoList = new ArrayList<>();
+		List<SubjectAlternativeNamesDto> sanDtoList = new ArrayList<>();
 		if (altValuesMap == null && altValuesMap.isEmpty()) {
 			return certParams;
 		}
@@ -479,7 +484,7 @@ public class KeymanagerUtil {
 				String[] values = valueStr.split("\\|");
 				for (String value : values) {
 					if (value != null && !value.trim().isEmpty()) {
-						sanDtoList.add(new SanDto(type, value.trim()));
+						sanDtoList.add(new SubjectAlternativeNamesDto(type, value.trim()));
 					}
 				}
 			}
@@ -588,6 +593,31 @@ public class KeymanagerUtil {
 		if (!allowedAppIds.contains(applicationId)) {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorCode(), 
 			KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorMessage());
+		}
+	}
+
+	public Map<String, String> getSanValues(String appId, String refId) {
+		String sanValues = sanService.getStructuredSanParameters().stream()
+				.filter(entry -> entry.getAppId().equals(appId) && entry.getRefId().equals(refId))
+				.map(SubjectAlternatuveNamesImpl.SanEntry::getValue)
+				.findFirst()
+				.orElse(KeymanagerConstant.EMPTY);
+		return convertSanValuesToMap(sanValues);
+	}
+
+	public Map<String, String> convertSanValuesToMap(String sanValue) {
+		if (sanValue == null) {
+			return Collections.emptyMap();
+		}
+		String json = sanValue.trim();
+		if (json.contains("'")) {
+			json = json.replace('\'', '"');
+		}
+		try {
+			return objectMapper.readValue(json, new TypeReference<Map<String, String>>() {});
+		} catch (Exception e) {
+			// Log error if needed
+			return Collections.emptyMap();
 		}
 	}
 }
