@@ -25,15 +25,15 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
+import io.mosip.kernel.keymanagerservice.dto.SanDto;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -164,6 +164,9 @@ public class KeymanagerUtil {
 
 	@Value("#{'${mosip.kernel.keymgr.ed25519.allowed.appids:ID_REPO}'.split(',')}")
 	private List<String> allowedAppIds;
+
+	@Value("#{${mosip.kernel.keymanager.certificate.san.values.map}}")
+	private Map<String, String> altValuesMap;
 
 	/**
 	 * KeyGenerator instance to generate asymmetric key pairs
@@ -382,6 +385,42 @@ public class KeymanagerUtil {
 		return certParams;
 	}
 
+	public CertificateParameters getCertificateParametersIncludeSAN(X500Principal latestCertPrincipal, LocalDateTime notBefore, LocalDateTime notAfter) {
+
+		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
+		X500Name x500Name = new X500Name(latestCertPrincipal.getName());
+
+		certParams.setCommonName(IETFUtils.valueToString((x500Name.getRDNs(BCStyle.CN)[0]).getFirst().getValue()));
+		certParams.setOrganizationUnit(getParamValue(getAttributeIfExist(x500Name, BCStyle.OU), organizationUnit));
+		certParams.setOrganization(getParamValue(getAttributeIfExist(x500Name, BCStyle.O), organization));
+		certParams.setLocation(getParamValue(getAttributeIfExist(x500Name, BCStyle.L), location));
+		certParams.setState(getParamValue(getAttributeIfExist(x500Name, BCStyle.ST), state));
+		certParams.setCountry(getParamValue(getAttributeIfExist(x500Name, BCStyle.C), country));
+		certParams.setNotBefore(notBefore);
+		certParams.setNotAfter(notAfter);
+
+		List<SanDto> sanDtoList = new ArrayList<>();
+		if (altValuesMap == null && altValuesMap.isEmpty()) {
+			return certParams;
+		}
+
+		for (Map.Entry<String, String> entry : altValuesMap.entrySet()) {
+			String type = entry.getKey();
+			String valueStr = entry.getValue();
+			if (valueStr != null && !valueStr.trim().isEmpty()) {
+				String[] values = valueStr.split("\\|");
+				for (String value : values) {
+					if (value != null && !value.trim().isEmpty()) {
+						sanDtoList.add(new SanDto(type, value.trim()));
+					}
+				}
+			}
+		}
+
+		certParams.setSubjectAlternativeNames(sanDtoList);
+		return certParams;
+	}
+
 	private static String getAttributeIfExist(X500Name x500Name, ASN1ObjectIdentifier identifier) {
         RDN[] rdns = x500Name.getRDNs(identifier);
         if (rdns.length == 0) {
@@ -407,6 +446,46 @@ public class KeymanagerUtil {
 		certParams.setCountry(getParamValue(request.getCountry(), country));
 		certParams.setNotBefore(notBefore);
 		certParams.setNotAfter(notAfter);
+		return certParams;
+	}
+
+	public ExtendedCertificateParameters getCertificateParametersIncludeSAN(KeyPairGenerateRequestDto request, LocalDateTime notBefore, LocalDateTime notAfter,
+																			String appId) {
+
+		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
+		String refId = request.getReferenceId();
+		if (refId.trim().length() > 0) {
+			refId = '-' + refId.toUpperCase();
+		}
+		String appIdCommonName = commonName + " (" + appId.toUpperCase() + refId + ")";
+		certParams.setCommonName(getParamValue(request.getCommonName(), appIdCommonName));
+		certParams.setOrganizationUnit(getParamValue(request.getOrganizationUnit(), organizationUnit));
+		certParams.setOrganization(getParamValue(request.getOrganization(), organization));
+		certParams.setLocation(getParamValue(request.getLocation(), location));
+		certParams.setState(getParamValue(request.getState(), state));
+		certParams.setCountry(getParamValue(request.getCountry(), country));
+		certParams.setNotBefore(notBefore);
+		certParams.setNotAfter(notAfter);
+
+		List<SanDto> sanDtoList = new ArrayList<>();
+		if (altValuesMap == null && altValuesMap.isEmpty()) {
+			return certParams;
+		}
+
+		for (Map.Entry<String, String> entry : altValuesMap.entrySet()) {
+			String type = entry.getKey();
+			String valueStr = entry.getValue();
+			if (valueStr != null && !valueStr.trim().isEmpty()) {
+				String[] values = valueStr.split("\\|");
+				for (String value : values) {
+					if (value != null && !value.trim().isEmpty()) {
+						sanDtoList.add(new SanDto(type, value.trim()));
+					}
+				}
+			}
+		}
+
+		certParams.setSubjectAlternativeNames(sanDtoList);
 		return certParams;
 	}
 
