@@ -36,7 +36,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
 import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
-import io.mosip.kernel.keymanagerservice.service.impl.SubjectAlternatuveNamesImpl;
+import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -181,7 +181,7 @@ public class KeymanagerUtil {
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
 	@Autowired
-	SubjectAlternatuveNamesImpl sanService;
+	SubjectAlternativeNamesHelper sanService;
 
 	ObjectMapper objectMapper = new ObjectMapper();
 
@@ -599,7 +599,7 @@ public class KeymanagerUtil {
 	public Map<String, String> getSanValues(String appId, String refId) {
 		String sanValues = sanService.getStructuredSanParameters().stream()
 				.filter(entry -> entry.getAppId().equals(appId) && entry.getRefId().equals(refId))
-				.map(SubjectAlternatuveNamesImpl.SanEntry::getValue)
+				.map(SubjectAlternativeNamesHelper.SanEntry::getValue)
 				.findFirst()
 				.orElse(KeymanagerConstant.EMPTY);
 		return convertSanValuesToMap(sanValues);

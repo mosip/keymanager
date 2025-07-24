@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -156,7 +157,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
 
 	@Autowired
-	SubjectAlternatuveNamesImpl sanService;
+	SubjectAlternativeNamesHelper sanHelper;
 
 	private static Map<String, String> ecRefIdsAlgoNamesMap = new HashMap<>();
 
@@ -391,7 +392,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			X500Principal signerPrincipal = signCert.getSubjectX500Principal();
 
             CertificateParameters certParams;
-            if (sanService.hasSANappIdAndRefId(applicationId, referenceId)) {
+            if (sanHelper.hasSANappIdAndRefId(applicationId, referenceId)) {
 				referenceId = referenceId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : referenceId;
 				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(applicationId, referenceId);
                 certParams = keymanagerUtil.getCertificateParametersIncludeSAN(signerPrincipal, generationDateTime, expiryDateTime, altNamesMap);
@@ -639,7 +640,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		LocalDateTime expiryDateTime = dbHelper.getExpiryPolicy(appId, generationDateTime, keyAliasMap.get(KeymanagerConstant.KEYALIAS));
 		String rootKeyAlias = getRootKeyAlias(appId, timestamp);
 		CertificateParameters certParams;
-		if (sanService.hasSANappIdAndRefId(appId, refId)) {
+		if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
 			refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
 			Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
 			certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);
@@ -762,7 +763,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			PrivateKey privateKey =  (PrivateKey) keyDetailsArr[0];
 			KeyPairGenerateResponseDto responseDto = new KeyPairGenerateResponseDto();
             CertificateParameters certParams;
-            if (sanService.hasSANappIdAndRefId(appId, refId)) {
+            if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
 				refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
 				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
                 certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);

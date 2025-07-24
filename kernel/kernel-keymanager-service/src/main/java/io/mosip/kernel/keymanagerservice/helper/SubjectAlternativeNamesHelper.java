@@ -1,4 +1,4 @@
-package io.mosip.kernel.keymanagerservice.service.impl;
+package io.mosip.kernel.keymanagerservice.helper;
 
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -11,7 +11,7 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "mosip.kernel.keymanager.certificate")
 @Service
-public class SubjectAlternatuveNamesImpl {
+public class SubjectAlternativeNamesHelper {
 
     /**
      * This map will be populated for all properties like:
