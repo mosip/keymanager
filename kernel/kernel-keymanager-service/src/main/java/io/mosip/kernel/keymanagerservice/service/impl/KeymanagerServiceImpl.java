@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -119,7 +120,6 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	@Value("${mosip.kernel.keymanager.ed25519.hsm.support.enabled:false}")
 	private boolean ed25519SupportFlag;
 
-
 	/**
 	 * Keystore instance to handles and store cryptographic keys.
 	 */
@@ -155,6 +155,9 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 
 	@Autowired
 	private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
+
+	@Autowired
+	SubjectAlternativeNamesHelper sanHelper;
 
 	private static Map<String, String> ecRefIdsAlgoNamesMap = new HashMap<>();
 
@@ -388,8 +391,14 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			X509Certificate signCert = (X509Certificate) signKeyEntry.getCertificate();
 			X500Principal signerPrincipal = signCert.getSubjectX500Principal();
 
-			CertificateParameters certParams = keymanagerUtil.getCertificateParameters(signerPrincipal,
-													generationDateTime, expiryDateTime);
+            CertificateParameters certParams;
+            if (sanHelper.hasSANappIdAndRefId(applicationId, referenceId)) {
+				referenceId = referenceId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : referenceId;
+				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(applicationId, referenceId);
+                certParams = keymanagerUtil.getCertificateParametersIncludeSAN(signerPrincipal, generationDateTime, expiryDateTime, altNamesMap);
+            } else {
+                certParams = keymanagerUtil.getCertificateParameters(signerPrincipal, generationDateTime, expiryDateTime);
+            }
 			certParams.setCommonName(applicationId + "-" + referenceId);
 			x509Cert = (X509Certificate) CertificateUtility.generateX509Certificate(signPrivateKey, keypair.getPublic(), 
 						certParams, signerPrincipal, signAlgorithm, keyStore.getKeystoreProviderName(), KeymanagerConstant.ENCRYPTION_KEY);
@@ -630,7 +639,14 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		LocalDateTime generationDateTime = timestamp;
 		LocalDateTime expiryDateTime = dbHelper.getExpiryPolicy(appId, generationDateTime, keyAliasMap.get(KeymanagerConstant.KEYALIAS));
 		String rootKeyAlias = getRootKeyAlias(appId, timestamp);
-		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(request, generationDateTime, expiryDateTime, appId);
+		CertificateParameters certParams;
+		if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
+			refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
+			Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
+			certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);
+		} else {
+			certParams = keymanagerUtil.getCertificateParameters(request, generationDateTime, expiryDateTime, appId);
+		}
 		//keyStore.generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams);
 		CertificateInfo<X509Certificate> certificateInfo = generateAndStoreAsymmetricKey(alias, rootKeyAlias, certParams, request, generationDateTime, expiryDateTime, keyAliasMap);
  		return buildResponseObject(responseObjectType, appId, refId, timestamp, certificateInfo.getAlias(), generationDateTime, 
@@ -746,7 +762,14 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			//PrivateKey privateKey = keyStore.getPrivateKey(keyAlias);
 			PrivateKey privateKey =  (PrivateKey) keyDetailsArr[0];
 			KeyPairGenerateResponseDto responseDto = new KeyPairGenerateResponseDto();
-			CertificateParameters certParams = keymanagerUtil.getCertificateParameters(request, generationDateTime, expiryDateTime, appId);
+            CertificateParameters certParams;
+            if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
+				refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
+				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
+                certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);
+            } else {
+			certParams = keymanagerUtil.getCertificateParameters(request, generationDateTime, expiryDateTime, appId);
+            }
 			responseDto.setCertSignRequest(keymanagerUtil.getCSR(privateKey, publicKey, certParams, publicKey.getAlgorithm()));
 			responseDto.setExpiryAt(expiryDateTime);
 			responseDto.setIssuedAt(generationDateTime);

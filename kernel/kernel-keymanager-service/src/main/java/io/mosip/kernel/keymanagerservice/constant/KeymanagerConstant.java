@@ -226,4 +226,22 @@ public class KeymanagerConstant {
 	public static final String ED25519_ALG_OID = "1.3.101.112";
 
 	public static final String APP_REF_ID_SEP = "#";
+
+	public static final String STRING_BLANK = "BLANK";
+
+	public static final String OTHER_NAME = "otherName";
+
+	public static final String EMAIL_Address = "email";
+
+	public static final String DNS_NAME = "dns";
+
+	public static final String X400_ADDRESS = "x400Address";
+
+	public static final String DIRECTORY_NAME = "directoryName";
+
+	public static final String URI = "uri";
+
+	public static final String IP_ADDRESS = "ipAddress";
+
+	public static final String REGISTERED_ID = "registeredId";
 }
