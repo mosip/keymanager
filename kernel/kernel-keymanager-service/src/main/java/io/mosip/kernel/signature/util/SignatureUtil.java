@@ -16,6 +16,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
@@ -24,6 +25,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -94,31 +96,17 @@ public class SignatureUtil {
 
 	public static JWSHeader getJWSHeader(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificate, 
 			boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate, String uniqueIdentifier, 
-			boolean includeKeyId) {
+			boolean includeKeyId, String kidPrepend) {
 
-		JWSAlgorithm jwsAlgorithm;
-		switch (signAlgorithm) {
-			case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.RS256; 
-				break;
-			case SignatureConstant.JWS_PS256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.PS256;
-				break;
-			case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.ES256;
-				break;
-			case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.ES256K;
-				break;
-			case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST:
-				jwsAlgorithm = JWSAlgorithm.EdDSA;
-				break;
-			default:
-				jwsAlgorithm = JWSAlgorithm.PS256; 
-				break;
-		}
-		
-		JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
+		JWSAlgorithm jwsAlgorithm = switch (signAlgorithm) {
+            case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST -> JWSAlgorithm.RS256;
+            case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST -> JWSAlgorithm.ES256;
+            case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST -> JWSAlgorithm.ES256K;
+            case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST -> JWSAlgorithm.EdDSA;
+            default -> JWSAlgorithm.PS256;
+        };
+
+        JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
 
 		if (!b64JWSHeaderParam) 
 			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
@@ -159,7 +147,7 @@ public class SignatureUtil {
 
 		String keyId = convertHexToBase64(uniqueIdentifier);
 		if (includeKeyId && Objects.nonNull(keyId)) {
-			jwsHeaderBuilder.keyID(keyId);
+			jwsHeaderBuilder.keyID(kidPrepend.concat(keyId));
 		}
 
 		return jwsHeaderBuilder.build();
@@ -189,4 +177,31 @@ public class SignatureUtil {
 		return null;
 	}
 
+	public static String getSignAlgorithm(String referenceId) {
+		if (referenceId == null || referenceId.isBlank()) return SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		else return switch (referenceId) {
+			case SignatureConstant.EC_SECP256R1_SIGN -> SignatureConstant.JWS_ES256_SIGN_ALGO_CONST;
+			case SignatureConstant.EC_SECP256K1_SIGN -> SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST;
+			case SignatureConstant.ED25519_SIGN -> SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST;
+			default -> SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		};
+	}
+
+	public static String getIssuerFromPayload(String jsonPayload) {
+		try {
+			JsonNode jsonNode = mapper.readTree(jsonPayload);
+
+			if (jsonNode.has(SignatureConstant.ISSUER)) {
+				return jsonNode.get(SignatureConstant.ISSUER).asText();
+			} else {
+				LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.ISSUER, SignatureConstant.BLANK,
+						"Missing 'iss' field in provided JSON data.");
+				return SignatureConstant.BLANK;
+			}
+		} catch (IOException e) {
+			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+					"Provided JSON Data to sign is invalid.");
+			return SignatureConstant.BLANK;
+		}
+	}
 }

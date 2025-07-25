@@ -4,12 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Security;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
@@ -22,10 +17,7 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
-import com.mchange.util.Base64Encoder;
-import com.nimbusds.jose.JWSAlgorithm;
 import io.ipfs.multibase.Multibase;
-import io.mosip.kernel.keymanagerservice.exception.InvalidApplicationIdException;
 import io.mosip.kernel.keymanagerservice.exception.InvalidFormatException;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -123,6 +115,9 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 	@Value("${mosip.kernel.keymanager.jwtsign.enable.secp256k1.algorithm:true}")
 	private boolean enableSecp256k1Algo;
 
+	@Value("${mosip.kernel.keymanager.signature.kid.prepend:}")
+	private String kidPrepend;
+
 	/**
 	 * Utility to generate Metadata
 	 */
@@ -171,7 +166,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (enableSecp256k1Algo) {
 			AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory = 
 				AlgorithmFactoryFactory.getInstance().getJwsAlgorithmFactory();
-			jwsAlgorithmFactory.registerAlgorithm(new EcdsaSECP256K1UsingSha256());
+			jwsAlgorithmFactory.registerAlgorithm(new EcdsaUsingShaAlgorithm.EcdsaSECP256K1UsingSha256());
 		}
 	}
 
@@ -337,10 +332,15 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		if (Objects.nonNull(certificateUrl))
 			jwSign.setHeader("x5u", certificateUrl);
-		
+
+		String kidPrefix = kidPrepend;
+		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
+			kidPrefix = SignatureUtil.getIssuerFromPayload(dataToSign).concat(SignatureConstant.KEY_ID_SEPARATOR);
+		}
+
 		String keyId = SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier());
 		if (includeKeyId && Objects.nonNull(keyId))
-			jwSign.setKeyIdHeaderValue(keyId);
+			jwSign.setKeyIdHeaderValue(kidPrefix.concat(keyId));
 
 		jwSign.setPayload(dataToSign);
 		String algoString = JWT_SIGNATURE_ALGO_IDENT.get(referenceId);
@@ -567,6 +567,11 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}
 
+		String kidPrefix = kidPrepend;
+		if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
+			kidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
+		}
+
 		String timestamp = DateUtils.getUTCCurrentDateTimeString();
 		String applicationId = jwsSignRequestDto.getApplicationId();
 		String referenceId = jwsSignRequestDto.getReferenceId();
@@ -581,8 +586,8 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String certificateUrl = SignatureUtil.isDataValid(
 								jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
 		boolean b64JWSHeaderParam = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getB64JWSHeaderParam());
-		String signAlgorithm = SignatureUtil.isDataValid(jwsSignRequestDto.getSignAlgorithm()) ? 
-									jwsSignRequestDto.getSignAlgorithm(): SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+		String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank()) ?
+				SignatureUtil.getSignAlgorithm(referenceId) : jwsSignRequestDto.getSignAlgorithm();
 		
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 									Optional.of(referenceId), timestamp);
@@ -593,7 +598,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String providerName = certificateResponse.getProviderName();
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
 		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signAlgorithm, b64JWSHeaderParam, includeCertificate, 
-					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId);
+					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix);
 		
 		if (b64JWSHeaderParam) {
 			dataToSign = reqDataToSign.getBytes(StandardCharsets.UTF_8);
@@ -654,49 +659,99 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			referenceId = signRefid;
 		}
 		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-				signatureReq.getSignAlgorithm(): SignatureConstant.ED25519_ALGORITHM;
+				signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
 				DateUtils.parseUTCToDate(timestamp));
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
-        certificateResponse.getCertificateEntry().getChain();
-        String providerName = certificateResponse.getProviderName();
+		certificateResponse.getCertificateEntry().getChain();
+		String providerName = certificateResponse.getProviderName();
 		SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
 		if (Objects.isNull(signatureProvider)) {
 			signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
 		}
 		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
-		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
-		SignResponseDto signedData = new SignResponseDto();
-		signedData.setTimestamp(DateUtils.getUTCCurrentDateTime());
-		switch (signatureReq.getResponseEncodingFormat()) {
-			case "base64url":
-				signedData.setSignature(
-						Multibase.encode(Multibase.Base.Base64Url, data));
+		SignResponseDto signedDataResponse = new SignResponseDto();
+		signedDataResponse.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
+		switch (encodingFromat) {
+			case SignatureConstant.BASE64URL:
+				signedDataResponse.setSignature(signature);
 				break;
-			case "base58btc":
-				signedData.setSignature(
+			case SignatureConstant.BASE58BTC:
+                byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
+				signedDataResponse.setSignature(
 						Multibase.encode(Multibase.Base.Base58BTC, data));
 				break;
 			default:
-				throw new InvalidFormatException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
+				throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
 		}
-		return signedData;
+		return signedDataResponse;
 	}
 
-	public static class EcdsaSECP256K1UsingSha256 extends EcdsaUsingShaAlgorithm
-    {
-        public EcdsaSECP256K1UsingSha256() {
-            super(AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256, 
-					"SHA256withECDSA", EllipticCurves.SECP_256K1, 64);
+    @Override
+    public SignResponseDtoV2 rawSign(SignRequestDtoV2 signatureReq) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                "Raw Sign Signature Request.");
+        String applicationId = signatureReq.getApplicationId();
+        String referenceId = signatureReq.getReferenceId();
+        boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(applicationId);
+        String reqDataToSign = signatureReq.getDataToSign();
+        if (!hasAcccess) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Signing Data is not allowed for the authenticated user for the provided application id.");
+            throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+                    SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
         }
 
-        @Override
-        public boolean isAvailable(){
-            return true;
+        if (!SignatureUtil.isDataValid(reqDataToSign)) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Provided Data to sign is invalid.");
+            throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+                    SignatureErrorCode.INVALID_INPUT.getErrorMessage());
         }
+        byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
+        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+            applicationId = signApplicationid;
+            referenceId = signRefid;
+        }
+        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
+                signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+
+        SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
+                Optional.of(referenceId), timestamp);
+        keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+                DateUtils.parseUTCToDate(timestamp));
+        PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
+        certificateResponse.getCertificateEntry().getChain();
+        String providerName = certificateResponse.getProviderName();
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
+        if (Objects.isNull(signatureProvider)) {
+            signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
+        }
+        String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
+        SignResponseDtoV2 responseDto = new SignResponseDtoV2();
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
+        switch (encodingFromat) {
+            case SignatureConstant.BASE64URL:
+                responseDto.setSignedData(signature);
+                break;
+            case SignatureConstant.BASE58BTC:
+                byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
+                responseDto.setSignedData(Multibase.encode(Multibase.Base.Base58BTC, data));
+                break;
+            default:
+                throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
+                        KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
+        }
+        responseDto.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
+        responseDto.setSignatureAlgorithm(signAlgorithm);
+        responseDto.setKeyId(SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier()));
+        return responseDto;
     }
 }

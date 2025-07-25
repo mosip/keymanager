@@ -13,7 +13,6 @@ import java.util.List;
 public class CACertificateStoreSpec {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
     public static Specification<CACertificateStore> filterCertificates(
             String caCertificateType,
             String partnerDomain,

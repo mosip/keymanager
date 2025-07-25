@@ -22,8 +22,6 @@ public class SignatureConstant {
 
 	public static final String JWT_SIGN = "JWTSignature";
 
-	public static final String RAW_SIGN = "RAW_SIGN";
-
 	public static final String BLANK = "";
 
 	public static final Boolean DEFAULT_INCLUDES = false;
@@ -75,4 +73,22 @@ public class SignatureConstant {
 	public static final String JWS_ES256K_SIGN_ALGO_CONST = "ES256K";
 
 	public static final String JWS_EDDSA_SIGN_ALGO_CONST = "EdDSA";
+
+	public static final String EC_SECP256K1_SIGN = "EC_SECP256K1_SIGN";
+
+	public static final String EC_SECP256R1_SIGN = "EC_SECP256R1_SIGN";
+
+	public static final String ED25519_SIGN = "ED25519_SIGN";
+
+	public static final String ISSUER = "iss";
+
+	public static final String KEY_ID_PREFIX = "PAYLOAD_ISSUER";
+
+	public static final String KEY_ID_SEPARATOR = "#";
+
+	public static final String RAW_SIGN = "RAW_SIGN";
+
+	public static final String BASE58BTC = "base58btc";
+
+	public static final String BASE64URL = "base64url";
 }
