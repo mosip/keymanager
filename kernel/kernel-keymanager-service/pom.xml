@@ -26,11 +26,11 @@
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
-		<kernel.bom.version>1.3.0-beta.2</kernel.bom.version>
-		<kernel.core.version>1.3.0-beta.2</kernel.core.version>
-		<kernel.logger.logback.version>1.3.0-beta.2</kernel.logger.logback.version>
-		<kernel.pdfgenerator.itext.version>1.3.0-beta.2</kernel.pdfgenerator.itext.version>
-		<kernel.dataaccess.hibernate.version>1.3.0-beta.2</kernel.dataaccess.hibernate.version>
+		<kernel.bom.version>1.2.1-SNAPSHOT</kernel.bom.version>
+		<kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
+		<kernel.logger.logback.version>1.2.1-SNAPSHOT</kernel.logger.logback.version>
+		<kernel.pdfgenerator.version>1.2.1-SNAPSHOT</kernel.pdfgenerator.version>
+		<kernel.dataaccess.hibernate.version>1.2.1-SNAPSHOT</kernel.dataaccess.hibernate.version>
 
 		<!-- data -->
 		<h2.version>2.2.220</h2.version>
@@ -52,12 +52,14 @@
 		<bcpkix.jdk18on.version>1.78.1</bcpkix.jdk18on.version>
 		<mockito.core.version>3.4.3</mockito.core.version>
 	</properties>
+
 	<repositories>
 		<repository>
 			<id>jitpack.io</id>
 			<url>https://jitpack.io</url>
 		</repository>
 	</repositories>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -105,6 +107,7 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
@@ -113,8 +116,8 @@
 		</dependency>
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-pdfgenerator-itext</artifactId>
-			<version>${kernel.pdfgenerator.itext.version}</version>
+			<artifactId>kernel-pdfgenerator</artifactId>
+			<version>${kernel.pdfgenerator.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.bouncycastle</groupId>
@@ -133,17 +136,19 @@
 		<dependency>
 			<groupId>org.junit.vintage</groupId>
 			<artifactId>junit-vintage-engine</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<version>${mockito.core.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 			<version>${h2.version}</version>
-			<scope>runtime</scope>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.bitbucket.b_c</groupId>
@@ -273,7 +278,7 @@
 		</snapshotRepository>
 		<repository>
 			<id>ossrh</id>
-			<url>https://central.sonatype.com/api/v1/publisher/</url>
+			<url>https://central.sonatype.com/api/v1/publisher</url>
 		</repository>
 	</distributionManagement>
 	<build>
@@ -335,7 +340,6 @@
 					<autoPublish>false</autoPublish>
 				</configuration>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>

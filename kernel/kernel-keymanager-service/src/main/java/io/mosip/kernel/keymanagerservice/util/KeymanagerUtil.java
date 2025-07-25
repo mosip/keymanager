@@ -25,15 +25,18 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
+import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
+import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -176,6 +179,11 @@ public class KeymanagerUtil {
 	 */
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+
+	@Autowired
+	SubjectAlternativeNamesHelper sanService;
+
+	ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * Function to check valid timestamp
@@ -382,6 +390,42 @@ public class KeymanagerUtil {
 		return certParams;
 	}
 
+	public CertificateParameters getCertificateParametersIncludeSAN(X500Principal latestCertPrincipal, LocalDateTime notBefore, LocalDateTime notAfter, Map<String, String> altValuesMap) {
+
+		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
+		X500Name x500Name = new X500Name(latestCertPrincipal.getName());
+
+		certParams.setCommonName(IETFUtils.valueToString((x500Name.getRDNs(BCStyle.CN)[0]).getFirst().getValue()));
+		certParams.setOrganizationUnit(getParamValue(getAttributeIfExist(x500Name, BCStyle.OU), organizationUnit));
+		certParams.setOrganization(getParamValue(getAttributeIfExist(x500Name, BCStyle.O), organization));
+		certParams.setLocation(getParamValue(getAttributeIfExist(x500Name, BCStyle.L), location));
+		certParams.setState(getParamValue(getAttributeIfExist(x500Name, BCStyle.ST), state));
+		certParams.setCountry(getParamValue(getAttributeIfExist(x500Name, BCStyle.C), country));
+		certParams.setNotBefore(notBefore);
+		certParams.setNotAfter(notAfter);
+
+		List<SubjectAlternativeNamesDto> sanDtoList = new ArrayList<>();
+		if (altValuesMap == null && altValuesMap.isEmpty()) {
+			return certParams;
+		}
+
+		for (Map.Entry<String, String> entry : altValuesMap.entrySet()) {
+			String type = entry.getKey();
+			String valueStr = entry.getValue();
+			if (valueStr != null && !valueStr.trim().isEmpty()) {
+				String[] values = valueStr.split("\\|");
+				for (String value : values) {
+					if (value != null && !value.trim().isEmpty()) {
+						sanDtoList.add(new SubjectAlternativeNamesDto(type, value.trim()));
+					}
+				}
+			}
+		}
+
+		certParams.setSubjectAlternativeNames(sanDtoList);
+		return certParams;
+	}
+
 	private static String getAttributeIfExist(X500Name x500Name, ASN1ObjectIdentifier identifier) {
         RDN[] rdns = x500Name.getRDNs(identifier);
         if (rdns.length == 0) {
@@ -407,6 +451,46 @@ public class KeymanagerUtil {
 		certParams.setCountry(getParamValue(request.getCountry(), country));
 		certParams.setNotBefore(notBefore);
 		certParams.setNotAfter(notAfter);
+		return certParams;
+	}
+
+	public ExtendedCertificateParameters getCertificateParametersIncludeSAN(KeyPairGenerateRequestDto request, LocalDateTime notBefore, LocalDateTime notAfter,
+																			String appId, Map<String, String> altValuesMap) {
+
+		ExtendedCertificateParameters certParams = new ExtendedCertificateParameters();
+		String refId = request.getReferenceId();
+		if (refId.trim().length() > 0) {
+			refId = '-' + refId.toUpperCase();
+		}
+		String appIdCommonName = commonName + " (" + appId.toUpperCase() + refId + ")";
+		certParams.setCommonName(getParamValue(request.getCommonName(), appIdCommonName));
+		certParams.setOrganizationUnit(getParamValue(request.getOrganizationUnit(), organizationUnit));
+		certParams.setOrganization(getParamValue(request.getOrganization(), organization));
+		certParams.setLocation(getParamValue(request.getLocation(), location));
+		certParams.setState(getParamValue(request.getState(), state));
+		certParams.setCountry(getParamValue(request.getCountry(), country));
+		certParams.setNotBefore(notBefore);
+		certParams.setNotAfter(notAfter);
+
+		List<SubjectAlternativeNamesDto> sanDtoList = new ArrayList<>();
+		if (altValuesMap == null && altValuesMap.isEmpty()) {
+			return certParams;
+		}
+
+		for (Map.Entry<String, String> entry : altValuesMap.entrySet()) {
+			String type = entry.getKey();
+			String valueStr = entry.getValue();
+			if (valueStr != null && !valueStr.trim().isEmpty()) {
+				String[] values = valueStr.split("\\|");
+				for (String value : values) {
+					if (value != null && !value.trim().isEmpty()) {
+						sanDtoList.add(new SubjectAlternativeNamesDto(type, value.trim()));
+					}
+				}
+			}
+		}
+
+		certParams.setSubjectAlternativeNames(sanDtoList);
 		return certParams;
 	}
 
@@ -509,6 +593,32 @@ public class KeymanagerUtil {
 		if (!allowedAppIds.contains(applicationId)) {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorCode(), 
 			KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorMessage());
+		}
+	}
+
+	public Map<String, String> getSanValues(String appId, String refId) {
+		String referenceId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
+		String sanValues = sanService.getStructuredSanParameters().stream()
+				.filter(entry -> entry.getAppId().equals(appId) && entry.getRefId().equals(referenceId))
+				.map(SubjectAlternativeNamesHelper.SanEntry::getValue)
+				.findFirst()
+				.orElse(KeymanagerConstant.EMPTY);
+		return convertSanValuesToMap(sanValues);
+	}
+
+	public Map<String, String> convertSanValuesToMap(String sanValue) {
+		if (sanValue == null) {
+			return Collections.emptyMap();
+		}
+		String json = sanValue.trim();
+		if (json.contains("'")) {
+			json = json.replace('\'', '"');
+		}
+		try {
+			return objectMapper.readValue(json, new TypeReference<Map<String, String>>() {});
+		} catch (Exception e) {
+			// Log error if needed
+			return Collections.emptyMap();
 		}
 	}
 }

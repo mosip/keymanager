@@ -10,19 +10,19 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.Objects;
+import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
+import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
+import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
+import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
-import org.bouncycastle.asn1.x509.BasicConstraints;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -87,7 +87,7 @@ public class CertificateUtility {
 	 * 
 	 * @return The certificate
 	 */
-	public static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, CertificateParameters certParams, 
+	public static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, CertificateParameters certParams,
 						X500Principal signerPrincipal, String signAlgorithm, String providerName) { 
 		// Using RFC4519Style instance to preserve the RDN sequence because in certificate creation the RDN sequence is getting reversed.
 		X500Name certSubject = getCertificateAttributes(certParams); //new X500Name(RFC4519Style.INSTANCE, getCertificateAttributes(certParams));
@@ -97,24 +97,57 @@ public class CertificateUtility {
 		if (certSubject.equals(certIssuer)) {
 			basicConstraints = new BasicConstraints(2);
 		}
-		return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName, 
-									certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints);
+
+		if (certParams instanceof ExtendedCertificateParameters) {
+			ExtendedCertificateParameters extendedCertParams = (ExtendedCertificateParameters) certParams;
+			List<SubjectAlternativeNamesDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
+			GeneralName[] sanArray = getCertificateSAN(sanDtoList, publicKey);
+			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
+					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints, sanArray);
+		}else {
+			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
+					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints);
+		}
 	}
 
-	private static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, X500Name certIssuer, X500Name certSubject, 
-						String signAlgorithm, String providerName, LocalDateTime notBefore, LocalDateTime notAfter, KeyUsage keyUsage, 
+	private static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, X500Name certIssuer, X500Name certSubject,
+						String signAlgorithm, String providerName, LocalDateTime notBefore, LocalDateTime notAfter, KeyUsage keyUsage,
 						BasicConstraints basicConstraints) {
 		try {
 			BigInteger certSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
-			
+
 			ContentSigner certContentSigner = new JcaContentSignerBuilder(signAlgorithm).setProvider(providerName).build(signPrivateKey);
-			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certIssuer, certSerialNum, getDateFromLocalDateTime(notBefore), 
+			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certIssuer, certSerialNum, getDateFromLocalDateTime(notBefore),
 													getDateFromLocalDateTime(notAfter), certSubject, publicKey);
 			JcaX509ExtensionUtils certExtUtils = new JcaX509ExtensionUtils();
 			certBuilder.addExtension(Extension.basicConstraints, true, basicConstraints);
 			certBuilder.addExtension(Extension.subjectKeyIdentifier, false, certExtUtils.createSubjectKeyIdentifier(publicKey));
 			certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
-			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);	        
+			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);
+			return new JcaX509CertificateConverter().getCertificate(certHolder);
+		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
+			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
+					KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
+		}
+	}
+
+	private static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, X500Name certIssuer, X500Name certSubject,
+														   String signAlgorithm, String providerName, LocalDateTime notBefore, LocalDateTime notAfter, KeyUsage keyUsage,
+														   BasicConstraints basicConstraints, GeneralName[] altNames) {
+		try {
+			BigInteger certSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
+
+			ContentSigner certContentSigner = new JcaContentSignerBuilder(signAlgorithm).setProvider(providerName).build(signPrivateKey);
+			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certIssuer, certSerialNum, getDateFromLocalDateTime(notBefore),
+					getDateFromLocalDateTime(notAfter), certSubject, publicKey);
+			JcaX509ExtensionUtils certExtUtils = new JcaX509ExtensionUtils();
+			certBuilder.addExtension(Extension.basicConstraints, true, basicConstraints);
+			certBuilder.addExtension(Extension.subjectKeyIdentifier, false, certExtUtils.createSubjectKeyIdentifier(publicKey));
+			certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
+			if (altNames != null && altNames.length > 0) {
+				certBuilder.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(altNames));
+			}
+			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);
 			return new JcaX509CertificateConverter().getCertificate(certHolder);
 		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
@@ -143,8 +176,16 @@ public class CertificateUtility {
 		X500Name certIssuer = Objects.nonNull(signerPrincipal)? new X500Name(RFC4519Style.INSTANCE, signerPrincipal.getName()) : certSubject;
 		KeyUsage keyUsage = new KeyUsage(KeyUsage.keyEncipherment);
 		BasicConstraints basicConstraints = new BasicConstraints(false);
-		return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName, 
-									certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints);
+		if (certParams instanceof ExtendedCertificateParameters) {
+			ExtendedCertificateParameters extendedCertParams = (ExtendedCertificateParameters) certParams;
+			List<SubjectAlternativeNamesDto> sanDtoList = extendedCertParams.getSubjectAlternativeNames();
+			GeneralName[] sanArray = getCertificateSAN(sanDtoList, publicKey);
+			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
+					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints, sanArray);
+		} else {
+			return generateX509Certificate(signPrivateKey, publicKey, certIssuer, certSubject, signAlgorithm, providerName,
+					certParams.getNotBefore(), certParams.getNotAfter(), keyUsage, basicConstraints);
+		}
 	}
 
 	/**
@@ -171,8 +212,8 @@ public class CertificateUtility {
 	
 	
 	private static X500Name getCertificateAttributes(CertificateParameters certParams) {
-		 
-		/* return "CN=" + certParams.getCommonName() + ", OU =" + certParams.getOrganizationUnit() + ",O=" + certParams.getOrganization() 
+
+		/* return "CN=" + certParams.getCommonName() + ", OU =" + certParams.getOrganizationUnit() + ",O=" + certParams.getOrganization()
 					+ ", L=" + certParams.getLocation() + ", ST=" + certParams.getState() + ", C=" + certParams.getCountry(); */
 		X500NameBuilder builder = new X500NameBuilder(RFC4519Style.INSTANCE);
 		addRDN(certParams.getCountry(), builder, BCStyle.C);
@@ -187,5 +228,62 @@ public class CertificateUtility {
 	private static void addRDN(String dnValue, X500NameBuilder builder, ASN1ObjectIdentifier identifier) {
 		if (dnValue != null && !dnValue.isEmpty())
 			builder.addRDN(identifier, dnValue);
+	}
+
+	private static GeneralName[] getCertificateSAN(List<SubjectAlternativeNamesDto> sanDtoList, PublicKey publicKey) {
+		if (sanDtoList == null || sanDtoList.isEmpty()) {
+			return new GeneralName[0];
+		}
+		try {
+			SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+			ASN1ObjectIdentifier oid = subjectPublicKeyInfo.getAlgorithm().getAlgorithm();
+			List<GeneralName> sanList = new ArrayList<>();
+
+			for (SubjectAlternativeNamesDto san : sanDtoList) {
+				String type = san.getType();
+				String value = san.getValue();
+				if (type == null || value == null) continue;
+
+				switch (type) {
+					case KeymanagerConstant.OTHER_NAME:
+						sanList.add(new GeneralName(GeneralName.otherName,
+								new org.bouncycastle.asn1.x509.OtherName(oid, new DERUTF8String(value.trim()))
+						));
+						break;
+					case KeymanagerConstant.EMAIL_Address:
+						sanList.add(new GeneralName(GeneralName.rfc822Name, value.trim()));
+						break;
+					case KeymanagerConstant.DNS_NAME:
+						sanList.add(new GeneralName(GeneralName.dNSName, value.trim()));
+						break;
+					case KeymanagerConstant.X400_ADDRESS:
+						DERUTF8String derValue = new DERUTF8String(value.trim());
+						ASN1EncodableVector vector = new ASN1EncodableVector();
+						vector.add(derValue);
+						DERSequence sequence = new DERSequence(vector);
+						sanList.add(new GeneralName(GeneralName.x400Address, sequence));
+						break;
+					case KeymanagerConstant.DIRECTORY_NAME:
+						sanList.add(new GeneralName(GeneralName.directoryName, value.trim()));
+						break;
+					case KeymanagerConstant.URI:
+						sanList.add(new GeneralName(GeneralName.uniformResourceIdentifier, value.trim()));
+						break;
+					case KeymanagerConstant.IP_ADDRESS:
+						sanList.add(new GeneralName(GeneralName.iPAddress, value.trim()));
+						break;
+					case KeymanagerConstant.REGISTERED_ID:
+						sanList.add(new GeneralName(GeneralName.registeredID, value.trim()));
+						break;
+					default:
+						// Unknown type, skip or log if needed
+						break;
+				}
+			}
+
+			return sanList.toArray(new GeneralName[0]);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

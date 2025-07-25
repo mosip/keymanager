@@ -1,5 +1,7 @@
 package io.mosip.kernel.signature.controller;
 
+import io.mosip.kernel.signature.dto.*;
+import io.mosip.kernel.signature.service.SignatureServicev2;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,17 +15,6 @@ import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
-import io.mosip.kernel.signature.dto.JWSSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureResponseDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyRequestDto;
-import io.mosip.kernel.signature.dto.JWTSignatureVerifyResponseDto;
-import io.mosip.kernel.signature.dto.PDFSignatureRequestDto;
-import io.mosip.kernel.signature.dto.SignRequestDto;
-import io.mosip.kernel.signature.dto.SignResponseDto;
-import io.mosip.kernel.signature.dto.SignatureResponseDto;
-import io.mosip.kernel.signature.dto.TimestampRequestDto;
-import io.mosip.kernel.signature.dto.ValidatorResponseDto;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -48,6 +39,9 @@ public class SignatureController {
 	 */
 	@Autowired
 	SignatureService service;
+
+	@Autowired
+	SignatureServicev2 serviceV2;
 
 	/**
 	 * Function to sign response
@@ -187,4 +181,52 @@ public class SignatureController {
 		response.setResponse(signatureResponse);
 		return response;
 	}
+
+	/**
+	 * Function to do Signature input raw data using input algorithm. Default Algorithm PS256.
+	 *
+	 * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+	 * @return The {@link JWTSignatureResponseDto}
+	 */
+	@Operation(summary = "Function to do Signature for the input raw data using input algorithm. Default Algorithm PS256.",
+			description = "Function to sign raw data", tags = { "signaturecontroller" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostsignv2())")
+	@PostMapping(value = "/signV2")
+	public ResponseWrapper<SignResponseDto> signV2(
+			@RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
+		SignResponseDto signatureResponse = serviceV2.signv2(requestDto.getRequest());
+		ResponseWrapper<SignResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(signatureResponse);
+		return response;
+	}
+
+    /**
+     * Function to do Signature input raw data using input algorithm. Default Algorithm PS256.
+     *
+     * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+     * @return The {@link JWTSignatureResponseDto}
+     */
+    @Operation(summary = "Function to do Signature for the input raw data using input algorithm. Default Algorithm PS256.",
+            description = "Function to sign raw data", tags = { "signaturecontroller" })
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+    @ResponseFilter
+    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostsignrawdata())")
+    @PostMapping(value = "/signRawData")
+    public ResponseWrapper<SignResponseDtoV2> signRawData(
+            @RequestBody @Valid RequestWrapper<SignRequestDtoV2> requestDto) {
+        SignResponseDtoV2 signatureResponse = serviceV2.rawSign(requestDto.getRequest());
+        ResponseWrapper<SignResponseDtoV2> response = new ResponseWrapper<>();
+        response.setResponse(signatureResponse);
+        return response;
+    }
 }

@@ -26,6 +26,7 @@
 		<maven.javadoc.version>3.6.3</maven.javadoc.version>
 		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
+
 		<sonar.coverage.exclusions>
 			**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/spi/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/proxy/**"</sonar.coverage.exclusions>
 		<sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
@@ -41,7 +42,7 @@
 		<repository>
 			<id>ossrh</id>
 			<name>CentralRepository</name>
-			<url>https://central.sonatype.com/repository/snapshots/</url>
+			<url>https://central.sonatype.com/repository/snapshots</url>
 			<layout>default</layout>
 			<snapshots>
 				<enabled>true</enabled>
@@ -185,7 +186,6 @@
 					<autoPublish>false</autoPublish>
 				</configuration>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
