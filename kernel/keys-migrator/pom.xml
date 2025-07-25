@@ -41,7 +41,6 @@
 				<groupId>io.mosip.kernel</groupId>
 				<artifactId>kernel-bom</artifactId>
 				<version>${kernel.bom.version}</version>
-				<version>${kernel.bom.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -131,9 +130,6 @@
 							<goal>build-info</goal>
 							<goal>repackage</goal>
 						</goals>
-						<configuration>
-							<attach>false</attach>
-						</configuration>
 						<configuration>
 							<attach>false</attach>
 						</configuration>

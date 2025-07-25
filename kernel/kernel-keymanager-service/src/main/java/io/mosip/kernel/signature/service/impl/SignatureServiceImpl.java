@@ -18,6 +18,7 @@ import java.util.Optional;
 import javax.crypto.SecretKey;
 
 import io.ipfs.multibase.Multibase;
+import io.mosip.kernel.keymanagerservice.exception.InvalidFormatException;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
 import org.apache.commons.codec.binary.Base64;
@@ -165,7 +166,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (enableSecp256k1Algo) {
 			AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory = 
 				AlgorithmFactoryFactory.getInstance().getJwsAlgorithmFactory();
-			jwsAlgorithmFactory.registerAlgorithm(new EcdsaSECP256K1UsingSha256());
+			jwsAlgorithmFactory.registerAlgorithm(new EcdsaUsingShaAlgorithm.EcdsaSECP256K1UsingSha256());
 		}
 	}
 
@@ -629,80 +630,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				"JWS Signature Request - Completed.");
 		return responseDto;
 	}
-
-	@Override
-	public SignResponseDto signv2(SignRequestDtoV2 signatureReq) {
-		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
-				"Raw Sign Signature Request.");
-		String applicationId = signatureReq.getApplicationId();
-		String referenceId = signatureReq.getReferenceId();
-		boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(applicationId);
-		String reqDataToSign = signatureReq.getDataToSign();
-		if (!hasAcccess) {
-			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
-					"Signing Data is not allowed for the authenticated user for the provided application id.");
-			throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
-					SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
-		}
-
-		if (!SignatureUtil.isDataValid(reqDataToSign)) {
-			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
-					"Provided Data to sign is invalid.");
-			throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
-					SignatureErrorCode.INVALID_INPUT.getErrorMessage());
-		}
-		byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
-		String timestamp = DateUtils.getUTCCurrentDateTimeString();
-		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
-			applicationId = signApplicationid;
-			referenceId = signRefid;
-		}
-		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-				signatureReq.getSignAlgorithm(): SignatureConstant.ED25519_ALGORITHM;
-
-		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
-				Optional.of(referenceId), timestamp);
-		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-				DateUtils.parseUTCToDate(timestamp));
-		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
-        certificateResponse.getCertificateEntry().getChain();
-        String providerName = certificateResponse.getProviderName();
-		SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
-		if (Objects.isNull(signatureProvider)) {
-			signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
-		}
-		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
-		byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
-		SignResponseDto signedData = new SignResponseDto();
-		signedData.setTimestamp(DateUtils.getUTCCurrentDateTime());
-		switch (signatureReq.getResponseEncodingFormat()) {
-			case "base64url":
-				signedData.setSignature(
-						Multibase.encode(Multibase.Base.Base64Url, data));
-				break;
-			case "base58btc":
-				signedData.setSignature(
-						Multibase.encode(Multibase.Base.Base58BTC, data));
-				break;
-			default:
-				throw new InvalidFormatException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
-						KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
-		}
-		return signedData;
-	}
-
-	public static class EcdsaSECP256K1UsingSha256 extends EcdsaUsingShaAlgorithm
-    {
-        public EcdsaSECP256K1UsingSha256() {
-            super(AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256, 
-					"SHA256withECDSA", EllipticCurves.SECP_256K1, 64);
-        }
-
-        @Override
-        public boolean isAvailable(){
-            return true;
-        }
-    }
 
 	@Override
 	public SignResponseDto signv2(SignRequestDtoV2 signatureReq) {
