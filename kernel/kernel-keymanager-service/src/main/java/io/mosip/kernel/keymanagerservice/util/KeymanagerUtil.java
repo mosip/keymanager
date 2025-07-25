@@ -597,8 +597,9 @@ public class KeymanagerUtil {
 	}
 
 	public Map<String, String> getSanValues(String appId, String refId) {
+		String referenceId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
 		String sanValues = sanService.getStructuredSanParameters().stream()
-				.filter(entry -> entry.getAppId().equals(appId) && entry.getRefId().equals(refId))
+				.filter(entry -> entry.getAppId().equals(appId) && entry.getRefId().equals(referenceId))
 				.map(SubjectAlternativeNamesHelper.SanEntry::getValue)
 				.findFirst()
 				.orElse(KeymanagerConstant.EMPTY);

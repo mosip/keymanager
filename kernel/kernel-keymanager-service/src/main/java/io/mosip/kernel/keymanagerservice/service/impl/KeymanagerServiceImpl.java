@@ -223,8 +223,14 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		LocalDateTime expiryDateTime = dbHelper.getExpiryPolicy(applicationId, generationDateTime, keyAlias);
 		String rootKeyAlias = getRootKeyAlias(applicationId, timeStamp);
 		X500Principal latestCertPrincipal = getLatestCertPrincipal(keyAlias);
-		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(latestCertPrincipal,
-				generationDateTime, expiryDateTime);
+		CertificateParameters certParams;
+		if (sanHelper.hasSANappIdAndRefId(applicationId, referenceId)) {
+			Map<String, String> altNamesMap = keymanagerUtil.getSanValues(applicationId, referenceId);
+			certParams = keymanagerUtil.getCertificateParametersIncludeSAN(latestCertPrincipal, generationDateTime, expiryDateTime, altNamesMap);
+		} else {
+			certParams = keymanagerUtil.getCertificateParameters(latestCertPrincipal, generationDateTime, expiryDateTime);
+		}
+
 		if (keymanagerUtil.isValidReferenceId(referenceId) &&
 				(Arrays.stream(KeyReferenceIdConsts.values()).anyMatch((rId) -> rId.name().equals(referenceId)))) {
 			if (referenceId.equals(KeyReferenceIdConsts.EC_SECP256K1_SIGN.name()) ||
@@ -393,7 +399,6 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 
             CertificateParameters certParams;
             if (sanHelper.hasSANappIdAndRefId(applicationId, referenceId)) {
-				referenceId = referenceId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : referenceId;
 				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(applicationId, referenceId);
                 certParams = keymanagerUtil.getCertificateParametersIncludeSAN(signerPrincipal, generationDateTime, expiryDateTime, altNamesMap);
             } else {
@@ -641,7 +646,6 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		String rootKeyAlias = getRootKeyAlias(appId, timestamp);
 		CertificateParameters certParams;
 		if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
-			refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
 			Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
 			certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);
 		} else {
@@ -764,7 +768,6 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			KeyPairGenerateResponseDto responseDto = new KeyPairGenerateResponseDto();
             CertificateParameters certParams;
             if (sanHelper.hasSANappIdAndRefId(appId, refId)) {
-				refId = refId.equals(KeymanagerConstant.EMPTY) ? KeymanagerConstant.STRING_BLANK : refId;
 				Map<String, String> altNamesMap = keymanagerUtil.getSanValues(appId, refId);
                 certParams = keymanagerUtil.getCertificateParametersIncludeSAN(request, generationDateTime, expiryDateTime, appId, altNamesMap);
             } else {
@@ -1363,8 +1366,14 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		PrivateKey signPrivateKey = signKeyEntry.getPrivateKey();
 		X509Certificate signCert = (X509Certificate) signKeyEntry.getCertificate();
 		X500Principal signerPrincipal = signCert.getSubjectX500Principal();
-		CertificateParameters certParams = keymanagerUtil.getCertificateParameters(signerPrincipal,
-				generationDateTime, expiryDateTime);
+
+		CertificateParameters certParams;
+		if (sanHelper.hasSANappIdAndRefId(appId, refId)){
+			Map<String, String> altValueMap = keymanagerUtil.getSanValues(appId, refId);
+			certParams = keymanagerUtil.getCertificateParametersIncludeSAN(signerPrincipal, generationDateTime, expiryDateTime, altValueMap);
+		} else {
+			certParams = keymanagerUtil.getCertificateParameters(signerPrincipal, generationDateTime, expiryDateTime);
+		}
 		X509Certificate x509Cert = (X509Certificate) CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(),
 				certParams, signerPrincipal, signAlgorithm, keyStore.getKeystoreProviderName(), KeymanagerConstant.ENCRYPTION_KEY);
 		String certificateData = keymanagerUtil.getPEMFormatedData(x509Cert);
