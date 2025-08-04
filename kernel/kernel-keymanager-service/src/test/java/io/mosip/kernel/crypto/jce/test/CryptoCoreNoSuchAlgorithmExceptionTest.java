@@ -3,6 +3,8 @@ package io.mosip.kernel.crypto.jce.test;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertThat;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -16,6 +18,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -45,7 +48,7 @@ public class CryptoCoreNoSuchAlgorithmExceptionTest {
 	private final SecureRandom random = new SecureRandom();
 
 	@Before
-	public void init() throws java.security.NoSuchAlgorithmException {
+	public void init() throws java.security.NoSuchAlgorithmException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 		generator.initialize(2048, random);
 		rsaPair = generator.generateKeyPair();
@@ -56,6 +59,12 @@ public class CryptoCoreNoSuchAlgorithmExceptionTest {
 		ReflectionTestUtils.setField(cryptoCore, "symmetricAlgorithm", "INVALIDALGO");
 		ReflectionTestUtils.setField(cryptoCore, "signAlgorithm", "INVALIDALGO");
 		ReflectionTestUtils.setField(cryptoCore, "passwordAlgorithm", "INVALIDALGO");
+
+		// Get real class and invoke init
+		Class<?> implClass = AopProxyUtils.ultimateTargetClass(cryptoCore);
+		Method initMethod = implClass.getDeclaredMethod("init");
+		initMethod.setAccessible(true);
+		initMethod.invoke(cryptoCore); // invoke on the bean itself
 	}
 
 	private SecretKeySpec setSymmetricUp(int length, String algo) throws java.security.NoSuchAlgorithmException {
