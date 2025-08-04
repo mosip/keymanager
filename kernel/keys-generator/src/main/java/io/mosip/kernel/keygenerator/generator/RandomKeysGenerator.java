@@ -24,6 +24,7 @@ import io.mosip.kernel.keymanagerservice.entity.DataEncryptKeystore;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.repository.DataEncryptKeystoreRepository;
+import jakarta.annotation.PostConstruct;
 
 /**
  * The Class MasterKeysGenerator.
@@ -55,7 +56,34 @@ public class RandomKeysGenerator {
     @Autowired
     DataEncryptKeystoreRepository dataEncryptKeystoreRepository;
 
-    public void generateRandomKeys(String appId, String referenceId) {
+    private static ThreadLocal<SecureRandom> secureRandomThreadLocal = null;
+
+    private ThreadLocal<KeyGenerator> KEY_GENETRATOR;
+
+    private ThreadLocal<Cipher> CIPHER_AES_ECB_NO_PADDING;
+
+	@PostConstruct
+	public void init() {
+		secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
+    
+		KEY_GENETRATOR = ThreadLocal.withInitial(() -> {
+    		try {
+    			return KeyGenerator.getInstance("AES");
+    		} catch (Exception e) {
+    			throw new IllegalStateException("Unable to initialize KeyGenerator with AES", e);
+    		}
+    	});
+
+		CIPHER_AES_ECB_NO_PADDING = ThreadLocal.withInitial(() -> {
+    		try {
+    			return Cipher.getInstance(WRAPPING_TRANSFORMATION);
+    		} catch (Exception e) {
+    			throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
+    		}
+    	});
+	}
+
+	public void generateRandomKeys(String appId, String referenceId) {
 
         LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, referenceId, localDateTimeStamp);
@@ -94,9 +122,9 @@ public class RandomKeysGenerator {
 		Long maxid = dataEncryptKeystoreRepository.findMaxId();
 		int startIndex = maxid == null ? 0 : maxid.intValue() + 1;
         
-        SecureRandom rand = new SecureRandom();
-		KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        Cipher cipher = Cipher.getInstance(WRAPPING_TRANSFORMATION); // NOSONAR using the key wrapping
+        SecureRandom rand = secureRandomThreadLocal.get();
+		KeyGenerator keyGenerator = KEY_GENETRATOR.get();
+        Cipher cipher = CIPHER_AES_ECB_NO_PADDING.get(); // NOSONAR using the key wrapping
         Key masterKey = keyStore.getSymmetricKey(cacheMasterKeyAlias);
 
 		for (int i = startIndex; i < noOfKeysToGenerate; i++) {
