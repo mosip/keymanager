@@ -96,7 +96,7 @@ public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, Pub
 	@Value("${mosip.kernel.crypto.gcm-tag-length:128}")
 	private int tagLength;
 
-	@Value("${mosip.kernel.crypto.symmetric-algorithm-name:AES/GCM/PKCS5Padding}")
+	@Value("${mosip.kernel.crypto.symmetric-algorithm-name:AES/GCM/NOPadding}")
 	private String symmetricAlgorithm;
 
 	@Value("${mosip.kernel.crypto.asymmetric-algorithm-name:RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING}")
@@ -135,16 +135,18 @@ public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, Pub
     		try {
     			return Cipher.getInstance(symmetricAlgorithm);
     		} catch (Exception e) {
-    			throw new IllegalStateException("Unable to initialize symmetric Cipher", e);
-    		}
+				throw new NoSuchAlgorithmException(
+						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
     	});
 
         CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC = ThreadLocal.withInitial(() -> {
     		try {
     			return Cipher.getInstance(asymmetricAlgorithm);
     		} catch (Exception e) {
-    			throw new IllegalStateException("Unable to initialize asymmetric Cipher", e);
-    		}
+				throw new NoSuchAlgorithmException(
+						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
     	});
 	}
 
