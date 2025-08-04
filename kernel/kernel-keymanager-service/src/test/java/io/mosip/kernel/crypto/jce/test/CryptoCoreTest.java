@@ -4,6 +4,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertThat;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -18,6 +20,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -25,6 +28,7 @@ import io.mosip.kernel.core.crypto.exception.InvalidDataException;
 import io.mosip.kernel.core.crypto.exception.InvalidKeyException;
 import io.mosip.kernel.core.crypto.exception.SignatureException;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @SpringBootTest
 @RunWith(SpringRunner.class)
@@ -44,7 +48,7 @@ public class CryptoCoreTest {
 	private final SecureRandom random = new SecureRandom();
 
 	@Before
-	public void init() throws java.security.NoSuchAlgorithmException {
+	public void init() throws java.security.NoSuchAlgorithmException, InvocationTargetException, IllegalAccessException, NoSuchMethodException {
 		KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 		generator.initialize(2048, random);
 		rsaPair = generator.generateKeyPair();
@@ -52,6 +56,14 @@ public class CryptoCoreTest {
 		keyBytes = new byte[16];
 		random.nextBytes(keyBytes);
 
+		ReflectionTestUtils.setField(cryptoCore, "symmetricAlgorithm", "AES/GCM/NOPadding");
+		ReflectionTestUtils.setField(cryptoCore, "asymmetricAlgorithm", "RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING");
+
+		// Get real class and invoke init
+		Class<?> implClass = AopProxyUtils.ultimateTargetClass(cryptoCore);
+		Method initMethod = implClass.getDeclaredMethod("init");
+		initMethod.setAccessible(true);
+		initMethod.invoke(cryptoCore); // invoke on the bean itself
 	}
 
 	private SecretKeySpec setSymmetricUp(int length, String algo) throws java.security.NoSuchAlgorithmException {

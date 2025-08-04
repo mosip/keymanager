@@ -1,7 +1,5 @@
 package io.mosip.kernel.keymanagerservice.util;
 
-import static java.util.Arrays.copyOfRange;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -264,18 +262,28 @@ public class KeymanagerUtil {
 	}
 
 	public byte[] decryptKey(byte[] key, PrivateKey privateKey, PublicKey publicKey, String keystoreType) {
-
-		int keyDemiliterIndex = 0;
-		final int cipherKeyandDataLength = key.length;
 		final int keySplitterLength = keySplitter.length();
-		keyDemiliterIndex = CryptoUtil.getSplitterIndex(key, keyDemiliterIndex, keySplitter);
-		byte[] encryptedKey = copyOfRange(key, 0, keyDemiliterIndex);
-		byte[] encryptedData = copyOfRange(key, keyDemiliterIndex + keySplitterLength, cipherKeyandDataLength);
+		final int keyDelimiterIndex = CryptoUtil.getSplitterIndex(key, 0, keySplitter);
+		if (keyDelimiterIndex < 0 || keyDelimiterIndex + keySplitterLength >= key.length) {
+			throw new IllegalArgumentException("Splitter not found or invalid key format");
+		}
+
+		// Split encrypted key and encrypted data
+		byte[] encryptedKey = new byte[keyDelimiterIndex];
+		System.arraycopy(key, 0, encryptedKey, 0, keyDelimiterIndex);
+
+		int encryptedDataLen = key.length - (keyDelimiterIndex + keySplitterLength);
+		byte[] encryptedData = new byte[encryptedDataLen];
+		System.arraycopy(key, keyDelimiterIndex + keySplitterLength, encryptedData, 0, encryptedDataLen);
+
+		// Decrypt asymmetric key
 		byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
-		SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, 0, decryptedSymmetricKey.length,
-				symmetricAlgorithmName);
+		SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, symmetricAlgorithmName);
+
+		// Symmetric decryption (AAD = null)
 		return cryptoCore.symmetricDecrypt(symmetricKey, encryptedData, null);
 	}
+
 
 	/**
 	 * Parse a date string of pattern UTC_DATETIME_PATTERN into
