@@ -64,6 +64,7 @@ import io.mosip.kernel.zkcryptoservice.exception.ZKKeyDerivationException;
 import io.mosip.kernel.zkcryptoservice.exception.ZKRandomKeyDecryptionException;
 import io.mosip.kernel.zkcryptoservice.service.spi.ZKCryptoManagerService;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 /**
  * Service Implementation for {@link ZKCryptoManagerService} interface
@@ -137,19 +138,32 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 
 	private ThreadLocal<Cipher> CIPHER_AES_ECB;
 
+	private ThreadLocal<Cipher> CIPHER_AES_GCM;
+	
 	private ThreadLocal<MessageDigest> MESSAGE_DIGEST;
-
+	
 	public static String AES_ECB_ALGO;
+
+	public static String AES_GCM_ALGO;
 
 	@PostConstruct
 	public void init() {
 		AES_ECB_ALGO = aesECBTransformation;
-
+		AES_GCM_ALGO = aesGCMTransformation;
+		
 		CIPHER_AES_ECB = ThreadLocal.withInitial(() -> {
 			try {
 				return Cipher.getInstance(AES_ECB_ALGO);
 			} catch (Exception e) {
 				throw new IllegalStateException("Unable to initialize aes-ecb Cipher", e);
+			}
+		});
+
+		CIPHER_AES_GCM = ThreadLocal.withInitial(() -> {
+			try {
+				return Cipher.getInstance(AES_GCM_ALGO);
+			} catch (Exception e) {
+				throw new IllegalStateException("Unable to initialize aes-gcm Cipher", e);
 			}
 		});
 
@@ -160,6 +174,18 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 				throw new IllegalStateException("Unable to initialize MessageDigest", e);
 			}
 		});
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (CIPHER_AES_ECB != null)
+			CIPHER_AES_ECB.remove();
+
+		if (CIPHER_AES_GCM != null)
+			CIPHER_AES_GCM.remove();
+
+		if (MESSAGE_DIGEST != null)
+			MESSAGE_DIGEST.remove();
 	}
 
 	@Override
@@ -364,7 +390,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.DATA_CIPHER,
 				ZKCryptoManagerConstants.EMPTY, "Data Encryption/Decryption Process");
 		try {
-			Cipher cipher = CIPHER_AES_ECB.get();
+			Cipher cipher = CIPHER_AES_GCM.get();
 			GCMParameterSpec gcmSpec = new GCMParameterSpec(ZKCryptoManagerConstants.GCM_TAG_LENGTH * 8, nonce);
 			cipher.init(mode, key, gcmSpec);
 			cipher.updateAAD(aad);
