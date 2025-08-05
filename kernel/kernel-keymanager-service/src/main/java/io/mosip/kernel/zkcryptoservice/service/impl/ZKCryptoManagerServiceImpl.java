@@ -64,6 +64,7 @@ import io.mosip.kernel.zkcryptoservice.exception.ZKKeyDerivationException;
 import io.mosip.kernel.zkcryptoservice.exception.ZKRandomKeyDecryptionException;
 import io.mosip.kernel.zkcryptoservice.service.spi.ZKCryptoManagerService;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 /**
  * Service Implementation for {@link ZKCryptoManagerService} interface
