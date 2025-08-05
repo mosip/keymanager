@@ -817,7 +817,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String certificateUrl = SignatureUtil.isDataValid(
 				jwtSignRequestDto.getCertificateUrl()) ? jwtSignRequestDto.getCertificateUrl(): null;
 
-		Map<String, String> additionalHeaders = jwtSignRequestDto.getAdditionalParameters();
+		Map<String, String> additionalHeaders = jwtSignRequestDto.getAdditionalHeaders();
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
@@ -978,7 +978,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 		String providerName = certificateResponse.getProviderName();
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
-		Map<String, String> additionalHeaders = jwsSignRequestDto.getAdditionalParameters();
+		Map<String, String> additionalHeaders = jwsSignRequestDto.getAdditionalHeaders();
 
 		JWSHeader jwsHeader = signatureUtil.getJWSHeaderV2(signAlgorithm, b64JWSHeaderParam, includeCertificateChain,
 				includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix, additionalHeaders);
