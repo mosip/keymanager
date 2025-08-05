@@ -5,18 +5,23 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.cert.*;
+import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 
 import javax.crypto.SecretKey;
 
 import io.ipfs.multibase.Multibase;
-import io.mosip.kernel.partnercertservice.helper.PartnerCertManagerDBHelper;
-import io.mosip.kernel.partnercertservice.service.impl.PartnerCertificateManagerServiceImpl;
-import io.mosip.kernel.partnercertservice.util.PartnerCertificateManagerUtil;
+import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
 import org.apache.commons.codec.binary.Base64;
@@ -61,7 +66,6 @@ import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.partnercertservice.dto.CertificateTrustRequestDto;
 import io.mosip.kernel.partnercertservice.dto.CertificateTrustResponeDto;
-import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.exception.CertificateNotValidException;
@@ -128,7 +132,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 	 * Instance for PartnerCertificateManagerService
 	 */
 	@Autowired
-	PartnerCertificateManagerServiceImpl partnerCertManagerService;
+	PartnerCertificateManagerService partnerCertManagerService;
 
 	@Autowired
 	CryptomanagerUtils cryptomanagerUtil;
@@ -808,7 +812,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 
 		boolean includePayload = SignatureUtil.isIncludeAttrsValid(jwtSignRequestDto.getIncludePayload());
-		boolean includeCertificate = SignatureUtil.isIncludeAttrsValid(jwtSignRequestDto.getIncludeCertificate());
+		boolean includeCertificateChain = SignatureUtil.isIncludeAttrsValid(jwtSignRequestDto.getIncludeCertificateChain());
 		boolean includeCertHash = SignatureUtil.isIncludeAttrsValid(jwtSignRequestDto.getIncludeCertHash());
 		String certificateUrl = SignatureUtil.isDataValid(
 				jwtSignRequestDto.getCertificateUrl()) ? jwtSignRequestDto.getCertificateUrl(): null;
@@ -820,7 +824,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
 				DateUtils.parseUTCToDate(timestamp));
 
-		String signedData = signV2(decodedDataToSign, certificateResponse, includePayload, includeCertificate,
+		String signedData = signV2(decodedDataToSign, certificateResponse, includePayload, includeCertificateChain,
 				includeCertHash, certificateUrl, referenceId, additionalHeaders);
 		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
 		responseDto.setJwtSignedData(signedData);
@@ -958,7 +962,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 
 		boolean includePayload = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludePayload());
-		boolean includeCertificate = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludeCertificate());
+		boolean includeCertificateChain = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludeCertificateChain());
 		boolean includeCertHash = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getIncludeCertHash());
 		String certificateUrl = SignatureUtil.isDataValid(
 				jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
@@ -976,7 +980,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
 		Map<String, String> additionalHeaders = jwsSignRequestDto.getAdditionalParameters();
 
-		JWSHeader jwsHeader = signatureUtil.getJWSHeaderV2(signAlgorithm, b64JWSHeaderParam, includeCertificate,
+		JWSHeader jwsHeader = signatureUtil.getJWSHeaderV2(signAlgorithm, b64JWSHeaderParam, includeCertificateChain,
 				includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix, additionalHeaders);
 
 		if (b64JWSHeaderParam) {
@@ -1111,7 +1115,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (trustCertData == null)
 			return SignatureConstant.TRUST_NOT_VERIFIED;
 
-		boolean isTrustValid = partnerCertManagerService.validateCertificatePathUsingExtrenelInterCertTrust(trustCertData, domain, intermediateCerts);
+		boolean isTrustValid = partnerCertManagerService.validateCertificatePathWithInterCertTrust(trustCertData, domain, intermediateCerts);
 		if (isTrustValid) {
 			return SignatureConstant.TRUST_VALID;
 		}

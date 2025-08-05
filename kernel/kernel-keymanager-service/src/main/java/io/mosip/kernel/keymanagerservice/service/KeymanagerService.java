@@ -2,7 +2,21 @@ package io.mosip.kernel.keymanagerservice.service;
 
 import java.util.Optional;
 
-import io.mosip.kernel.keymanagerservice.dto.*;
+import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.PublicKeyResponse;
+import io.mosip.kernel.keymanagerservice.dto.RevokeKeyRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.RevokeKeyResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.SignatureCertificate;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.UploadCertificateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CertificateChainResponseDto;
 
 /**
  * This interface provides the methods which can be used for Key management

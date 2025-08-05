@@ -68,10 +68,7 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertDownloadResponeDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateRequestDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.CertificateDataResponseDto;
 import io.mosip.kernel.keymanagerservice.entity.CACertificateStore;
-import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.repository.CACertificateStoreRepository;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.partnercertservice.helper.CACertificateStoreSpec;
@@ -396,7 +393,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return Objects.nonNull(certList);
     }
 
-    public boolean validateCertificatePathUsingExtrenelInterCertTrust(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCerts) {
+    public boolean validateCertificatePathWithInterCertTrust(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCerts) {
         List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, interCerts);
         return Objects.nonNull(certList);
     }
