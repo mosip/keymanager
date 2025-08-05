@@ -50,4 +50,28 @@ public interface SignatureService {
 	 */
 	public JWTSignatureResponseDto jwsSign(JWSSignatureRequestDto jwsSignRequestDto);
 
+	/**
+	 * JSON Web Signature(JWS) for the input data using RS256 algorithm
+	 *
+	 * @param jwtSignRequestDto the jwtSignRequestDto
+	 * @return the JWTSignatureResponseDto
+	 */
+	public JWTSignatureResponseDto jwtSignV2(JWTSignatureRequestDtoV2 jwtSignRequestDto);
+
+	/**
+	 * JSON Web Signature(JWS) for the input data using input algorithm
+	 *
+	 * @param jwsSignRequestDto the JWSSignatureRequestDto
+	 * @return the JWTSignatureResponseDto
+	 */
+	public JWTSignatureResponseDto jwsSignV2(JWSSignatureRequestDtoV2 jwsSignRequestDto);
+
+	/**
+	 * JWT Signature verification.
+	 *
+	 * @param jwtSignatureVerifyRequestDto the jwtSignatureVerifyRequestDto
+	 * @return the JWTSignatureVerifyResponseDto
+	 */
+	public JWTSignatureVerifyResponseDto jwtVerifyV2(JWTSignatureVerifyRequestDto jwtSignatureVerifyRequestDto);
+
 }

@@ -343,15 +343,15 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @SuppressWarnings({"unchecked", "java:S2259"}) // added suppress for sonarcloud, not possibility of null pointer exception.
-    private List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain) {
+    private List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
 
         try {
             Map<String, Set<?>> trustStoreMap = !disableTrustStoreCache ? (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain):
                                                         certDBHelper.getTrustAnchors(partnerDomain);
             Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_ROOT);
-            Set<X509Certificate> interCerts = (Set<X509Certificate>) trustStoreMap
-                    .get(PartnerCertManagerConstants.TRUST_INTER);
+            Set<X509Certificate> interCerts = interCertsTrust == null ? (Set<X509Certificate>) trustStoreMap
+                    .get(PartnerCertManagerConstants.TRUST_INTER) : interCertsTrust;
             
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                     PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation for domain: " + partnerDomain);
@@ -392,7 +392,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     private boolean validateCertificatePath(X509Certificate reqX509Cert, String partnerDomain) {
-        List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain);
+        List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, null);
+        return Objects.nonNull(certList);
+    }
+
+    public boolean validateCertificatePathUsingExtrenelInterCertTrust(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCerts) {
+        List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, interCerts);
         return Objects.nonNull(certList);
     }
 
@@ -420,7 +425,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
         validateBasicPartnerCertParams(reqX509Cert, certThumbprint, reqOrgName, partnerDomain);
 
-        List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain);
+        List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, null);
         //boolean certValid = validateCertificatePath(reqX509Cert, partnerDomain);
         if (Objects.isNull(certList)) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
@@ -753,7 +758,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         if (PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)){
             chain.add(caCertificate);
         } else {
-            certList = getCertificateTrustPath(caCertificate, partnerDomain);
+            certList = getCertificateTrustPath(caCertificate, partnerDomain, null);
         }
 
         if (certList != null) {

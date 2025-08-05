@@ -1,14 +1,9 @@
 
 package io.mosip.kernel.keymanagerservice.helper;
 
-import java.security.cert.X509Certificate;
+import java.security.cert.*;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -31,7 +26,6 @@ import io.mosip.kernel.keymanagerservice.entity.KeyPolicy;
 import io.mosip.kernel.keymanagerservice.entity.KeyStore;
 import io.mosip.kernel.keymanagerservice.exception.InvalidApplicationIdException;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
-import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.repository.KeyPolicyRepository;
@@ -180,6 +174,7 @@ public class KeymanagerDBHelper {
         keyAlias.setUniqueIdentifier(uniqueIdentifier);
         keyAliasRepository.saveAndFlush(keymanagerUtil.setMetaData(keyAlias));
         purgeKeyAliasCache(applicationId, referenceId);
+        keymanagerUtil.purgeKeyAliasTrustAnchorsCache();
     }
 
     /**

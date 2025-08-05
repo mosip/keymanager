@@ -2,6 +2,7 @@ package io.mosip.kernel.keymanagerservice.controller;
 
 import java.util.Optional;
 
+import io.mosip.kernel.keymanagerservice.dto.*;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,16 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.RevokeKeyRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.RevokeKeyResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.UploadCertificateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
@@ -279,6 +270,31 @@ public class KeymanagerController {
 
 		ResponseWrapper<KeyPairGenerateResponseDto> response = new ResponseWrapper<>();
 		response.setResponse(keymanagerService.generateECSignKey(objectType, ecKeyPairGenRequestDto.getRequest()));
+		return response;
+	}
+
+	/**
+	 * Request build a p7b certificate trust chain for the Provided appId & refId certificate.
+	 *
+	 * @param applicationId
+	 * @param referenceId
+	 * @return
+	 */
+	@Operation(summary = "Request to get Certificate Chain for the Provided APP ID & REF ID.", description = "Request to get Certificate Chain for the Provided APP ID & REF ID. ",
+			tags = { "keymanager" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getGetcertificatechain())")
+	@ResponseFilter
+	@GetMapping(value = "/getCertificateChain")
+	public ResponseWrapper<CertificateChainResponseDto> getCertificateChain( @ApiParam("Id of application") @RequestParam("applicationId") String applicationId,
+			@ApiParam("Refrence Id as metadata") @RequestParam("referenceId") Optional<String> referenceId) {
+
+		ResponseWrapper<CertificateChainResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(keymanagerService.getCertificateChain(applicationId, referenceId));
 		return response;
 	}
 }
