@@ -8,16 +8,9 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateExpiredException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.CertificateNotYetValidException;
-import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
@@ -26,6 +19,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -34,9 +28,12 @@ import javax.security.auth.x500.X500Principal;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
-import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
+import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
+import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
+import io.mosip.kernel.partnercertservice.constant.PartnerCertManagerConstants;
+import jakarta.annotation.PostConstruct;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -55,8 +52,12 @@ import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
+import org.cache2k.Cache;
+import org.cache2k.Cache2kBuilder;
+import org.cache2k.expiry.Expiry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
@@ -70,8 +71,6 @@ import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
-import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.entity.BaseEntity;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
@@ -168,6 +167,15 @@ public class KeymanagerUtil {
 	@Value("#{'${mosip.kernel.keymgr.ed25519.allowed.appids:ID_REPO}'.split(',')}")
 	private List<String> allowedAppIds;
 
+	// Default to 1440 (24 hours) - can be configured via application properties
+	@Value("${mosip.kernel.keymgr.truststore.cache.expiry.inMins:1440}")
+	private long trustAnchorsCacheExpiryMinutes;
+
+	@Value("${mosip.sign.applicationid:KERNEL}")
+	private String signApplicationid;
+
+	@Value("${mosip.sign-certificate-refid:SIGN}")
+	private String certificateSignRefID;
 	/**
 	 * KeyGenerator instance to generate asymmetric key pairs
 	 */
@@ -183,7 +191,32 @@ public class KeymanagerUtil {
 	@Autowired
 	SubjectAlternativeNamesHelper sanService;
 
+	@Autowired
+	KeyAliasRepository keyAliasRepository;
+
+	@Autowired
+	@Lazy
+	KeymanagerService keymanagerService;
+
 	ObjectMapper objectMapper = new ObjectMapper();
+
+	private Cache<String, Object> keyAliasTrustAnchorsCache = null;
+
+	@PostConstruct
+	public void init() {
+		keyAliasTrustAnchorsCache = new Cache2kBuilder<String, Object>() {}
+				.name("trustAnchorsCache-" + this.hashCode())
+				.expireAfterWrite(trustAnchorsCacheExpiryMinutes, TimeUnit.MINUTES)
+				.entryCapacity(10)
+				.refreshAhead(true)
+				.loaderThreadCount(1)
+				.loader(key -> {
+					LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+							"Loading Certificate TrustStore Cache for KeyAlias Repository" );
+					return getTrustAnchors();
+				})
+				.build();
+	}
 
 	/**
 	 * Function to check valid timestamp
@@ -620,5 +653,97 @@ public class KeymanagerUtil {
 			// Log error if needed
 			return Collections.emptyMap();
 		}
+	}
+
+	public Map<String, Set<?>> getTrustAnchors() {
+		Set<TrustAnchor> rootTrust = new HashSet<>();
+		Set<X509Certificate> intermediateTrust = new HashSet<>();
+
+		Set<String> appRefPairs = new HashSet<>(); // To track unique (appId, refId)
+
+		keyAliasRepository.findByReferenceId(KeymanagerConstant.EMPTY).forEach(trustCert -> {
+			try {
+				String appId = trustCert.getApplicationId();
+				String refId = trustCert.getReferenceId();
+
+				Optional<String> optionalRefId = Optional.ofNullable(refId);
+				AllCertificatesDataResponseDto certData = keymanagerService.getAllCertificates(appId, optionalRefId);
+
+				for (CertificateDataResponseDto cert : certData.getAllCertificates()) {
+					X509Certificate x509Cert = (X509Certificate) convertToCertificate(cert.getCertificateData());
+
+					if (KeymanagerConstant.ROOT.equals(appId)) {
+						rootTrust.add(new TrustAnchor(x509Cert, null));
+					} else {
+						intermediateTrust.add(x509Cert);
+					}
+				}
+			} catch (Exception e) {
+				LOGGER.warn(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, trustCert.getApplicationId(),
+						KeymanagerConstant.REFERENCEID, trustCert.getReferenceId(), "Skip trustCert due to error: {}", e.getMessage());
+			}
+
+			keyAliasRepository.findByApplicationIdAndReferenceId(signApplicationid, certificateSignRefID).forEach( signCert -> {
+				Optional<String> optionalRefId = Optional.ofNullable(signCert.getReferenceId());
+				AllCertificatesDataResponseDto certData = keymanagerService.getAllCertificates(signCert.getApplicationId(), optionalRefId);
+
+				for (CertificateDataResponseDto cert : certData.getAllCertificates()) {
+					X509Certificate x509Certificate = (X509Certificate) convertToCertificate(cert.getCertificateData());
+					intermediateTrust.add(x509Certificate);
+				}
+			});
+		});
+
+		Map<String, Set<?>> trustAnchors = new HashMap<>();
+		trustAnchors.put(PartnerCertManagerConstants.TRUST_ROOT, rootTrust);
+		trustAnchors.put(PartnerCertManagerConstants.TRUST_INTER, intermediateTrust);
+		return trustAnchors;
+	}
+
+	public List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert) {
+
+		try {
+			Map<String, Set<?>> trustStoreMap = (Map<String, Set<?>>) keyAliasTrustAnchorsCache.get(KeymanagerConstant.DEFAULT_VALUE);
+			Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap.get(PartnerCertManagerConstants.TRUST_ROOT);
+			Set<X509Certificate> interCerts = (Set<X509Certificate>) trustStoreMap.get(PartnerCertManagerConstants.TRUST_INTER);
+
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.GET_CERTIFICATE_CHAIN,
+					KeymanagerConstant.EMPTY, "Total Number of ROOT Trust Found: " + rootTrustAnchors.size());
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.GET_CERTIFICATE_CHAIN,
+					KeymanagerConstant.EMPTY, "Total Number of INTERMEDIATE Trust Found: " + interCerts.size());
+
+			X509CertSelector certToVerify = new X509CertSelector();
+			certToVerify.setCertificate(reqX509Cert);
+
+			PKIXBuilderParameters pkixBuilderParameters = new PKIXBuilderParameters(rootTrustAnchors, certToVerify);
+			pkixBuilderParameters.setRevocationEnabled(false);
+
+			CertStore interCertStore = CertStore.getInstance("Collection", new CollectionCertStoreParameters(interCerts));
+			pkixBuilderParameters.addCertStore(interCertStore);
+
+			// Building the cert path and verifying the certification chain
+			CertPathBuilder certPathBuilder = CertPathBuilder.getInstance("PKIX");
+			PKIXCertPathBuilderResult result = (PKIXCertPathBuilderResult) certPathBuilder.build(pkixBuilderParameters);
+
+			X509Certificate rootCert = (X509Certificate) result.getTrustAnchor().getTrustedCert();
+			List<? extends Certificate> certList = result.getCertPath().getCertificates();
+			List<Certificate> trustCertList = new ArrayList<>();
+			certList.stream().forEach(cert -> {
+				trustCertList.add(cert);
+			});
+			trustCertList.add(rootCert);
+			return trustCertList;
+		} catch (CertPathBuilderException | InvalidAlgorithmParameterException | NoSuchAlgorithmException exp) {
+			LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+					PartnerCertManagerConstants.EMPTY,
+					"Ignore this exception, the exception thrown when trust validation failed.");
+		}
+		return null;
+	}
+
+	public void purgeKeyAliasTrustAnchorsCache() {
+		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+				"Purging Key alias Trust Anchors Cache because new key generated or new certificate uploaded.");
+		keyAliasTrustAnchorsCache.expireAt("default", Expiry.NOW);
 	}
 }

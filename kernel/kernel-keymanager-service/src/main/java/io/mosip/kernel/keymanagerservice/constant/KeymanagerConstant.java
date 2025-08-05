@@ -244,4 +244,8 @@ public class KeymanagerConstant {
 	public static final String IP_ADDRESS = "ipAddress";
 
 	public static final String REGISTERED_ID = "registeredId";
+
+	public static final String GET_CERTIFICATE_CHAIN = "Get Certificate Trust Chain";
+
+	public static final String DEFAULT_VALUE = "default";
 }

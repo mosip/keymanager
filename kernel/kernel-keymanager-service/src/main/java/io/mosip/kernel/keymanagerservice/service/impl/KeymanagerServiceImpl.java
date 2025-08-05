@@ -1,27 +1,19 @@
 package io.mosip.kernel.keymanagerservice.service.impl;
 
-import java.security.KeyFactory;
-import java.security.KeyPair;
+import java.security.*;
 import java.security.KeyStore.PrivateKeyEntry;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.cert.X509Certificate;
+import java.security.cert.*;
+import java.security.cert.Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
+import io.mosip.kernel.partnercertservice.util.PartnerCertificateManagerUtil;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,22 +41,6 @@ import io.mosip.kernel.keymanagerservice.constant.ECCurves;
 import io.mosip.kernel.keymanagerservice.constant.KeyReferenceIdConsts;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
-import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.CertificateDataResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.CertificateInfo;
-import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.PublicKeyResponse;
-import io.mosip.kernel.keymanagerservice.dto.RevokeKeyRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.RevokeKeyResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.SignatureCertificate;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.UploadCertificateRequestDto;
-import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.entity.KeyPolicy;
 import io.mosip.kernel.keymanagerservice.exception.CryptoException;
@@ -1386,5 +1362,22 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		String uniqueIdentifier = keymanagerUtil.getUniqueIdentifier(uniqueValue);
 		dbHelper.storeKeyInAlias(appId, generationDateTime, refId, alias, expiryDateTime, certThumbprint, uniqueIdentifier);
 		return new Object[] {x509Cert, uniqueIdentifier};
+	}
+
+	@Override
+	public CertificateChainResponseDto getCertificateChain(String applicationId, Optional<String> referenceId) {
+		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, applicationId, KeymanagerConstant.REFERENCEID,
+				referenceId, KeymanagerConstant.GET_CERTIFICATE_CHAIN);
+
+		LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
+		KeyPairGenerateResponseDto certData = getCertificate(applicationId, referenceId);
+		X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certData.getCertificate());
+		List<? extends Certificate> trustPath = keymanagerUtil.getCertificateTrustPath(x509Cert);
+		String buildTrustPath = PartnerCertificateManagerUtil.buildp7bFile(trustPath.toArray(new Certificate[0]));
+
+		CertificateChainResponseDto responseDto = new CertificateChainResponseDto();
+		responseDto.setCertificatesTrustPath(buildTrustPath);
+		responseDto.setTimestamp(timeStamp);
+		return responseDto;
 	}
 }

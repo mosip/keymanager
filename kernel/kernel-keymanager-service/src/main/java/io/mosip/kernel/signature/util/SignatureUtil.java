@@ -5,16 +5,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateExpiredException;
-import java.security.cert.CertificateNotYetValidException;
-import java.security.cert.X509Certificate;
+import java.security.cert.*;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Objects;
-import java.util.List;
+import java.util.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +18,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
-import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
+import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -36,6 +29,8 @@ import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Utility class for Signature Service
@@ -44,8 +39,11 @@ import io.mosip.kernel.signature.constant.SignatureConstant;
  * @since 1.2.0-SNAPSHOT
  *
  */
-
+@Component
 public class SignatureUtil {
+
+	@Autowired
+	KeymanagerUtil keymanagerUtil;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
@@ -203,5 +201,90 @@ public class SignatureUtil {
 					"Provided JSON Data to sign is invalid.");
 			return SignatureConstant.BLANK;
 		}
+	}
+
+	public JWSHeader getJWSHeaderV2(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificate,
+										 boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate, String uniqueIdentifier,
+										 boolean includeKeyId, String kidPrepend, Map<String, String> additionalHeaders) {
+
+		JWSAlgorithm jwsAlgorithm = switch (signAlgorithm) {
+			case SignatureConstant.JWS_RS256_SIGN_ALGO_CONST -> JWSAlgorithm.RS256;
+			case SignatureConstant.JWS_ES256_SIGN_ALGO_CONST -> JWSAlgorithm.ES256;
+			case SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST -> JWSAlgorithm.ES256K;
+			case SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST -> JWSAlgorithm.EdDSA;
+			default -> JWSAlgorithm.PS256;
+		};
+
+		JWSHeader.Builder jwsHeaderBuilder = new JWSHeader.Builder(jwsAlgorithm);
+
+		if (!b64JWSHeaderParam)
+			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
+					.criticalParams(Collections.singleton(SignatureConstant.B64));
+
+		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+
+		if (includeCertificate) {
+			try {
+				List<Base64> x5c = new ArrayList<>();
+				for (X509Certificate x509Cert : (List<X509Certificate>) certificateChain) {
+					Base64 signCert = Base64.encode(x509Cert.getEncoded());
+					x5c.add(signCert);
+				}
+				jwsHeaderBuilder = jwsHeaderBuilder.x509CertChain(x5c);
+			} catch (CertificateEncodingException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+						"Warning thrown when certificate not able to parse while adding to jws header.");
+			}
+		}
+
+		if (includeCertHash) {
+			try {
+				jwsHeaderBuilder = jwsHeaderBuilder.x509CertSHA256Thumbprint(Base64URL.encode(DigestUtils.sha256(x509Certificate.getEncoded())));
+			} catch (CertificateEncodingException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+						"Warning thrown when certificate not able to parse while adding to jws header.");
+			}
+		}
+
+		if (Objects.nonNull(certificateUrl)) {
+			try {
+				jwsHeaderBuilder.x509CertURL(new URI(certificateUrl));
+			} catch (URISyntaxException e) {
+				// ignore this exception.
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+						"Warning thrown when certificate URI not able to parse while adding to jws header.");
+			}
+		}
+
+		// Add additional headers, skipping "kid"
+		if (additionalHeaders != null) {
+			for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
+				if (!"kid".equalsIgnoreCase(entry.getKey())) {
+					try {
+						jwsHeaderBuilder.customParam(entry.getKey(), entry.getValue());
+					} catch (Exception e) {
+						// Log and skip on error
+						LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+								"Warning: Failed to add custom JWS header param: " + entry.getKey(), e);
+					}
+				}
+			}
+		}
+
+		String keyId = convertHexToBase64(uniqueIdentifier);
+		if (includeKeyId && Objects.nonNull(keyId)) {
+			if (additionalHeaders != null && additionalHeaders.containsKey("kid")) {
+				String mapKid = additionalHeaders.get("kid");
+				if (mapKid.isEmpty() || mapKid.charAt(mapKid.length()-1) != SignatureConstant.KEY_ID_PREFIX.charAt(0)) {
+					mapKid = mapKid.concat(SignatureConstant.KEY_ID_PREFIX);
+				}
+				kidPrepend = mapKid;
+			}
+			jwsHeaderBuilder.keyID(kidPrepend.concat(keyId));
+		}
+
+		return jwsHeaderBuilder.build();
 	}
 }
