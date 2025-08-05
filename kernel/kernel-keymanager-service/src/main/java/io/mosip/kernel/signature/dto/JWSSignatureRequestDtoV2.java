@@ -44,8 +44,8 @@ public class JWSSignatureRequestDtoV2 {
     /**
      * Flag to include certificate in  JWT Signature Header
      */
-    @ApiModelProperty(notes = "Flag to include certificate in  JWT Signature Header.", example = "false", required = false)
-    private Boolean includeCertificate;
+    @ApiModelProperty(notes = "Flag to include certificate Chain in  JWT Signature Header.", example = "false", required = false)
+    private Boolean includeCertificateChain;
 
     /**
      * Flag to include certificate hash in JWT Signature Header

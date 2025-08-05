@@ -8,9 +8,26 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.security.cert.*;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.X509Certificate;
+import java.security.cert.TrustAnchor;
+import java.security.cert.X509CertSelector;
+import java.security.cert.PKIXBuilderParameters;
+import java.security.cert.CertStore;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.cert.CollectionCertStoreParameters;
+import java.security.cert.CertPathBuilder;
+import java.security.cert.PKIXCertPathBuilderResult;
+import java.security.cert.CertPathBuilderException;
+
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
@@ -28,6 +45,8 @@ import javax.security.auth.x500.X500Principal;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
+import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
 import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
@@ -62,6 +81,8 @@ import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
+import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.logger.spi.Logger;
@@ -655,7 +676,7 @@ public class KeymanagerUtil {
 		}
 	}
 
-	public Map<String, Set<?>> getTrustAnchors() {
+	private Map<String, Set<?>> getTrustAnchors() {
 		Set<TrustAnchor> rootTrust = new HashSet<>();
 		Set<X509Certificate> intermediateTrust = new HashSet<>();
 
@@ -734,7 +755,7 @@ public class KeymanagerUtil {
 			trustCertList.add(rootCert);
 			return trustCertList;
 		} catch (CertPathBuilderException | InvalidAlgorithmParameterException | NoSuchAlgorithmException exp) {
-			LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+			LOGGER.debug(KeymanagerConstant.SESSIONID, KeymanagerConstant.GET_CERTIFICATE_CHAIN,
 					PartnerCertManagerConstants.EMPTY,
 					"Ignore this exception, the exception thrown when trust validation failed.");
 		}

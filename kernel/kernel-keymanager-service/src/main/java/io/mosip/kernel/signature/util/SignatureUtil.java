@@ -5,9 +5,18 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.X509Certificate;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Objects;
+import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -203,7 +212,7 @@ public class SignatureUtil {
 		}
 	}
 
-	public JWSHeader getJWSHeaderV2(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificate,
+	public JWSHeader getJWSHeaderV2(String signAlgorithm, boolean b64JWSHeaderParam, boolean includeCertificateChain,
 										 boolean includeCertHash, String certificateUrl, X509Certificate x509Certificate, String uniqueIdentifier,
 										 boolean includeKeyId, String kidPrepend, Map<String, String> additionalHeaders) {
 
@@ -223,28 +232,15 @@ public class SignatureUtil {
 
 		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
 
-		if (includeCertificate) {
-			try {
-				List<Base64> x5c = new ArrayList<>();
-				for (X509Certificate x509Cert : (List<X509Certificate>) certificateChain) {
-					Base64 signCert = Base64.encode(x509Cert.getEncoded());
-					x5c.add(signCert);
-				}
-				jwsHeaderBuilder = jwsHeaderBuilder.x509CertChain(x5c);
-			} catch (CertificateEncodingException e) {
-				// ignore this exception.
-				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
-						"Warning thrown when certificate not able to parse while adding to jws header.");
-			}
+		if (includeCertificateChain) {
+			List<Base64> x5c = buildX509CertChain((List<X509Certificate>) certificateChain);
+			jwsHeaderBuilder = jwsHeaderBuilder.x509CertChain(x5c);
 		}
 
 		if (includeCertHash) {
-			try {
-				jwsHeaderBuilder = jwsHeaderBuilder.x509CertSHA256Thumbprint(Base64URL.encode(DigestUtils.sha256(x509Certificate.getEncoded())));
-			} catch (CertificateEncodingException e) {
-				// ignore this exception.
-				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
-						"Warning thrown when certificate not able to parse while adding to jws header.");
+			Base64URL certThumbprint = getCertificateSHA256Thumbprint(x509Certificate);
+			if (certThumbprint != null) {
+				jwsHeaderBuilder = jwsHeaderBuilder.x509CertSHA256Thumbprint(certThumbprint);
 			}
 		}
 
@@ -258,33 +254,75 @@ public class SignatureUtil {
 			}
 		}
 
-		// Add additional headers, skipping "kid"
+		jwsHeaderBuilder = addCustomHeadersExcludingKid(additionalHeaders, jwsHeaderBuilder);
+
+		String finalKeyId = buildFinalKeyId(uniqueIdentifier, includeKeyId, additionalHeaders, kidPrepend);
+		if (finalKeyId != null) {
+			jwsHeaderBuilder.keyID(finalKeyId);
+		}
+
+		return jwsHeaderBuilder.build();
+	}
+
+	private static List<Base64> buildX509CertChain(List<X509Certificate> certificateChain) {
+		List<Base64> x5c = new ArrayList<>();
+		for (X509Certificate x509Cert : certificateChain) {
+			try {
+				Base64 signCert = Base64.encode(x509Cert.getEncoded());
+				x5c.add(signCert);
+			} catch (CertificateEncodingException e) {
+				// ignore this exception for each cert in the chain
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+						"Warning thrown when certificate not able to parse while adding to jws header.");
+			}
+		}
+		return x5c;
+	}
+
+	private Base64URL getCertificateSHA256Thumbprint(X509Certificate x509Certificate) {
+		try {
+			return Base64URL.encode(DigestUtils.sha256(x509Certificate.getEncoded()));
+		} catch (CertificateEncodingException e) {
+			// ignore this exception.
+			LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+					"Warning thrown when certificate not able to parse while adding to jws header.");
+			return null;
+		}
+	}
+
+	private JWSHeader.Builder addCustomHeadersExcludingKid(
+			Map<String, String> additionalHeaders,
+			JWSHeader.Builder jwsHeaderBuilder) {
 		if (additionalHeaders != null) {
 			for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
 				if (!"kid".equalsIgnoreCase(entry.getKey())) {
 					try {
-						jwsHeaderBuilder.customParam(entry.getKey(), entry.getValue());
+						jwsHeaderBuilder = jwsHeaderBuilder.customParam(entry.getKey(), entry.getValue());
 					} catch (Exception e) {
-						// Log and skip on error
 						LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
 								"Warning: Failed to add custom JWS header param: " + entry.getKey(), e);
 					}
 				}
 			}
 		}
+		return jwsHeaderBuilder;
+	}
+
+	private static String buildFinalKeyId(String uniqueIdentifier, boolean includeKeyId, Map<String, String> additionalHeaders, String kidPrepend) {
 
 		String keyId = convertHexToBase64(uniqueIdentifier);
-		if (includeKeyId && Objects.nonNull(keyId)) {
-			if (additionalHeaders != null && additionalHeaders.containsKey("kid")) {
-				String mapKid = additionalHeaders.get("kid");
-				if (mapKid.isEmpty() || mapKid.charAt(mapKid.length()-1) != SignatureConstant.KEY_ID_PREFIX.charAt(0)) {
-					mapKid = mapKid.concat(SignatureConstant.KEY_ID_PREFIX);
-				}
-				kidPrepend = mapKid;
-			}
-			jwsHeaderBuilder.keyID(kidPrepend.concat(keyId));
+		if (!includeKeyId || keyId == null) {
+			return null;
 		}
 
-		return jwsHeaderBuilder.build();
+		String finalPrepend = kidPrepend;
+		if (additionalHeaders != null && additionalHeaders.containsKey("kid")) {
+			String mapKid = additionalHeaders.get("kid");
+			if (mapKid.isEmpty() || mapKid.charAt(mapKid.length() - 1) != SignatureConstant.KEY_ID_PREFIX.charAt(0)) {
+				mapKid = mapKid.concat(SignatureConstant.KEY_ID_SEPARATOR);
+			}
+			finalPrepend = mapKid;
+		}
+		return finalPrepend.concat(keyId);
 	}
 }

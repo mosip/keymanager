@@ -1,8 +1,6 @@
 package io.mosip.kernel.keymanagerservice.controller;
 
 import java.util.Optional;
-
-import io.mosip.kernel.keymanagerservice.dto.*;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +25,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.mosip.kernel.keymanagerservice.dto.AllCertificatesDataResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.RevokeKeyRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.RevokeKeyResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyGenerateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.UploadCertificateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CertificateChainResponseDto;
 
 /**
  * This class provides controller methods for Key manager.
