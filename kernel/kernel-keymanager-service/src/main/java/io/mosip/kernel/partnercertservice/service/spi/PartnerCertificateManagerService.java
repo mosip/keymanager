@@ -11,6 +11,9 @@ import io.mosip.kernel.partnercertservice.dto.PartnerCertificateResponseDto;
 import io.mosip.kernel.partnercertservice.dto.PartnerSignedCertDownloadResponseDto;
 import io.mosip.kernel.partnercertservice.dto.*;
 
+import java.security.cert.X509Certificate;
+import java.util.Set;
+
 /**
  * This interface provides the methods for Partner Certificate Management Service.
  * 
@@ -85,5 +88,14 @@ public interface PartnerCertificateManagerService {
      * @return {@link CACertificateTrustPathResponseDto} respponse
      */
     public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto);
+
+    /**
+     * Function to validate the certificate trust path by passing the req X509Certificate
+     *
+     * @param reqX509Cert x509certificate to verify the cert
+     * @param domain Partner Domain of the CA Certificate Trust
+     * @param intermediateCerts intermediate certificate trust
+     */
+    boolean validateCertificatePathWithInterCertTrust(X509Certificate reqX509Cert, String domain, Set<X509Certificate> intermediateCerts);
 
 }

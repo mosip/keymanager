@@ -16,6 +16,7 @@ import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyResponseDto;
 import io.mosip.kernel.keymanagerservice.dto.UploadCertificateRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
+import io.mosip.kernel.keymanagerservice.dto.CertificateChainResponseDto;
 
 /**
  * This interface provides the methods which can be used for Key management
@@ -135,6 +136,15 @@ public interface KeymanagerService {
 	 * @return {@link KeyPairGenerateResponseDto} instance
 	 */
 	public KeyPairGenerateResponseDto generateECSignKey(String objectType, KeyPairGenerateRequestDto request);
+
+	/**
+	 * Function to get p7b certificate trust chain for the provided appId & refId.
+	 *
+	 * @param applicationId - application ID
+	 * @param referenceId - reference ID
+	 * @return {@link CertificateChainResponseDto} instance
+	 */
+	public CertificateChainResponseDto getCertificateChain(String applicationId, Optional<String> referenceId);
 	
 }
 

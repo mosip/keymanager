@@ -229,4 +229,78 @@ public class SignatureController {
         response.setResponse(signatureResponse);
         return response;
     }
+
+	/**
+	 * Function to do JSON Web Signature(JWS) for the input data using MOSIP supported Signature algorithm
+	 *
+	 * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+	 * @return The {@link JWTSignatureResponseDto}
+	 */
+	@Operation(summary = "TFunction to JWT sign datas", description = "Function to JWT sign data", tags = {
+			"signaturecontroller" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	//@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION', 'REGISTRATION_ADMIN', 'REGISTRATION_SUPERVISOR', 'REGISTRATION_OFFICER', 'REGISTRATION_PROCESSOR','PRE_REGISTRATION_ADMIN','RESIDENT')")
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwtsign())")
+	@PostMapping(value = "/jwtSign/v2")
+	public ResponseWrapper<JWTSignatureResponseDto> jwtSignV2(
+			@RequestBody @Valid RequestWrapper<JWTSignatureRequestDtoV2> requestDto) {
+		JWTSignatureResponseDto signatureResponse = service.jwtSignV2(requestDto.getRequest());
+		ResponseWrapper<JWTSignatureResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(signatureResponse);
+		return response;
+	}
+
+	/**
+	 * Function to do JSON Web Signature(JWS) for the input data using input algorithm. Default Algorithm PS256.
+	 *
+	 * @param requestDto {@link JWTSignatureRequestDto} having required fields.
+	 * @return The {@link JWTSignatureResponseDto}
+	 */
+	@Operation(summary = "Function to do JSON Web Signature(JWS) for the input data using input algorithm. Default Algorithm PS256.",
+			description = "Function to JWT sign data", tags = { "signaturecontroller" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwssign())")
+	@PostMapping(value = "/jwsSign/v2")
+	public ResponseWrapper<JWTSignatureResponseDto> jwsSignV2(
+			@RequestBody @Valid RequestWrapper<JWSSignatureRequestDtoV2> requestDto) {
+		JWTSignatureResponseDto signatureResponse = service.jwsSignV2(requestDto.getRequest());
+		ResponseWrapper<JWTSignatureResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(signatureResponse);
+		return response;
+	}
+
+	/**
+	 * Function to JWT Signature verification
+	 *
+	 * @param requestDto {@link JWTSignatureVerifyRequestDto} having required fields.
+	 * @return The {@link JWTSignatureVerifyResponseDto}
+	 */
+	@Operation(summary = "Function to JWT Signature verification", description = "Function to JWT Signature verification", tags = {
+			"signaturecontroller" })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	//@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','ID_AUTHENTICATION', 'REGISTRATION_ADMIN', 'REGISTRATION_SUPERVISOR', 'REGISTRATION_OFFICER', 'REGISTRATION_PROCESSOR','PRE_REGISTRATION_ADMIN','RESIDENT')")
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@signAuthRoles.getPostjwtverify())")
+	@PostMapping(value = "/jwtVerify/v2")
+	public ResponseWrapper<JWTSignatureVerifyResponseDto> jwtVerifyV2(
+			@RequestBody @Valid RequestWrapper<JWTSignatureVerifyRequestDto> requestDto) {
+		JWTSignatureVerifyResponseDto signatureResponse = service.jwtVerifyV2(requestDto.getRequest());
+		ResponseWrapper<JWTSignatureVerifyResponseDto> response = new ResponseWrapper<>();
+		response.setResponse(signatureResponse);
+		return response;
+	}
 }
