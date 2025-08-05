@@ -41,6 +41,7 @@ import org.jose4j.jwx.CompactSerializer;
 import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.PreDestroy;
 
 import io.mosip.kernel.core.crypto.exception.InvalidDataException;
 import io.mosip.kernel.core.crypto.exception.InvalidKeyException;
@@ -150,6 +151,18 @@ public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, Pub
     	});
 	}
 
+	@PreDestroy
+	public void shutdown() {
+		if (secureRandomThreadLocal != null)
+			secureRandomThreadLocal.remove();
+
+		if (CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC != null)
+			CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.remove();
+
+		if (CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC != null)
+			CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.remove();
+	}
+	
 	@Override
 	public byte[] symmetricEncrypt(SecretKey key, byte[] data, byte[] aad) {
 		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());

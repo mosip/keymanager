@@ -25,6 +25,7 @@ import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.repository.DataEncryptKeystoreRepository;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 /**
  * The Class MasterKeysGenerator.
@@ -81,6 +82,18 @@ public class RandomKeysGenerator {
     			throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
     		}
     	});
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (secureRandomThreadLocal != null)
+			secureRandomThreadLocal.remove();
+
+		if (KEY_GENETRATOR != null)
+			KEY_GENETRATOR.remove();
+
+		if (CIPHER_AES_ECB_NO_PADDING != null)
+			CIPHER_AES_ECB_NO_PADDING.remove();
 	}
 
 	public void generateRandomKeys(String appId, String referenceId) {
