@@ -29,4 +29,6 @@ public class AuthorizedRolesDTO {
 	
 	private List<String> putrevokekey;
 
+	private List<String> getcertificatechain;
+
 }
