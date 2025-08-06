@@ -341,7 +341,6 @@ public class SignatureUtil {
 			try {
 				jwsHeaderBuilder.jwkURL(new URI(additionalHeaders.get(SignatureConstant.JWS_HEADER_JWK_URL)));
 			} catch (URISyntaxException e) {
-				// ignore this exception.
 				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
 						"Warning thrown when JWK URI not able to parse while adding to jws header.");
 			}
