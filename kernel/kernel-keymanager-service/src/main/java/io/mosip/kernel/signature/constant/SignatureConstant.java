@@ -91,4 +91,12 @@ public class SignatureConstant {
 	public static final String BASE58BTC = "base58btc";
 
 	public static final String BASE64URL = "base64url";
+
+	public static final String JWS_HEADER_JWK_URL = "jku";
+
+	public static final String JWS_HEADER_CONTENT_TYPE = "cty";
+
+	public static final String JWS_HEADER_TYPE_KEY = "typ";
+
+	public static final String JWS_HEADER_CRTICAL_PARAM = "crit";
 }
