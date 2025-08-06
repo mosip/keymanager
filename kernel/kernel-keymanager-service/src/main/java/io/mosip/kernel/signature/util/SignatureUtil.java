@@ -40,6 +40,10 @@ import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.Arrays;
+import com.nimbusds.jose.JOSEObjectType;
 
 /**
  * Utility class for Signature Service
@@ -254,13 +258,14 @@ public class SignatureUtil {
 			}
 		}
 
-		jwsHeaderBuilder = addCustomHeadersExcludingKid(additionalHeaders, jwsHeaderBuilder);
+		jwsHeaderBuilder = addCustomHeaders(additionalHeaders, jwsHeaderBuilder);
 
 		String finalKeyId = buildFinalKeyId(uniqueIdentifier, includeKeyId, additionalHeaders, kidPrepend);
 		if (finalKeyId != null) {
 			jwsHeaderBuilder.keyID(finalKeyId);
 		}
 
+		jwsHeaderBuilder = addRegisteredJWSHeaders(additionalHeaders, jwsHeaderBuilder);
 		return jwsHeaderBuilder.build();
 	}
 
@@ -290,12 +295,12 @@ public class SignatureUtil {
 		}
 	}
 
-	private JWSHeader.Builder addCustomHeadersExcludingKid(
+	private JWSHeader.Builder addCustomHeaders(
 			Map<String, String> additionalHeaders,
 			JWSHeader.Builder jwsHeaderBuilder) {
 		if (additionalHeaders != null) {
 			for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
-				if (!"kid".equalsIgnoreCase(entry.getKey())) {
+				if (!JWSHeader.getRegisteredParameterNames().contains(entry.getKey())) {
 					try {
 						jwsHeaderBuilder = jwsHeaderBuilder.customParam(entry.getKey(), entry.getValue());
 					} catch (Exception e) {
@@ -324,5 +329,34 @@ public class SignatureUtil {
 			finalPrepend = mapKid;
 		}
 		return finalPrepend.concat(keyId);
+	}
+
+	private JWSHeader.Builder addRegisteredJWSHeaders(Map<String, String> additionalHeaders, JWSHeader.Builder jwsHeaderBuilder) {
+
+		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_TYPE_KEY)) {
+			jwsHeaderBuilder.type(new JOSEObjectType(additionalHeaders.get(SignatureConstant.JWS_HEADER_TYPE_KEY)));
+		}
+
+		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_JWK_URL)) {
+			try {
+				jwsHeaderBuilder.jwkURL(new URI(additionalHeaders.get(SignatureConstant.JWS_HEADER_JWK_URL)));
+			} catch (URISyntaxException e) {
+				LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+						"Warning thrown when JWK URI not able to parse while adding to jws header.");
+			}
+		}
+
+		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_CONTENT_TYPE)) {
+			jwsHeaderBuilder.contentType(additionalHeaders.get(SignatureConstant.JWS_HEADER_CONTENT_TYPE));
+		}
+
+		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_CRTICAL_PARAM)) {
+			String critValue = additionalHeaders.get(SignatureConstant.JWS_HEADER_CRTICAL_PARAM);
+			Set<String> critHeaders = Arrays.stream(critValue.split(","))
+					.map(String::trim)
+					.collect(Collectors.toSet());
+			jwsHeaderBuilder.criticalParams(critHeaders);
+		}
+		return jwsHeaderBuilder;
 	}
 }
