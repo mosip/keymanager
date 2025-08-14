@@ -21,9 +21,9 @@
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
-		<kernel.bom.version>1.2.1-SNAPSHOT</kernel.bom.version>
-		<kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
-		<kernel.keymanager.service.version>1.2.1-SNAPSHOT</kernel.keymanager.service.version>
+		<kernel.bom.version>1.2.2-SNAPSHOT</kernel.bom.version>
+		<kernel.core.version>1.2.2-SNAPSHOT</kernel.core.version>
+		<kernel.keymanager.service.version>1.2.2-SNAPSHOT</kernel.keymanager.service.version>
 
 		<spring.boot.maven.plugin>3.2.3</spring.boot.maven.plugin>
 		<jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>

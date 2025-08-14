@@ -26,8 +26,8 @@
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
-		<kernel.bom.version>1.2.1-SNAPSHOT</kernel.bom.version>
-		<kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
+		<kernel.bom.version>1.2.2-SNAPSHOT</kernel.bom.version>
+		<kernel.core.version>1.2.2-SNAPSHOT</kernel.core.version>
 		<kernel.logger.logback.version>1.2.1-SNAPSHOT</kernel.logger.logback.version>
 		<kernel.pdfgenerator.version>1.2.1-SNAPSHOT</kernel.pdfgenerator.version>
 		<kernel.dataaccess.hibernate.version>1.2.1-SNAPSHOT</kernel.dataaccess.hibernate.version>
