@@ -13,6 +13,7 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -81,6 +82,18 @@ public class RandomKeysGenerator {
     			throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
     		}
     	});
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (secureRandomThreadLocal != null)
+			secureRandomThreadLocal.remove();
+
+		if (KEY_GENETRATOR != null)
+			KEY_GENETRATOR.remove();
+
+		if (CIPHER_AES_ECB_NO_PADDING != null)
+			CIPHER_AES_ECB_NO_PADDING.remove();
 	}
 
 	public void generateRandomKeys(String appId, String referenceId) {
