@@ -31,6 +31,8 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PSource.PSpecified;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
+
+import jakarta.annotation.PreDestroy;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.encodings.OAEPEncoding;
@@ -41,7 +43,6 @@ import org.jose4j.jwx.CompactSerializer;
 import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import jakarta.annotation.PreDestroy;
 
 import io.mosip.kernel.core.crypto.exception.InvalidDataException;
 import io.mosip.kernel.core.crypto.exception.InvalidKeyException;
@@ -56,14 +57,14 @@ import io.mosip.kernel.crypto.jce.util.CryptoUtils;
 
 /**
  * This class provided <b> Basic and Core Cryptographic functionalities </b>.
- * 
+ *
  * This class follows {@link CryptoCoreSpec} and implement all basic
  * Cryptographic functions.
- * 
+ *
  * @author Urvil Joshi
  * @author Rajath
  * @since 1.0.0
- * 
+ *
  * @see CryptoCoreSpec
  * @see PrivateKey
  * @see PublicKey
@@ -76,497 +77,513 @@ import io.mosip.kernel.crypto.jce.util.CryptoUtils;
 @Component
 public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> {
 
-	private static final String PERIOD_SEPARATOR_REGEX = "\\.";
+    private static final String PERIOD_SEPARATOR_REGEX = "\\.";
 
-	// Used as a hack for softhsm oeap padding decryption usecase will be when we
-	// will use in HSM
-	@SuppressWarnings("java:S106")
-	private static final String RSA_ECB_NO_PADDING = "RSA/ECB/NoPadding"; // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
+    // Used as a hack for softhsm oeap padding decryption usecase will be when we
+    // will use in HSM
+    @SuppressWarnings("java:S106")
+    private static final String RSA_ECB_NO_PADDING = "RSA/ECB/NoPadding"; // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
 
-	private static final String PKCS11_STORE_TYPE = "PKCS11";
+    private static final String PKCS11_STORE_TYPE = "PKCS11";
 
-	@Value("${mosip.kernel.keygenerator.asymmetric-key-length:2048}")
-	private int asymmetricKeyLength;
+    @Value("${mosip.kernel.keygenerator.asymmetric-key-length:2048}")
+    private int asymmetricKeyLength;
 
-	private static final String MGF1 = "MGF1";
+    private static final String MGF1 = "MGF1";
 
-	private static final String HASH_ALGO = "SHA-256";
+    private static final String HASH_ALGO = "SHA-256";
 
-	private static final String AES = "AES";
+    private static final String AES = "AES";
 
-	@Value("${mosip.kernel.crypto.gcm-tag-length:128}")
-	private int tagLength;
+    @Value("${mosip.kernel.crypto.gcm-tag-length:128}")
+    private int tagLength;
 
-	@Value("${mosip.kernel.crypto.symmetric-algorithm-name:AES/GCM/NOPadding}")
-	private String symmetricAlgorithm;
+    @Value("${mosip.kernel.crypto.symmetric-algorithm-name:AES/GCM/NOPadding}")
+    private String symmetricAlgorithm;
 
-	@Value("${mosip.kernel.crypto.asymmetric-algorithm-name:RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING}")
-	private String asymmetricAlgorithm;
+    @Value("${mosip.kernel.crypto.asymmetric-algorithm-name:RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING}")
+    private String asymmetricAlgorithm;
 
-	@Value("${mosip.kernel.crypto.hash-algorithm-name:PBKDF2WithHmacSHA512}")
-	private String passwordAlgorithm;
+    @Value("${mosip.kernel.crypto.hash-algorithm-name:PBKDF2WithHmacSHA512}")
+    private String passwordAlgorithm;
 
-	@Value("${mosip.kernel.crypto.sign-algorithm-name:RS256}")
-	private String signAlgorithm;
+    @Value("${mosip.kernel.crypto.sign-algorithm-name:RS256}")
+    private String signAlgorithm;
 
-	@Value("${mosip.kernel.crypto.hash-symmetric-key-length:256}")
-	private int symmetricKeyLength;
+    @Value("${mosip.kernel.crypto.hash-symmetric-key-length:256}")
+    private int symmetricKeyLength;
 
-	@Value("${mosip.kernel.crypto.hash-iteration:100000}")
-	private int iterations;
+    @Value("${mosip.kernel.crypto.hash-iteration:100000}")
+    private int iterations;
 
-	@Value("${mosip.kernel.keymanager.hsm.keystore-type:PKCS11}")
-	private String keystoreType;
+    @Value("${mosip.kernel.keymanager.hsm.keystore-type:PKCS11}")
+    private String keystoreType;
 
-	private static ThreadLocal<SecureRandom> secureRandomThreadLocal = null;
+    private static final OAEPParameterSpec OAEP_SHA256_MGF1 =
+            new OAEPParameterSpec(HASH_ALGO, MGF1, MGF1ParameterSpec.SHA256, PSpecified.DEFAULT);
 
+    private static ThreadLocal<SecureRandom> secureRandomThreadLocal = null;
     private ThreadLocal<Cipher> CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC;
     private ThreadLocal<Cipher> CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC;
+    private ThreadLocal<SecretKeyFactory> SK_FACTORY_PBKDF2;
 
     public static String SYMMETRIC_ALGO;
     public static String ASYMMETRIC_ALGO;
-    
-	@PostConstruct
-	public void init() {
-		secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
-		SYMMETRIC_ALGO = symmetricAlgorithm;
+
+    @PostConstruct
+    public void init() {
+        secureRandomThreadLocal = ThreadLocal.withInitial(() -> {
+            try { return SecureRandom.getInstanceStrong(); } catch (Exception ignore) { return new SecureRandom(); }
+        });
+
+        SYMMETRIC_ALGO = symmetricAlgorithm;
         ASYMMETRIC_ALGO = asymmetricAlgorithm;
-    
+
         CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC = ThreadLocal.withInitial(() -> {
-    		try {
-    			return Cipher.getInstance(symmetricAlgorithm);
-    		} catch (Exception e) {
-				throw new NoSuchAlgorithmException(
-						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
-    	});
+            try {
+                return Cipher.getInstance(symmetricAlgorithm);
+            } catch (Exception e) {
+                throw new NoSuchAlgorithmException(
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
+        });
 
         CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC = ThreadLocal.withInitial(() -> {
-    		try {
-    			return Cipher.getInstance(asymmetricAlgorithm);
-    		} catch (Exception e) {
-				throw new NoSuchAlgorithmException(
-						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-						SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
-    	});
-	}
+            try {
+                return Cipher.getInstance(asymmetricAlgorithm);
+            } catch (Exception e) {
+                throw new NoSuchAlgorithmException(
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);    		}
+        });
 
-	@PreDestroy
-	public void shutdown() {
-		if (secureRandomThreadLocal != null)
-			secureRandomThreadLocal.remove();
+        SK_FACTORY_PBKDF2 = ThreadLocal.withInitial(() -> {
+            try { return SecretKeyFactory.getInstance(passwordAlgorithm); }
+            catch (java.security.NoSuchAlgorithmException e) {
+                throw new NoSuchAlgorithmException(
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                        SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+            }
+        });
+    }
 
-		if (CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC != null)
-			CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.remove();
+    @PreDestroy
+    public void shutdown() {
+        if (secureRandomThreadLocal != null)
+            secureRandomThreadLocal.remove();
 
-		if (CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC != null)
-			CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.remove();
-	}
-	
-	@Override
-	public byte[] symmetricEncrypt(SecretKey key, byte[] data, byte[] aad) {
-		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		byte[] output = null;
-		try {
-			Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
+        if (CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC != null)
+            CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.remove();
 
-			byte[] randomIV = generateIV(cipher.getBlockSize());
+        if (CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC != null)
+            CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.remove();
 
-			SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
-			GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, randomIV);
-			cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmParameterSpec);
-			output = new byte[cipher.getOutputSize(data.length) + cipher.getBlockSize()];
-			if (aad != null && aad.length != 0) {
-				cipher.updateAAD(aad);
-			}
-			byte[] processData = doFinal(data, cipher);
-			System.arraycopy(processData, 0, output, 0, processData.length);
-			System.arraycopy(randomIV, 0, output, processData.length, randomIV.length);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidKeyException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		}
-		return output;
-	}
+        if (SK_FACTORY_PBKDF2 != null)
+            SK_FACTORY_PBKDF2.remove();
+    }
 
-	@Override
-	public byte[] symmetricEncrypt(SecretKey key, byte[] data, byte[] iv, byte[] aad) {
-		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		if (iv == null) {
-			return symmetricEncrypt(key, data, aad);
-		}
+    @Override
+    public byte[] symmetricEncrypt(SecretKey key, byte[] data, byte[] aad) {
+        Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        byte[] output = null;
+        try {
+            Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
 
-		try {
-			Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
+            byte[] randomIV = generateIV(cipher.getBlockSize());
 
-			SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
-			GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, iv);
-			cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmParameterSpec);
-			if (aad != null && aad.length != 0) {
-				cipher.updateAAD(aad);
-			}
-			return doFinal(data, cipher);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidParamSpecException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		}
-	}
+            SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
+            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, randomIV);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmParameterSpec);
+            output = new byte[cipher.getOutputSize(data.length) + cipher.getBlockSize()];
+            if (aad != null && aad.length != 0) {
+                cipher.updateAAD(aad);
+            }
+            byte[] processData = doFinal(data, cipher);
+            System.arraycopy(processData, 0, output, 0, processData.length);
+            System.arraycopy(randomIV, 0, output, processData.length, randomIV.length);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidKeyException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        }
+        return output;
+    }
 
-	@Override
-	public byte[] symmetricDecrypt(SecretKey key, byte[] data, byte[] aad) {
-		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		byte[] output = null;
-		try {
-			Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
+    @Override
+    public byte[] symmetricEncrypt(SecretKey key, byte[] data, byte[] iv, byte[] aad) {
+        Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        if (iv == null) {
+            return symmetricEncrypt(key, data, aad);
+        }
 
-			int ivLength = cipher.getBlockSize(); // Will be 16
+        try {
+            Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
 
-			if (data.length <= ivLength + (tagLength / 8)) {
-				throw new InvalidDataException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorCode(),
-					"Encrypted data too short for ciphertext and IV.");
-			}
+            SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
+            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmParameterSpec);
+            if (aad != null && aad.length != 0) {
+                cipher.updateAAD(aad);
+            }
+            return doFinal(data, cipher);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidParamSpecException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 
-			int cipherLen = data.length - ivLength;
-			byte[] cipherTextWithTag = new byte[cipherLen];
-			byte[] iv = new byte[ivLength];
+    @Override
+    public byte[] symmetricDecrypt(SecretKey key, byte[] data, byte[] aad) {
+        Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        byte[] output = null;
+        try {
+            Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
 
-			System.arraycopy(data, 0, cipherTextWithTag, 0, cipherLen);
-			System.arraycopy(data, cipherLen, iv, 0, ivLength);
+            int ivLength = cipher.getBlockSize(); // Will be 16
 
-			SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
-			GCMParameterSpec gcmSpec = new GCMParameterSpec(tagLength, iv);
-			cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+            if (data.length <= ivLength + (tagLength / 8)) {
+                throw new InvalidDataException(
+                        SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorCode(),
+                        "Encrypted data too short for ciphertext and IV.");
+            }
 
-			if (aad != null && aad.length > 0) {
-				cipher.updateAAD(aad);
-			}
+            int cipherLen = data.length - ivLength;
+            byte[] cipherTextWithTag = new byte[cipherLen];
+            byte[] iv = new byte[ivLength];
 
-			return doFinal(cipherTextWithTag, cipher);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidKeyException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		} catch (ArrayIndexOutOfBoundsException e) {
-			throw new InvalidDataException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorMessage(), e);
-		}
-	}
+            System.arraycopy(data, 0, cipherTextWithTag, 0, cipherLen);
+            System.arraycopy(data, cipherLen, iv, 0, ivLength);
 
-	@Override
-	public byte[] symmetricDecrypt(SecretKey key, byte[] data, byte[] iv, byte[] aad) {
-		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		if (iv == null) {
-			return symmetricDecrypt(key, data, aad);
-		}
-		try {
-			Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
+            SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(tagLength, iv);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
 
-			SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
-			GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, iv);
-			cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec);
-			if (aad != null) {
-				cipher.updateAAD(aad);
-			}
-			return doFinal(data, cipher);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidParamSpecException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		}
-	}
+            if (aad != null && aad.length > 0) {
+                cipher.updateAAD(aad);
+            }
 
-	@Override
-	public byte[] asymmetricEncrypt(PublicKey key, byte[] data) {
-		Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		final OAEPParameterSpec oaepParams = new OAEPParameterSpec(HASH_ALGO, MGF1, MGF1ParameterSpec.SHA256,
-				PSpecified.DEFAULT);
-		try {
-			Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.get();
-			cipher.init(Cipher.ENCRYPT_MODE, key, oaepParams);
-			return doFinal(data, cipher);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidParamSpecException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		}
-	}
-	
-	@Override
-	public byte[] asymmetricDecrypt(PrivateKey privateKey, byte[] data) {
-		if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
-			BigInteger keyModulus = ((RSAPrivateKey) privateKey).getModulus();
-			return asymmetricDecrypt(privateKey, keyModulus, data, null);
-		}
-		return jceAsymmetricDecrypt(privateKey, data, null);
-	}
+            return doFinal(cipherTextWithTag, cipher);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidKeyException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            throw new InvalidDataException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_LENGTH_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 
-	@Override
-	public byte[] asymmetricDecrypt(PrivateKey privateKey, PublicKey publicKey, byte[] data) {
-		if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
-			BigInteger keyModulus = Objects.nonNull(publicKey) ? ((RSAPublicKey) publicKey).getModulus() : 
-										((RSAPrivateKey) privateKey).getModulus();
-			return asymmetricDecrypt(privateKey, keyModulus, data, null);
-		}
-		return jceAsymmetricDecrypt(privateKey, data, null);
-	}
+    @Override
+    public byte[] symmetricDecrypt(SecretKey key, byte[] data, byte[] iv, byte[] aad) {
+        Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        if (iv == null) {
+            return symmetricDecrypt(key, data, aad);
+        }
+        try {
+            Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_SYMMETRIC.get();
 
-	@Override
-	public byte[] asymmetricDecrypt(PrivateKey privateKey, PublicKey publicKey, byte[] data, String storeType) {
-		if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
-			BigInteger keyModulus = Objects.nonNull(publicKey) ? ((RSAPublicKey) publicKey).getModulus() : 
-										((RSAPrivateKey) privateKey).getModulus();
-			return asymmetricDecrypt(privateKey, keyModulus, data, storeType);
-		}
-		return jceAsymmetricDecrypt(privateKey, data, storeType);
-	}
+            SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), AES);
+            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(tagLength, iv);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec);
+            if (aad != null) {
+                cipher.updateAAD(aad);
+            }
+            return doFinal(data, cipher);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidParamSpecException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 
-	private byte[] asymmetricDecrypt(PrivateKey privateKey, BigInteger keyModulus, byte[] data, String storeType) {
-		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		Cipher cipher;
-		try {
-			cipher = Objects.isNull(storeType) ? Cipher.getInstance(RSA_ECB_NO_PADDING) :  // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
-						Cipher.getInstance(RSA_ECB_NO_PADDING, storeType); // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
-		} catch (java.security.NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
-			throw new NoSuchAlgorithmException(
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
-		}
+    @Override
+    public byte[] asymmetricEncrypt(PublicKey key, byte[] data) {
+        Objects.requireNonNull(key, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
 
-		try {
-			cipher.init(Cipher.DECRYPT_MODE, privateKey);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
-		/*
-		 * This is a hack of removing OEAP padding after decryption with NO Padding as
-		 * SoftHSM does not support it.Will be removed after HSM implementation
-		 */
-		byte[] paddedPlainText = doFinal(data, cipher);
-		if (paddedPlainText.length < asymmetricKeyLength / 8) {
-			byte[] tempPipe = new byte[asymmetricKeyLength / 8];
-			System.arraycopy(paddedPlainText, 0, tempPipe, tempPipe.length - paddedPlainText.length,
-					paddedPlainText.length);
-			paddedPlainText = tempPipe;
-		}
-		
-		return unpadOAEPPadding(paddedPlainText, keyModulus);
-	}
+        try {
+            Cipher cipher = CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.get();
+            cipher.init(Cipher.ENCRYPT_MODE, key, OAEP_SHA256_MGF1);
+            return doFinal(data, cipher);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidParamSpecException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 
-	//	  This is a hack of removing OEAP padding after decryption with NO Padding as
-	//	  SoftHSM does not support it.Will be removed after HSM implementation
-	/**
-	 * 
-	 * @param paddedPlainText
-	 * @param privateKey
-	 * @return
-	 */
-	private byte[] unpadOAEPPadding(byte[] paddedPlainText, BigInteger keyModulus) {
-		
-	    try {
-	    	OAEPEncoding encode = new OAEPEncoding(new RSAEngine(), new SHA256Digest());
-		    BigInteger exponent = new BigInteger("1");
-		    RSAKeyParameters keyParams = new RSAKeyParameters(false, keyModulus, exponent);
-		    encode.init(false, keyParams);
-			return encode.processBlock(paddedPlainText, 0, paddedPlainText.length);
-		} catch (InvalidCipherTextException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION
-					.getErrorCode(), e.getMessage(), e);
-		}	    
-	}
-	 
-	private byte[] jceAsymmetricDecrypt(PrivateKey privateKey, byte[] data, String storeType){
-		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		Cipher cipher;
-		try {
-			cipher = Objects.isNull(storeType) ? Cipher.getInstance(asymmetricAlgorithm) : 
-						Cipher.getInstance(asymmetricAlgorithm, storeType);
-			OAEPParameterSpec oaepParams = new OAEPParameterSpec(HASH_ALGO, MGF1, MGF1ParameterSpec.SHA256,
-				PSpecified.DEFAULT);
-			cipher.init(Cipher.DECRYPT_MODE, privateKey, oaepParams);
-			return doFinal(data, cipher);
-		} catch (java.security.NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
-			throw new NoSuchAlgorithmException(
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
-		} catch (java.security.InvalidKeyException e) {
-			throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		} catch (InvalidAlgorithmParameterException e) {
-			throw new InvalidParamSpecException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
-		}
-	}
+    @Override
+    public byte[] asymmetricDecrypt(PrivateKey privateKey, byte[] data) {
+        if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
+            BigInteger keyModulus = ((RSAPrivateKey) privateKey).getModulus();
+            return asymmetricDecrypt(privateKey, keyModulus, data, null);
+        }
+        return jceAsymmetricDecrypt(privateKey, data, null);
+    }
 
+    @Override
+    public byte[] asymmetricDecrypt(PrivateKey privateKey, PublicKey publicKey, byte[] data) {
+        if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
+            BigInteger keyModulus = Objects.nonNull(publicKey) ? ((RSAPublicKey) publicKey).getModulus() :
+                    ((RSAPrivateKey) privateKey).getModulus();
+            return asymmetricDecrypt(privateKey, keyModulus, data, null);
+        }
+        return jceAsymmetricDecrypt(privateKey, data, null);
+    }
 
-	@Override
-	public String hash(byte[] data, byte[] salt) {
-		CryptoUtils.verifyData(data);
-		CryptoUtils.verifyData(salt, SecurityExceptionCodeConstant.SALT_PROVIDED_IS_NULL_OR_EMPTY.getErrorCode(),
-				SecurityExceptionCodeConstant.SALT_PROVIDED_IS_NULL_OR_EMPTY.getErrorMessage());
-		SecretKeyFactory secretKeyFactory;
-		char[] convertedData = new String(data).toCharArray();
-		PBEKeySpec pbeKeySpec = new PBEKeySpec(convertedData, salt, iterations, symmetricKeyLength);
-		SecretKey key;
-		try {
-			secretKeyFactory = SecretKeyFactory.getInstance(passwordAlgorithm);
-			key = secretKeyFactory.generateSecret(pbeKeySpec);
-		} catch (InvalidKeySpecException e) {
-			throw new InvalidParamSpecException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(), e.getMessage(), e);
-		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new NoSuchAlgorithmException(
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
-		}
-		return DatatypeConverter.printHexBinary(key.getEncoded());
-	}
+    @Override
+    public byte[] asymmetricDecrypt(PrivateKey privateKey, PublicKey publicKey, byte[] data, String storeType) {
+        if (PKCS11_STORE_TYPE.equalsIgnoreCase(keystoreType)) {
+            BigInteger keyModulus = Objects.nonNull(publicKey) ? ((RSAPublicKey) publicKey).getModulus() :
+                    ((RSAPrivateKey) privateKey).getModulus();
+            return asymmetricDecrypt(privateKey, keyModulus, data, storeType);
+        }
+        return jceAsymmetricDecrypt(privateKey, data, storeType);
+    }
 
-	@Override
-	public String sign(byte[] data, PrivateKey privateKey) {
-		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		JsonWebSignature jws = new JsonWebSignature();
-		jws.setPayloadBytes(data);
-		jws.setAlgorithmHeaderValue(signAlgorithm);
-		jws.setKey(privateKey);
-		jws.setDoKeyValidation(false);
-		try {
-			return jws.getDetachedContentCompactSerialization();
-		} catch (JoseException e) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
-	}
+    private byte[] asymmetricDecrypt(PrivateKey privateKey, BigInteger keyModulus, byte[] data, String storeType) {
+        Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        Cipher cipher;
+        try {
+            cipher = Objects.isNull(storeType) ? Cipher.getInstance(RSA_ECB_NO_PADDING) :  // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
+                    Cipher.getInstance(RSA_ECB_NO_PADDING, storeType); // NOSONAR using the padding for allowing OAEP padding in PKCS11 library
+        } catch (java.security.NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
+            throw new NoSuchAlgorithmException(
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        }
 
-	@Override
-	public boolean verifySignature(byte[] data, String sign, PublicKey publicKey) {
-		if (EmptyCheckUtils.isNullEmpty(sign)) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorMessage());
-		}
-		Objects.requireNonNull(publicKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		JsonWebSignature jws = new JsonWebSignature();
-		try {
-			String[] parts = sign.split(PERIOD_SEPARATOR_REGEX);
-			parts[1] = CryptoUtil.encodeBase64(data);
-			jws.setCompactSerialization(CompactSerializer.serialize(parts));
-			jws.setKey(publicKey);
-			return jws.verifySignature();
-		} catch (ArrayIndexOutOfBoundsException | JoseException e) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
+        try {
+            cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+        /*
+         * This is a hack of removing OEAP padding after decryption with NO Padding as
+         * SoftHSM does not support it.Will be removed after HSM implementation
+         */
+        byte[] paddedPlainText = doFinal(data, cipher);
+        if (paddedPlainText.length < asymmetricKeyLength / 8) {
+            byte[] tempPipe = new byte[asymmetricKeyLength / 8];
+            System.arraycopy(paddedPlainText, 0, tempPipe, tempPipe.length - paddedPlainText.length,
+                    paddedPlainText.length);
+            paddedPlainText = tempPipe;
+        }
 
-	}
+        return unpadOAEPPadding(paddedPlainText, keyModulus);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public SecureRandom random() {
-		return secureRandomThreadLocal.get();
-	}
+    //	  This is a hack of removing OEAP padding after decryption with NO Padding as
+    //	  SoftHSM does not support it.Will be removed after HSM implementation
+    /**
+     *
+     * @param paddedPlainText
+     * @param keyModulus
+     * @return
+     */
+    private byte[] unpadOAEPPadding(byte[] paddedPlainText, BigInteger keyModulus) {
 
-	/**
-	 * Generator for IV(Initialisation Vector)
-	 * 
-	 * @param blockSize blocksize of current cipher
-	 * @return generated IV
-	 */
-	private byte[] generateIV(int blockSize) {
-		byte[] byteIV = new byte[blockSize];
-		secureRandomThreadLocal.get().nextBytes(byteIV);
-		return byteIV;
-	}
+        try {
+            OAEPEncoding encode = new OAEPEncoding(new RSAEngine(), new SHA256Digest());
+            BigInteger exponent = new BigInteger("1");
+            RSAKeyParameters keyParams = new RSAKeyParameters(false, keyModulus, exponent);
+            encode.init(false, keyParams);
+            return encode.processBlock(paddedPlainText, 0, paddedPlainText.length);
+        } catch (InvalidCipherTextException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION
+                    .getErrorCode(), e.getMessage(), e);
+        }
+    }
 
-	private byte[] doFinal(byte[] data, Cipher cipher) {
-		try {
-			return cipher.doFinal(data);
-		} catch (IllegalBlockSizeException e) {
-			throw new InvalidDataException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_SIZE_EXCEPTION.getErrorCode(), e.getMessage(), e);
-		} catch (BadPaddingException e) {
-			throw new InvalidDataException(
-					SecurityExceptionCodeConstant.MOSIP_INVALID_ENCRYPTED_DATA_CORRUPT_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
-	}
+    private byte[] jceAsymmetricDecrypt(PrivateKey privateKey, byte[] data, String storeType){
+        Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        Cipher cipher;
+        try {
+            cipher = Objects.isNull(storeType) ? CIPHER_GCM_ENCRYPT_DECRYPT_ASYMMETRIC.get() :
+                    Cipher.getInstance(asymmetricAlgorithm, storeType);
+            cipher.init(Cipher.DECRYPT_MODE, privateKey, OAEP_SHA256_MGF1);
+            return doFinal(data, cipher);
+        } catch (java.security.NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
+            throw new NoSuchAlgorithmException(
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        } catch (java.security.InvalidKeyException e) {
+            throw new InvalidKeyException(SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new InvalidParamSpecException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 
-	/*
-	 * This two methods here are for temporary, Unit test for this will be written
-	 * in next versions
-	 */
-	@Override
-	public String sign(byte[] data, PrivateKey privateKey, X509Certificate x509Certificate) {
-		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
-		CryptoUtils.verifyData(data);
-		JsonWebSignature jws = new JsonWebSignature();
-		List<X509Certificate> certList = new ArrayList<>();
-		certList.add(x509Certificate);
-		X509Certificate[] certArray = certList.toArray(new X509Certificate[] {});
-		jws.setCertificateChainHeaderValue(certArray);
-		jws.setPayloadBytes(data);
-		jws.setAlgorithmHeaderValue(signAlgorithm);
-		jws.setKey(privateKey);
-		jws.setDoKeyValidation(false);
-		try {
-			return jws.getCompactSerialization();
-		} catch (JoseException e) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
-	}
+    @Override
+    public String hash(byte[] data, byte[] salt) {
+        CryptoUtils.verifyData(data);
+        CryptoUtils.verifyData(salt, SecurityExceptionCodeConstant.SALT_PROVIDED_IS_NULL_OR_EMPTY.getErrorCode(),
+                SecurityExceptionCodeConstant.SALT_PROVIDED_IS_NULL_OR_EMPTY.getErrorMessage());
 
-	/*
-	 * This two methods here are for temporary, Unit test for this will be written
-	 * in next versions
-	 */
-	@Override
-	public boolean verifySignature(String sign) {
-		if (EmptyCheckUtils.isNullEmpty(sign)) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorMessage());
-		}
-		JsonWebSignature jws = new JsonWebSignature();
-		try {
-			jws.setCompactSerialization(sign);
-			List<X509Certificate> certificateChainHeaderValue = jws.getCertificateChainHeaderValue();
-			X509Certificate certificate = certificateChainHeaderValue.get(0);
-			certificate.checkValidity();
-			PublicKey publicKey = certificate.getPublicKey();
-			jws.setKey(publicKey);
-			return jws.verifySignature();
-		} catch (JoseException | CertificateExpiredException | CertificateNotYetValidException e) {
-			throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
-					e.getMessage(), e);
-		}
+        final char[] convertedData = new String(data).toCharArray();
+        final PBEKeySpec pbeKeySpec = new PBEKeySpec(convertedData, salt, iterations, symmetricKeyLength);
+        SecretKey key;
+        try {
+            SecretKeyFactory secretKeyFactory = SK_FACTORY_PBKDF2.get();
+            key = secretKeyFactory.generateSecret(pbeKeySpec);
+        } catch (InvalidKeySpecException e) {
+            throw new InvalidParamSpecException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_PARAM_SPEC_EXCEPTION.getErrorCode(), e.getMessage(), e);
+        } catch (Exception e) {
+            throw new NoSuchAlgorithmException(
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        }
+        finally {
+            // best-effort wipe of sensitive char[]
+            java.util.Arrays.fill(convertedData, '\0');
+        }
+        return DatatypeConverter.printHexBinary(key.getEncoded());
+    }
 
-	}	
+    @Override
+    public String sign(byte[] data, PrivateKey privateKey) {
+        Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        JsonWebSignature jws = new JsonWebSignature();
+        jws.setPayloadBytes(data);
+        jws.setAlgorithmHeaderValue(signAlgorithm);
+        jws.setKey(privateKey);
+        jws.setDoKeyValidation(false);
+        try {
+            return jws.getDetachedContentCompactSerialization();
+        } catch (JoseException e) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean verifySignature(byte[] data, String sign, PublicKey publicKey) {
+        if (EmptyCheckUtils.isNullEmpty(sign)) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorMessage());
+        }
+        Objects.requireNonNull(publicKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        JsonWebSignature jws = new JsonWebSignature();
+        try {
+            String[] parts = sign.split(PERIOD_SEPARATOR_REGEX);
+            parts[1] = CryptoUtil.encodeBase64(data);
+            jws.setCompactSerialization(CompactSerializer.serialize(parts));
+            jws.setKey(publicKey);
+            return jws.verifySignature();
+        } catch (ArrayIndexOutOfBoundsException | JoseException e) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public SecureRandom random() {
+        return secureRandomThreadLocal.get();
+    }
+
+    /**
+     * Generator for IV(Initialisation Vector)
+     *
+     * @param blockSize blocksize of current cipher
+     * @return generated IV
+     */
+    private byte[] generateIV(int blockSize) {
+        byte[] byteIV = new byte[blockSize];
+        secureRandomThreadLocal.get().nextBytes(byteIV);
+        return byteIV;
+    }
+
+    private byte[] doFinal(byte[] data, Cipher cipher) {
+        try {
+            return cipher.doFinal(data);
+        } catch (IllegalBlockSizeException e) {
+            throw new InvalidDataException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_DATA_SIZE_EXCEPTION.getErrorCode(), e.getMessage(), e);
+        } catch (BadPaddingException e) {
+            throw new InvalidDataException(
+                    SecurityExceptionCodeConstant.MOSIP_INVALID_ENCRYPTED_DATA_CORRUPT_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+    }
+
+    /*
+     * This two methods here are for temporary, Unit test for this will be written
+     * in next versions
+     */
+    @Override
+    public String sign(byte[] data, PrivateKey privateKey, X509Certificate x509Certificate) {
+        Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+        CryptoUtils.verifyData(data);
+        JsonWebSignature jws = new JsonWebSignature();
+        List<X509Certificate> certList = new ArrayList<>();
+        certList.add(x509Certificate);
+        X509Certificate[] certArray = certList.toArray(new X509Certificate[] {});
+        jws.setCertificateChainHeaderValue(certArray);
+        jws.setPayloadBytes(data);
+        jws.setAlgorithmHeaderValue(signAlgorithm);
+        jws.setKey(privateKey);
+        jws.setDoKeyValidation(false);
+        try {
+            return jws.getCompactSerialization();
+        } catch (JoseException e) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+    }
+
+    /*
+     * This two methods here are for temporary, Unit test for this will be written
+     * in next versions
+     */
+    @Override
+    public boolean verifySignature(String sign) {
+        if (EmptyCheckUtils.isNullEmpty(sign)) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorMessage());
+        }
+        JsonWebSignature jws = new JsonWebSignature();
+        try {
+            jws.setCompactSerialization(sign);
+            List<X509Certificate> certificateChainHeaderValue = jws.getCertificateChainHeaderValue();
+            X509Certificate certificate = certificateChainHeaderValue.get(0);
+            certificate.checkValidity();
+            PublicKey publicKey = certificate.getPublicKey();
+            jws.setKey(publicKey);
+            return jws.verifySignature();
+        } catch (JoseException | CertificateExpiredException | CertificateNotYetValidException e) {
+            throw new SignatureException(SecurityExceptionCodeConstant.MOSIP_SIGNATURE_EXCEPTION.getErrorCode(),
+                    e.getMessage(), e);
+        }
+    }
 }

@@ -13,6 +13,7 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,6 @@ import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
 import io.mosip.kernel.keymanagerservice.repository.DataEncryptKeystoreRepository;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 
 /**
  * The Class MasterKeysGenerator.
@@ -63,40 +63,40 @@ public class RandomKeysGenerator {
 
     private ThreadLocal<Cipher> CIPHER_AES_ECB_NO_PADDING;
 
-	@PostConstruct
-	public void init() {
-		secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
-    
-		KEY_GENETRATOR = ThreadLocal.withInitial(() -> {
-    		try {
-    			return KeyGenerator.getInstance("AES");
-    		} catch (Exception e) {
-    			throw new IllegalStateException("Unable to initialize KeyGenerator with AES", e);
-    		}
-    	});
+    @PostConstruct
+    public void init() {
+        secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
 
-		CIPHER_AES_ECB_NO_PADDING = ThreadLocal.withInitial(() -> {
-    		try {
-    			return Cipher.getInstance(WRAPPING_TRANSFORMATION);
-    		} catch (Exception e) {
-    			throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
-    		}
-    	});
-	}
+        KEY_GENETRATOR = ThreadLocal.withInitial(() -> {
+            try {
+                return KeyGenerator.getInstance("AES");
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize KeyGenerator with AES", e);
+            }
+        });
 
-	@PreDestroy
-	public void shutdown() {
-		if (secureRandomThreadLocal != null)
-			secureRandomThreadLocal.remove();
+        CIPHER_AES_ECB_NO_PADDING = ThreadLocal.withInitial(() -> {
+            try {
+                return Cipher.getInstance(WRAPPING_TRANSFORMATION);
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
+            }
+        });
+    }
 
-		if (KEY_GENETRATOR != null)
-			KEY_GENETRATOR.remove();
+    @PreDestroy
+    public void shutdown() {
+        if (secureRandomThreadLocal != null)
+            secureRandomThreadLocal.remove();
 
-		if (CIPHER_AES_ECB_NO_PADDING != null)
-			CIPHER_AES_ECB_NO_PADDING.remove();
-	}
+        if (KEY_GENETRATOR != null)
+            KEY_GENETRATOR.remove();
 
-	public void generateRandomKeys(String appId, String referenceId) {
+        if (CIPHER_AES_ECB_NO_PADDING != null)
+            CIPHER_AES_ECB_NO_PADDING.remove();
+    }
+
+    public void generateRandomKeys(String appId, String referenceId) {
 
         LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, referenceId, localDateTimeStamp);
@@ -117,47 +117,47 @@ public class RandomKeysGenerator {
     }
 
     private void generateAndStore(String appId, String referenceId, String keyAlias, LocalDateTime localDateTimeStamp) {
-		keyStore.generateAndStoreSymmetricKey(keyAlias);
+        keyStore.generateAndStoreSymmetricKey(keyAlias);
         dbHelper.storeKeyInAlias(appId, localDateTimeStamp, referenceId, keyAlias, localDateTimeStamp.plusDays(1825), null, null);
     }
-    
+
     private void generate10KKeysAndStoreInDB(String cacheMasterKeyAlias) throws Exception {
-		
+
         int noOfActiveKeys = (int) dataEncryptKeystoreRepository.findAll().stream()
-                                    .filter(k->k.getKeyStatus().equals("active")).count();			
-		int noOfKeysToGenerate = 0;
-		if((noOfKeysRequire-noOfActiveKeys) > 0) {
-			noOfKeysToGenerate = (int) (noOfKeysRequire-noOfActiveKeys);
-		}
-		
-		LOGGER.info("No Of Keys To Generate:" + noOfKeysToGenerate);
-		
-		Long maxid = dataEncryptKeystoreRepository.findMaxId();
-		int startIndex = maxid == null ? 0 : maxid.intValue() + 1;
-        
+                .filter(k->k.getKeyStatus().equals("active")).count();
+        int noOfKeysToGenerate = 0;
+        if((noOfKeysRequire-noOfActiveKeys) > 0) {
+            noOfKeysToGenerate = (int) (noOfKeysRequire-noOfActiveKeys);
+        }
+
+        LOGGER.info("No Of Keys To Generate:" + noOfKeysToGenerate);
+
+        Long maxid = dataEncryptKeystoreRepository.findMaxId();
+        int startIndex = maxid == null ? 0 : maxid.intValue() + 1;
+
         SecureRandom rand = secureRandomThreadLocal.get();
-		KeyGenerator keyGenerator = KEY_GENETRATOR.get();
+        KeyGenerator keyGenerator = KEY_GENETRATOR.get();
         Cipher cipher = CIPHER_AES_ECB_NO_PADDING.get(); // NOSONAR using the key wrapping
         Key masterKey = keyStore.getSymmetricKey(cacheMasterKeyAlias);
 
-		for (int i = startIndex; i < noOfKeysToGenerate; i++) {
-			keyGenerator.init(256, rand);
-			SecretKey sKey = keyGenerator.generateKey();
-			cipher.init(Cipher.ENCRYPT_MODE, masterKey);
-			byte[] wrappedKey = cipher.doFinal(sKey.getEncoded());
-			String encodedKey = Base64.getEncoder().encodeToString(wrappedKey);
-			insertKeyIntoTable(i, encodedKey, "Active");
-			LOGGER.info("Insert secrets in DB: " + i);
-		}
-	}
+        for (int i = startIndex; i < noOfKeysToGenerate; i++) {
+            keyGenerator.init(256, rand);
+            SecretKey sKey = keyGenerator.generateKey();
+            cipher.init(Cipher.ENCRYPT_MODE, masterKey);
+            byte[] wrappedKey = cipher.doFinal(sKey.getEncoded());
+            String encodedKey = Base64.getEncoder().encodeToString(wrappedKey);
+            insertKeyIntoTable(i, encodedKey, "Active");
+            LOGGER.info("Insert secrets in DB: " + i);
+        }
+    }
 
-	private void insertKeyIntoTable(int id, String secretData, String status) throws Exception {
-		DataEncryptKeystore data = new DataEncryptKeystore();
-		data.setId(id);
-		data.setKey(secretData);
-		data.setKeyStatus(status);
-		data.setCrBy(CREATED_BY);
-		data.setCrDTimes(LocalDateTime.now());
-		dataEncryptKeystoreRepository.save(data);
-	}
+    private void insertKeyIntoTable(int id, String secretData, String status) throws Exception {
+        DataEncryptKeystore data = new DataEncryptKeystore();
+        data.setId(id);
+        data.setKey(secretData);
+        data.setKeyStatus(status);
+        data.setCrBy(CREATED_BY);
+        data.setCrDTimes(LocalDateTime.now());
+        dataEncryptKeystoreRepository.save(data);
+    }
 }
