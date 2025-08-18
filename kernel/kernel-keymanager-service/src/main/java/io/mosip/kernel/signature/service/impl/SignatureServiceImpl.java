@@ -182,9 +182,8 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
                 try { return java.security.MessageDigest.getInstance("SHA-256"); }
                 catch (java.security.NoSuchAlgorithmException e) { throw new RuntimeException(e); }
             });
-    private static final ThreadLocal<java.util.Base64.Decoder> B64URL_DEC = ThreadLocal.withInitial(java.util.Base64::getUrlDecoder);
-    private static final ThreadLocal<java.util.Base64.Encoder> B64URL_ENC = ThreadLocal.withInitial(java.util.Base64::getUrlEncoder);
-
+    private static final ThreadLocal<java.util.Base64.Decoder> B64_DEC = ThreadLocal.withInitial(java.util.Base64::getDecoder);
+    private static final ThreadLocal<java.util.Base64.Encoder> B64_ENC = ThreadLocal.withInitial(java.util.Base64::getEncoder);
     @PostConstruct
     public void init() {
         KeyGeneratorUtils.loadClazz();
@@ -577,7 +576,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
             }
 
             // Build X509Certificate from DER
-            byte[] der = B64URL_DEC.get().decode(firstCertB64);
+            byte[] der = B64_DEC.get().decode(firstCertB64);
             Certificate cert = keymanagerUtil.convertToCertificate(der);
             if (cert != null) {
                 // 2) Seed cache by x5t#S256 (from header or computed)
@@ -679,7 +678,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
             trustCertData = null; // will lazily fill below if needed
         } else if (SignatureUtil.isDataValid(reqCertData)) {
             // Use a cheap fingerprint of the provided PEM/DER string
-            fp = b64urlNoPad(sha256(reqCertData.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            fp = b64NoPad(sha256(reqCertData.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             trustCertData = reqCertData;
         }
 
