@@ -44,7 +44,7 @@ import io.mosip.kernel.partnercertservice.exception.PartnerCertManagerException;
 
 /**
  * Utility class for Partner Certificate Management
- * 
+ *
  * @author Mahammed Taheer
  * @since 1.1.3
  *
@@ -57,9 +57,9 @@ public class PartnerCertificateManagerUtil {
 
     /**
      * Function to check certificate is self-signed.
-     * 
+     *
      * @param x509Cert X509Certificate
-     * 
+     *
      * @return true if x509Cert is self-signed, else false
      */
     public static boolean isSelfSignedCertificate(X509Certificate x509Cert) {
@@ -67,7 +67,7 @@ public class PartnerCertificateManagerUtil {
             x509Cert.verify(x509Cert.getPublicKey());
             return true;
         } catch (CertificateException | NoSuchAlgorithmException | InvalidKeyException | SignatureException
-                | NoSuchProviderException exp) {
+                 | NoSuchProviderException exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.PCM_UTIL,
                     "Ignore this exception, the exception thrown when signature validation failed.");
@@ -101,9 +101,9 @@ public class PartnerCertificateManagerUtil {
 
     /**
      * Function to format X500Principal of certificate.
-     * 
+     *
      * @param certPrincipal String form of X500Principal
-     * 
+     *
      * @return String of Custom format of certificateDN.
      */
     public static String formatCertificateDN(String certPrincipal) {
@@ -145,7 +145,7 @@ public class PartnerCertificateManagerUtil {
     }
 
     public static boolean isCertificateDatesValid(X509Certificate x509Cert) {
-        
+
         try {
             Date currentDate = Date.from(DateUtils.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
             x509Cert.checkValidity(currentDate);
@@ -168,35 +168,35 @@ public class PartnerCertificateManagerUtil {
     }
 
     public static boolean isCertificateValidForDuration(X509Certificate x509Cert, int issuerCertDuration, int gracePeriod) {
-        
+
         int noOfDays = (issuerCertDuration * PartnerCertManagerConstants.YEAR_DAYS) - gracePeriod;
         if (noOfDays < 0) {
             noOfDays = DEFAULT_ALLOWED_CERTIFICATE_DAYS;
-        } 
+        }
         LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();//.plus(noOfDays, ChronoUnit.DAYS);
         LocalDateTime certNotAfter = x509Cert.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
         long validDays = ChronoUnit.DAYS.between(localDateTimeStamp, certNotAfter);
-        if ((validDays - noOfDays) >= 0)             
+        if ((validDays - noOfDays) >= 0)
             return true;
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-            PartnerCertManagerConstants.PCM_UTIL, "Remaining validity for the Certificate is " + validDays + 
-            " days, grace days configured is " + gracePeriod);
+                PartnerCertManagerConstants.PCM_UTIL, "Remaining validity for the Certificate is " + validDays +
+                        " days, grace days configured is " + gracePeriod);
         return false;
     }
 
     public static boolean isValidTimestamp(LocalDateTime timeStamp, CACertificateStore certStore) {
-		boolean valid = timeStamp.isEqual(certStore.getCertNotBefore()) || timeStamp.isEqual(certStore.getCertNotAfter())
-				|| (timeStamp.isAfter(certStore.getCertNotBefore())
-						&& timeStamp.isBefore(certStore.getCertNotAfter()));
+        boolean valid = timeStamp.isEqual(certStore.getCertNotBefore()) || timeStamp.isEqual(certStore.getCertNotAfter())
+                || (timeStamp.isAfter(certStore.getCertNotBefore())
+                && timeStamp.isBefore(certStore.getCertNotAfter()));
         if (!valid) {
             LocalDateTime localDateTimeNow = LocalDateTime.now();
             valid = localDateTimeNow.isEqual(certStore.getCertNotBefore()) || localDateTimeNow.isEqual(certStore.getCertNotAfter())
-				|| (localDateTimeNow.isAfter(certStore.getCertNotBefore())
-						&& localDateTimeNow.isBefore(certStore.getCertNotAfter()));
+                    || (localDateTimeNow.isAfter(certStore.getCertNotBefore())
+                    && localDateTimeNow.isBefore(certStore.getCertNotAfter()));
         }
         return valid;
-	}
+    }
 
     public static String getCertificateOrgName(X500Principal x500CertPrincipal) {
         X500Name x500Name = new X500Name(x500CertPrincipal.getName());
@@ -208,14 +208,14 @@ public class PartnerCertificateManagerUtil {
     }
 
     public static boolean isValidCertificateID(String certID) {
-		return certID != null && !certID.trim().isEmpty();
+        return certID != null && !certID.trim().isEmpty();
     }
-    
-    public static CertificateParameters getCertificateParameters(X500Principal latestCertPrincipal, LocalDateTime notBefore, 
-                                        LocalDateTime notAfter) {
 
-		CertificateParameters certParams = new CertificateParameters();
-		X500Name x500Name = new X500Name(latestCertPrincipal.getName());
+    public static CertificateParameters getCertificateParameters(X500Principal latestCertPrincipal, LocalDateTime notBefore,
+                                                                 LocalDateTime notAfter) {
+
+        CertificateParameters certParams = new CertificateParameters();
+        X500Name x500Name = new X500Name(latestCertPrincipal.getName());
 
         certParams.setCommonName(IETFUtils.valueToString((x500Name.getRDNs(BCStyle.CN)[0]).getFirst().getValue()));
         certParams.setOrganizationUnit(getAttributeValueIfExist(x500Name, BCStyle.OU));
@@ -223,10 +223,10 @@ public class PartnerCertificateManagerUtil {
         certParams.setLocation(getAttributeValueIfExist(x500Name, BCStyle.L));
         certParams.setState(getAttributeValueIfExist(x500Name, BCStyle.ST));
         certParams.setCountry(getAttributeValueIfExist(x500Name, BCStyle.C));
-		certParams.setNotBefore(notBefore);
-		certParams.setNotAfter(notAfter);
+        certParams.setNotBefore(notBefore);
+        certParams.setNotAfter(notAfter);
         return certParams;
-	}
+    }
 
     private static String getAttributeValueIfExist(X500Name x500Name, ASN1ObjectIdentifier identifier) {
         RDN[] rdns = x500Name.getRDNs(identifier);
@@ -236,13 +236,13 @@ public class PartnerCertificateManagerUtil {
         return IETFUtils.valueToString((rdns[0]).getFirst().getValue());
     }
 
-    public static String buildP7BCertificateChain(List<? extends Certificate> certList, X509Certificate resignedCert, 
-                    String partnerDomain, boolean resignFTMDomainCerts, X509Certificate rootCert, X509Certificate pmsCert) {
-        
+    public static String buildP7BCertificateChain(List<? extends Certificate> certList, X509Certificate resignedCert,
+                                                  String partnerDomain, boolean resignFTMDomainCerts, X509Certificate rootCert, X509Certificate pmsCert) {
+
         if (partnerDomain.toUpperCase().equals(PartnerCertManagerConstants.FTM_PARTNER_DOMAIN) && !resignFTMDomainCerts) {
             return buildCertChain(certList.toArray(new Certificate[0]));
         }
-        
+
         List<Certificate> chain = new ArrayList<>();
         chain.add(resignedCert);
         chain.add(pmsCert);
@@ -255,7 +255,7 @@ public class PartnerCertificateManagerUtil {
     }
 
     private static String buildCertChain(Certificate[] chain) {
-        
+
         try {
             CMSSignedDataGenerator generator = new CMSSignedDataGenerator();
             JcaCertStore jcaStore = new JcaCertStore(Arrays.asList(chain));
@@ -301,5 +301,154 @@ public class PartnerCertificateManagerUtil {
 
     public static String handleNullOrEmpty(String value) {
         return (value == null || value.trim().isEmpty()) ? null : value;
+    }
+
+    // ---- Minimal DER reader (no external deps) ----
+    private static final int TAG_OCTET_STRING = 0x04;
+    private static final int TAG_SEQUENCE     = 0x30;
+    private static final int TAG_CTX0_PRIM    = 0x80; // [0] primitive
+    private static final int TAG_CTX0_CONS    = 0xA0; // [0] constructed
+
+    private static final class DerReader {
+        private final byte[] buf;
+        private int pos;
+
+        DerReader(byte[] buf) { this.buf = buf; this.pos = 0; }
+
+        boolean hasRemaining() { return pos < buf.length; }
+
+        // Returns tag (unsigned byte 0..255)
+        int readTag() {
+            if (pos >= buf.length) throw new IllegalArgumentException("Truncated DER: tag");
+            return buf[pos++] & 0xFF;
+        }
+
+        int readLength() {
+            if (pos >= buf.length) throw new IllegalArgumentException("Truncated DER: length");
+            int b = buf[pos++] & 0xFF;
+            if ((b & 0x80) == 0) return b;                // short form
+            int num = b & 0x7F;                           // long form
+            if (num == 0 || num > 4) throw new IllegalArgumentException("Invalid DER length");
+            if (pos + num > buf.length) throw new IllegalArgumentException("Truncated DER: length bytes");
+            int len = 0;
+            for (int i = 0; i < num; i++) {
+                len = (len << 8) | (buf[pos++] & 0xFF);
+            }
+            return len;
+        }
+
+        byte[] readBytes(int len) {
+            if (pos + len > buf.length) throw new IllegalArgumentException("Truncated DER: value");
+            byte[] out = java.util.Arrays.copyOfRange(buf, pos, pos + len);
+            pos += len;
+            return out;
+        }
+
+        byte[] readOctetString() {
+            int tag = readTag();
+            if (tag != TAG_OCTET_STRING) throw new IllegalArgumentException("Expected OCTET STRING");
+            int len = readLength();
+            return readBytes(len);
+        }
+
+        byte[] readSequenceBytes() {
+            int tag = readTag();
+            if (tag != TAG_SEQUENCE) throw new IllegalArgumentException("Expected SEQUENCE");
+            int len = readLength();
+            return readBytes(len);
+        }
+    }
+
+    /** Unwrap one outer OCTET STRING layer (used for X509Certificate.getExtensionValue output). */
+    private static byte[] unwrapOuterOctetString(byte[] der) {
+        if (der == null) return null;
+        DerReader r = new DerReader(der);
+        try { return r.readOctetString(); } catch (RuntimeException e) { return null; }
+    }
+
+    /** Subject Key Identifier (2.5.29.14) → keyIdentifier bytes (or null). */
+    public static byte[] getSubjectKeyIdentifier(X509Certificate cert) {
+        try {
+            byte[] ext = cert.getExtensionValue("2.5.29.14");
+            byte[] inner = unwrapOuterOctetString(ext);
+            if (inner == null || inner.length == 0) return null;
+
+            // RFC 5280: extnValue is OCTET STRING of OCTET STRING (keyIdentifier)
+            // Try to unwrap a second time if it looks like an OCTET STRING
+            if ((inner[0] & 0xFF) == TAG_OCTET_STRING) {
+                return new DerReader(inner).readOctetString();
+            }
+            // Some CAs provide raw keyIdentifier without the extra wrapper
+            return inner;
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    /** Authority Key Identifier (2.5.29.35) → keyIdentifier bytes if present (or null). */
+    public static byte[] getAuthorityKeyIdentifier(X509Certificate cert) {
+        try {
+            byte[] ext = cert.getExtensionValue("2.5.29.35");
+            byte[] seqBytes = unwrapOuterOctetString(ext);              // unwrap outer OCTET STRING
+            if (seqBytes == null) return null;
+
+            DerReader seq = new DerReader(seqBytes);
+            // AKI ::= SEQUENCE { keyIdentifier [0] IMPLICIT OCTET STRING OPTIONAL, ... }
+            int tag = seq.readTag();
+            if (tag != TAG_SEQUENCE) {
+                // Some encoders include tag+len already in seqBytes; handle that:
+                // If first tag is [0], treat whole as constructed fragment
+                if (tag == TAG_CTX0_PRIM || tag == TAG_CTX0_CONS) {
+                    seq.pos = 0; // reset; handle generically below
+                } else {
+                    // Fallback: try reading as sequence anyway
+                    seq = new DerReader(seqBytes);
+                }
+            } else {
+                // step back to parse inside sequence
+                seq = new DerReader(seqBytes);
+                seq.readSequenceBytes(); // consume sequence header and content into bytes
+                // re-init inner reader over content
+                seq = new DerReader(seqBytes); // but we need children; simpler approach:
+                // Instead of nested readers, parse sequentially:
+                // We'll iterate over elements: tag/len/value
+            }
+
+            // Simple loop over remaining elements; find context-specific [0]
+            DerReader r = new DerReader(seqBytes);
+            int t = r.readTag();
+            if (t == TAG_SEQUENCE) {
+                int l = r.readLength();
+                byte[] content = r.readBytes(l);
+                r = new DerReader(content);
+            } else {
+                // Not a sequence; continue with r as-is
+                r = new DerReader(seqBytes);
+            }
+
+            while (r.hasRemaining()) {
+                int et = r.readTag();
+                int el = r.readLength();
+                if (et == TAG_CTX0_PRIM) {
+                    return r.readBytes(el);                      // IMPLICIT OCTET STRING bytes
+                } else if (et == TAG_CTX0_CONS) {
+                    // Constructed [0]: inside should be an OCTET STRING
+                    DerReader inner = new DerReader(r.readBytes(el));
+                    try { return inner.readOctetString(); } catch (RuntimeException e) { return null; }
+                } else {
+                    // skip unknown element
+                    r.readBytes(el);
+                }
+            }
+            return null;
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    /** True if KeyUsage has keyCertSign (bit 5) set */
+    public static boolean hasKeyUsageKeyCertSign(X509Certificate cert) {
+        boolean[] ku = cert.getKeyUsage();
+        return ku != null && ku.length > 5 && ku[5];
     }
 }
