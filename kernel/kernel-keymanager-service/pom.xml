@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.mosip.kernel</groupId>
 	<artifactId>kernel-keymanager-service</artifactId>
-	<version>1.3.0-SNAPSHOT</version>
+	<version>1.3.0-beta.4</version>
 	<name>kernel-keymanager-service</name>
 	<description>Mosip commons project </description>
 	<url>https://github.com/mosip/keymanager</url>
@@ -29,7 +29,7 @@
 		<kernel.bom.version>1.3.0-beta.2</kernel.bom.version>
 		<kernel.core.version>1.3.0-beta.2</kernel.core.version>
 		<kernel.logger.logback.version>1.3.0-beta.2</kernel.logger.logback.version>
-		<kernel.pdfgenerator.version>1.3.0-SNAPSHOT</kernel.pdfgenerator.version>
+		<kernel.pdfgenerator.version>1.3.0-beta.3</kernel.pdfgenerator.version>
 		<kernel.dataaccess.hibernate.version>1.3.0-beta.2</kernel.dataaccess.hibernate.version>
 
 		<!-- data -->
