@@ -490,7 +490,10 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             CBORObject cborPayload = CBORObject.FromObject(cborClaimsMap);
             return cborPayload.EncodeToBytes();
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Invalid JSON payload", e);
+            LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Payload is not a valid JSON. Treating as plain string.");
+            CBORObject cborPayload = CBORObject.FromObject(payload);
+            return cborPayload.EncodeToBytes();
         }
     }
 
