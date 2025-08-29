@@ -506,7 +506,8 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 	}
 
-	private String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate headerCertificate, String reqCertData) {
+	@Override
+	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate headerCertificate, String reqCertData) {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation.");
 		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
@@ -1031,6 +1032,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		String reqCertData = SignatureUtil.isDataValid(jwtVerifyRequestDto.getCertificateData())
 				? jwtVerifyRequestDto.getCertificateData(): null;
+
 		String applicationId = jwtVerifyRequestDto.getApplicationId();
 		String referenceId = jwtVerifyRequestDto.getReferenceId();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -1088,7 +1090,8 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		return null;
 	}
 
-	private String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
+	@Override
+	public String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation.");
 		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());

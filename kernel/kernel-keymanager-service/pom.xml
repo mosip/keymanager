@@ -51,6 +51,8 @@
 		<bcprov.jdk18on.version>1.78.1</bcprov.jdk18on.version>
 		<bcpkix.jdk18on.version>1.78.1</bcpkix.jdk18on.version>
 		<mockito.core.version>3.4.3</mockito.core.version>
+		<cose.java.version>1.1.0</cose.java.version>
+		<cbor.version>1.19</cbor.version>
 	</properties>
 
 	<repositories>
@@ -268,6 +270,16 @@
 			<groupId>com.github.multiformats</groupId>
 			<artifactId>java-multibase</artifactId>
 			<version>1.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.augustcellars.cose</groupId>
+			<artifactId>cose-java</artifactId>
+			<version>${cose.java.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.authlete</groupId>
+			<artifactId>cbor</artifactId>
+			<version>${cbor.version}</version>
 		</dependency>
 	</dependencies>
 

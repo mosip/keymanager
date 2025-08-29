@@ -12,11 +12,13 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Objects;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,9 +42,9 @@ import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import java.util.Set;
+
 import java.util.stream.Collectors;
-import java.util.Arrays;
+
 import com.nimbusds.jose.JOSEObjectType;
 
 /**
@@ -176,7 +178,7 @@ public class SignatureUtil {
 
 	public static String convertHexToBase64(String anyHexString) {
 		try {
-			
+
 			return CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(Hex.decodeHex(anyHexString)));
 		} catch (DecoderException | NoSuchAlgorithmException e) {
 			// ignore this exception.
@@ -211,7 +213,7 @@ public class SignatureUtil {
 			}
 		} catch (IOException e) {
 			LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Provided JSON Data to sign is invalid.");
+					"Invalid JSON Payload Data Provided.");
 			return SignatureConstant.BLANK;
 		}
 	}

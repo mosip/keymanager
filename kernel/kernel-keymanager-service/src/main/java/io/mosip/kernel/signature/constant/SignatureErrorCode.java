@@ -25,7 +25,11 @@ public enum SignatureErrorCode {
 
 	SIGN_NOT_ALLOWED("KER-JWS-108", "Signing data not allowed for the authenticated token."),
 
-	INTERNAL_SERVER_ERROR("KER-CSS-102", "Internal server error");
+	INTERNAL_SERVER_ERROR("KER-CSS-500", "Internal server error"),
+
+	COSE_SIGN_ERROR("KER-CWS-109", "Error - Unable to sign the data."),
+
+	COSE_VERIFY_ERROR("KER-CWS-110", "Error - Unable to verify the data.");
 
 	private final String errorCode;
 	private final String errorMessage;
