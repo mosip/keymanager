@@ -117,7 +117,7 @@ public class KeyGeneratorUtils {
 
 	public static PublicKey createPublicKey(String algorithmName, byte[] publicKeyData) {
 		try {
-			return KeyFactory.getInstance(KeymanagerConstant.ED25519_KEY_TYPE, provider)
+			return KeyFactory.getInstance(algorithmName, provider)
 					            .generatePublic(new X509EncodedKeySpec(publicKeyData));
 		} catch(InvalidKeySpecException | java.security.NoSuchAlgorithmException e) {
 			throw new NoSuchAlgorithmException(
@@ -126,18 +126,6 @@ public class KeyGeneratorUtils {
 		}
 
 	}
-
-	public static PublicKey createECPublicKey(String algorithmName, byte[] publicKeyData) {
-		try {
-			return KeyFactory.getInstance("EC", provider)
-					.generatePublic(new X509EncodedKeySpec(publicKeyData));
-		} catch(InvalidKeySpecException | java.security.NoSuchAlgorithmException e) {
-			throw new NoSuchAlgorithmException(
-					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
-					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
-		}
-	}
-
 
 	/**
 	 * Initialize by adding bouncy castle provider in JVM.

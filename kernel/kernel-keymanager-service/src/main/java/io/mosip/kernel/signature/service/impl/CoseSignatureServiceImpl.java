@@ -141,7 +141,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,	Optional.of(referenceId), timestamp);
         keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(), DateUtils.parseUTCToDate(timestamp));
 
-        String signedData = signCose(payload, certificateResponse, coseSignRequestDto);
+        String signedData = signCose(payload, certificateResponse, referenceId, coseSignRequestDto);
 
         CoseSignResponseDto responseDto = new CoseSignResponseDto();
         responseDto.setSignedData(signedData);
@@ -151,11 +151,11 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         return responseDto;
     }
 
-    private String signCose(String cosePayload,	SignatureCertificate certificateResponse, CoseSignRequestDto requestDto) {
+    private String signCose(String cosePayload,	SignatureCertificate certificateResponse, String referenceId, CoseSignRequestDto requestDto) {
         try {
 
             String algorithm = requestDto.getAlgorithm() == null || requestDto.getAlgorithm().isEmpty() ?
-                    COSE_SIGNATURE_ALGO_IDENT.get(requestDto.getReferenceId()) : requestDto.getAlgorithm();
+                    COSE_SIGNATURE_ALGO_IDENT.get(referenceId) : requestDto.getAlgorithm();
             COSEProtectedHeaderBuilder protectedHeaderBuilder = buildCoseProtectedHeader(certificateResponse, algorithm, requestDto);
             COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder = buildCoseUnprotectedHeader(certificateResponse, requestDto);
             String keyId = getKeyId(kidPrepend, certificateResponse, requestDto, includeKeyId);
@@ -166,7 +166,6 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             }
 
             PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
-            byte[] cosePayloadBytes = convertToCborClaims(cosePayload);
 
             COSEProtectedHeader protectedHeader = protectedHeaderBuilder.build();
             COSEUnprotectedHeader unprotectedHeader = unprotectedHeaderBuilder.build();
@@ -174,7 +173,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             SigStructure sigStructure = new SigStructureBuilder()
                     .signature1()
                     .bodyAttributes(protectedHeader)
-                    .payload(cosePayloadBytes)
+                    .payload(cosePayload)
                     .build();
 
             SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(algorithm);
@@ -188,7 +187,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             COSESign1 coseSign1 = new COSESign1Builder()
                     .protectedHeader(protectedHeader)
                     .unprotectedHeader(unprotectedHeader)
-                    .payload(cosePayloadBytes)
+                    .payload(cosePayload)
                     .signature(signature)
                     .build();
 
@@ -260,7 +259,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             if (x5Chain == null) {
                 LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Certificate not found in COSE Header.");
-                isTrustValid = SignatureConstant.TRUST_NOT_VALID;
+                isTrustValid = SignatureConstant.TRUST_VALID;
             }else if (x5Chain.size() > 1) {
                 List<Certificate> certificateList = new ArrayList<>(x5Chain);
                 isTrustValid = signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList , reqCertData);
@@ -307,11 +306,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     }
 
     private Certificate getCertificateToVerify(String reqCertData, String applicationId, String referenceId) {
-        // 2nd precedence to consider certificate to use in signature verification (Certificate Data provided in request).
         if (reqCertData != null)
             return keymanagerUtil.convertToCertificate(reqCertData);
-
-        // 3rd precedence to consider certificate to use in signature verification. (based on AppId & RefId)
         KeyPairGenerateResponseDto certificateResponse = keymanagerService.getCertificate(applicationId,
                 Optional.of(referenceId));
         return keymanagerUtil.convertToCertificate(certificateResponse.getCertificate());
@@ -339,7 +335,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             } else if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE)) {
                 LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                         "Found EC Certificate for Signature verification.");
-                publicKey = KeyGeneratorUtils.createECPublicKey(keyAlgorithm, x509CertToVerify.getPublicKey().getEncoded());
+                publicKey = KeyGeneratorUtils.createPublicKey(keyAlgorithm, x509CertToVerify.getPublicKey().getEncoded());
             } else {
                 publicKey = x509CertToVerify.getPublicKey();
             }
