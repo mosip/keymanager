@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import jakarta.annotation.PostConstruct;
 import javax.security.auth.x500.X500Principal;
 
@@ -298,7 +299,15 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                                         + " able to parse, may be p7b certificate data inputed.");
         }
         // Try to Parse as P7B file.
-        byte[] p7bBytes = CryptoUtil.decodeURLSafeBase64(certificateData);
+        byte[] p7bBytes;
+        try {
+            p7bBytes = CryptoUtil.decodeURLSafeBase64(certificateData);
+        } catch (Exception e) {
+            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
+                PartnerCertManagerConstants.EMPTY, "Invalid Certificate Data provided to upload the ca/sub-ca certificate.");
+            throw new PartnerCertManagerException(KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
+                    KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
+        }
         try (ByteArrayInputStream certStream = new ByteArrayInputStream(p7bBytes)) {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             Collection<?> p7bCertList = cf.generateCertificates(certStream);
