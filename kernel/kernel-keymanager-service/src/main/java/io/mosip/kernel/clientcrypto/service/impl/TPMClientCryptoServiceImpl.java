@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.KeyGenerator;
@@ -67,9 +68,15 @@ class TPMClientCryptoServiceImpl implements ClientCryptoService {
     //Note: TPM is single threaded
     private static Tpm tpm;
 
-    private final AtomicReference<CreatePrimaryResponse> signingPrimaryResponse = new AtomicReference<>();
+    private static final String SIGNING_KEY = "signing";
+    private static final String ENCRYPTION_KEY = "encryption";
 
-    private final AtomicReference<CreatePrimaryResponse> encPrimaryResponse = new AtomicReference<>();
+    // Global, thread-safe key cache
+    private static final ConcurrentHashMap<String, CreatePrimaryResponse> keyCache = new ConcurrentHashMap<>();
+
+    // Fast thread-local cache for repeated access in the same thread
+    private static final ThreadLocal<ConcurrentHashMap<String, CreatePrimaryResponse>> threadLocalKeyCache =
+            ThreadLocal.withInitial(ConcurrentHashMap::new);
 
     TPMClientCryptoServiceImpl() throws Throwable {
         LOGGER.debug(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.TPM,
@@ -229,33 +236,39 @@ class TPMClientCryptoServiceImpl implements ClientCryptoService {
      */
 
     private CreatePrimaryResponse createSigningKey() {
-        CreatePrimaryResponse cached = signingPrimaryResponse.get();
+        // First, try thread-local cache
+        CreatePrimaryResponse localKey = threadLocalKeyCache.get().get(SIGNING_KEY);
+        if (localKey != null) return localKey;
+
+        // Then, try global cache
+        CreatePrimaryResponse cached = keyCache.get(SIGNING_KEY);
         if (cached != null) {
+            // Put in thread-local for fast repeat access
+            threadLocalKeyCache.get().put(SIGNING_KEY, cached);
             return cached;
         }
 
+        // Not cached, create it
         LOGGER.info(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.TPM,
                 ClientCryptoManagerConstant.EMPTY, "Creating the Key from Platform TPM");
 
-        CreatePrimaryResponse created = signingPrimaryResponse.updateAndGet(existing -> {
-            if (existing != null) return existing;
-            TPMT_PUBLIC template = new TPMT_PUBLIC(
-                    TPM_ALG_ID.SHA1,
-                    new TPMA_OBJECT(TPMA_OBJECT.fixedTPM, TPMA_OBJECT.fixedParent, TPMA_OBJECT.sign,
-                            TPMA_OBJECT.sensitiveDataOrigin, TPMA_OBJECT.userWithAuth),
-                    new byte[0],
-                    new TPMS_RSA_PARMS(
-                            new TPMT_SYM_DEF_OBJECT(TPM_ALG_ID.NULL, 0, TPM_ALG_ID.NULL),
-                            new TPMS_SIG_SCHEME_RSASSA(TPM_ALG_ID.SHA256), 2048, 65537),
-                    new TPM2B_PUBLIC_KEY_RSA());
-            TPM_HANDLE primaryHandle = TPM_HANDLE.from(TPM_RH.ENDORSEMENT);
-            TPMS_SENSITIVE_CREATE dataToBeSealedWithAuth = new TPMS_SENSITIVE_CREATE(NULL_VECTOR, NULL_VECTOR);
+        TPMT_PUBLIC template = new TPMT_PUBLIC(TPM_ALG_ID.SHA1,
+                new TPMA_OBJECT(TPMA_OBJECT.fixedTPM, TPMA_OBJECT.fixedParent, TPMA_OBJECT.sign,
+                        TPMA_OBJECT.sensitiveDataOrigin, TPMA_OBJECT.userWithAuth),
+                new byte[0],
+                new TPMS_RSA_PARMS(new TPMT_SYM_DEF_OBJECT(TPM_ALG_ID.NULL, 0, TPM_ALG_ID.NULL),
+                        new TPMS_SIG_SCHEME_RSASSA(TPM_ALG_ID.SHA256), 2048, 65537),
+                new TPM2B_PUBLIC_KEY_RSA());
+        TPM_HANDLE primaryHandle = TPM_HANDLE.from(TPM_RH.ENDORSEMENT);
+        TPMS_SENSITIVE_CREATE dataToBeSealedWithAuth = new TPMS_SENSITIVE_CREATE(NULL_VECTOR, NULL_VECTOR);
 
-            synchronized (tpm) {
-                return tpm.CreatePrimary(primaryHandle, dataToBeSealedWithAuth, template,
-                        NULL_VECTOR, new TPMS_PCR_SELECTION[0]);
-            }
-        });
+        CreatePrimaryResponse created;
+        synchronized (tpm) {
+            created = tpm.CreatePrimary(primaryHandle, dataToBeSealedWithAuth, template,
+                    NULL_VECTOR, new TPMS_PCR_SELECTION[0]);
+        }
+        keyCache.putIfAbsent(SIGNING_KEY, created);
+        threadLocalKeyCache.get().put(SIGNING_KEY, created);
 
         LOGGER.info(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.TPM,
                 ClientCryptoManagerConstant.EMPTY, "Completed creating the Signing Key from Platform TPM");
@@ -268,8 +281,14 @@ class TPMClientCryptoServiceImpl implements ClientCryptoService {
      */
 
     private CreatePrimaryResponse createRSAKey() {
-        CreatePrimaryResponse cached = encPrimaryResponse.get();
+        // First, try thread-local cache
+        CreatePrimaryResponse localKey = threadLocalKeyCache.get().get(ENCRYPTION_KEY);
+        if (localKey != null) return localKey;
+
+        // Then, try global cache
+        CreatePrimaryResponse cached = keyCache.get(ENCRYPTION_KEY);
         if (cached != null) {
+            threadLocalKeyCache.get().put(ENCRYPTION_KEY, cached);
             return cached;
         }
 
@@ -277,37 +296,35 @@ class TPMClientCryptoServiceImpl implements ClientCryptoService {
                 ClientCryptoManagerConstant.EMPTY, "Getting Asymmetric Key Creation from tpm");
 
         LocalDateTime localDateTime = LocalDateTime.now();
+        byte[] standardEKPolicy = new byte[] {
+                (byte) 0x83, 0x71, (byte) 0x97, 0x67, 0x44, (byte) 0x84, (byte) 0xb3,
+                (byte) 0xf8, 0x1a, (byte) 0x90, (byte) 0xcc, (byte) 0x8d, 0x46, (byte) 0xa5, (byte) 0xd7, 0x24,
+                (byte) 0xfd, 0x52, (byte) 0xd7, 0x6e, 0x06, 0x52, 0x0b, 0x64, (byte) 0xf2, (byte) 0xa1, (byte) 0xda,
+                0x1b, 0x33, 0x14, 0x69, (byte) 0xaa
+        };
 
-        CreatePrimaryResponse created = encPrimaryResponse.updateAndGet(existing -> {
-            if (existing != null) return existing;
+        TPMT_PUBLIC template = new TPMT_PUBLIC(TPM_ALG_ID.SHA256,
+                new TPMA_OBJECT(TPMA_OBJECT.fixedTPM, TPMA_OBJECT.fixedParent,
+                        TPMA_OBJECT.decrypt, TPMA_OBJECT.sensitiveDataOrigin, TPMA_OBJECT.userWithAuth),
+                standardEKPolicy,
+                new TPMS_RSA_PARMS(new TPMT_SYM_DEF_OBJECT(TPM_ALG_ID.NULL, 0, TPM_ALG_ID.NULL),
+                        new TPMS_ENC_SCHEME_OAEP(TPM_ALG_ID.SHA256), 2048, 65537),
+                new TPM2B_PUBLIC_KEY_RSA());
+        TPMS_SENSITIVE_CREATE dataToBeSealedWithAuth = new TPMS_SENSITIVE_CREATE(NULL_VECTOR, NULL_VECTOR);
+        TPM_HANDLE primaryHandle = TPM_HANDLE.from(TPM_RH.ENDORSEMENT);
 
-            // This policy is a "standard" policy that is used with vendor-provided EKs
-            byte[] standardEKPolicy = new byte[] {
-                    (byte) 0x83, 0x71, (byte) 0x97, 0x67, 0x44, (byte) 0x84, (byte) 0xb3, (byte) 0xf8,
-                    0x1a, (byte) 0x90, (byte) 0xcc, (byte) 0x8d, 0x46, (byte) 0xa5, (byte) 0xd7, 0x24,
-                    (byte) 0xfd, 0x52, (byte) 0xd7, 0x6e, 0x06, 0x52, 0x0b, 0x64, (byte) 0xf2,
-                    (byte) 0xa1, (byte) 0xda, 0x1b, 0x33, 0x14, 0x69, (byte) 0xaa
-            };
-
-            TPMT_PUBLIC template = new TPMT_PUBLIC(TPM_ALG_ID.SHA256,
-                    new TPMA_OBJECT(TPMA_OBJECT.fixedTPM, TPMA_OBJECT.fixedParent,
-                            TPMA_OBJECT.decrypt, TPMA_OBJECT.sensitiveDataOrigin, TPMA_OBJECT.userWithAuth),
-                    standardEKPolicy,
-                    new TPMS_RSA_PARMS(new TPMT_SYM_DEF_OBJECT(TPM_ALG_ID.NULL, 0, TPM_ALG_ID.NULL),
-                            new TPMS_ENC_SCHEME_OAEP(TPM_ALG_ID.SHA256), 2048, 65537),
-                    new TPM2B_PUBLIC_KEY_RSA());
-            TPMS_SENSITIVE_CREATE dataToBeSealedWithAuth = new TPMS_SENSITIVE_CREATE(NULL_VECTOR, NULL_VECTOR);
-            TPM_HANDLE primaryHandle = TPM_HANDLE.from(TPM_RH.ENDORSEMENT);
-
-            synchronized (tpm) {
-                return tpm.CreatePrimary(primaryHandle, dataToBeSealedWithAuth, template, null, null);
-            }
-        });
+        CreatePrimaryResponse created;
+        synchronized (tpm) {
+            created = tpm.CreatePrimary(primaryHandle, dataToBeSealedWithAuth, template, null, null);
+        }
+        keyCache.putIfAbsent(ENCRYPTION_KEY, created);
+        threadLocalKeyCache.get().put(ENCRYPTION_KEY, created);
 
         long secondsTaken = localDateTime.until(LocalDateTime.now(), ChronoUnit.SECONDS);
         LOGGER.info(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.TPM,
                 ClientCryptoManagerConstant.EMPTY,
-                String.format("Completed Asymmetric Key Creation using tpm. Time taken is %s seconds", secondsTaken));
+                String.format("Completed Asymmetric Key Creation using tpm. Time taken is %s seconds",
+                        String.valueOf(secondsTaken)));
         return created;
     }
 
