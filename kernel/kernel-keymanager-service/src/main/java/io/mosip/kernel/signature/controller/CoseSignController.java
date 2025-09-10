@@ -54,9 +54,9 @@ public class CoseSignController {
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     @ResponseFilter
     @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcosesign())")
-    @PostMapping(value = "/coseSign")
+    @PostMapping(value = "/coseSign1")
     public ResponseWrapper<CoseSignResponseDto> coseSign(@RequestBody @Valid RequestWrapper<CoseSignRequestDto> requestDto) {
-        CoseSignResponseDto coseSignResponse = service.coseSign(requestDto.getRequest());
+        CoseSignResponseDto coseSignResponse = service.coseSign1(requestDto.getRequest());
         ResponseWrapper<CoseSignResponseDto> response = new ResponseWrapper<>();
         response.setResponse(coseSignResponse);
         return response;

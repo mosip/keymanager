@@ -4,11 +4,14 @@ import com.authlete.cose.COSEProtectedHeaderBuilder;
 import com.authlete.cose.COSEUnprotectedHeaderBuilder;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.keymanagerservice.dto.SignatureCertificate;
+import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.dto.CoseSignRequestDto;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
+import io.mosip.kernel.signature.service.impl.CoseSignatureServiceImpl;
+import org.springframework.stereotype.Component;
 
 import java.security.MessageDigest;
 import java.security.cert.Certificate;
@@ -17,26 +20,17 @@ import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Component
 public class CoseHeaderBuilder {
-    private final SignatureCertificate certificateResponse;
-    private final CoseSignRequestDto requestDto;
-    private final Integer coseAlgorithm;
-    private final KeymanagerUtil keymanagerUtil;
-    private final Logger logger;
 
-    public CoseHeaderBuilder(SignatureCertificate certificateResponse,
-                             CoseSignRequestDto requestDto,
-                             Integer coseAlgorithm,
-                             KeymanagerUtil keymanagerUtil,
-                             Logger logger) {
-        this.certificateResponse = certificateResponse;
-        this.requestDto = requestDto;
-        this.coseAlgorithm = coseAlgorithm;
-        this.keymanagerUtil = keymanagerUtil;
-        this.logger = logger;
-    }
+    private static final Logger LOGGER = KeymanagerLogger.getLogger(CoseHeaderBuilder.class);
 
-    public COSEProtectedHeaderBuilder buildProtected() {
+    private static final Set<Object> STANDARD_HEADER_KEYS = Set.of("alg", "crit", "content-type", "cty", "kid", "iv", "x5c", "x5t",
+            "x5t#S256", "x5u", "content", "partialIV", "partial-iv", 1, 2, 3, 4, 5, 6, 32, 33, 34, 35);
+
+    private static final Set<Object> CERTIFICATE_OBJECTS = Set.of("includeCertificate", "includeCertificateChain", "includeCertificateHash", "certificateUrl");
+
+    public COSEProtectedHeaderBuilder buildProtectedHeader(SignatureCertificate certificateResponse, CoseSignRequestDto requestDto, Integer coseAlgorithm, KeymanagerUtil keymanagerUtil) {
         COSEProtectedHeaderBuilder protectedHeaderBuilder = new COSEProtectedHeaderBuilder();
         Map<String, Object> protectedHeaderMap = requestDto.getProtectedHeader();
 
@@ -48,110 +42,65 @@ public class CoseHeaderBuilder {
             return protectedHeaderBuilder;
         }
 
-        if (protectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_CRITICAL_PARAM)) {
-            Object critValue = protectedHeaderMap.get(SignatureConstant.COSE_HEADER_CRITICAL_PARAM);
-            List<Object> critList = parseCritHeader((String) critValue);
+        List<Object> critList = extractCritList(protectedHeaderMap);
+        if (!critList.isEmpty()) {
             protectedHeaderBuilder.crit(critList);
         }
 
-        if (protectedHeaderMap.containsKey(SignatureConstant.JWS_HEADER_CONTENT_TYPE) || protectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_CONTENT_TYPE)) {
-            Object contentType = protectedHeaderMap.getOrDefault(SignatureConstant.JWS_HEADER_CONTENT_TYPE, protectedHeaderMap.get(SignatureConstant.COSE_HEADER_CONTENT_TYPE));
-            protectedHeaderBuilder.contentType((String) contentType);
+        String contentType = extractContentType(protectedHeaderMap);
+        if (contentType != null) {
+            protectedHeaderBuilder.contentType(contentType);
         }
 
-        X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
-        if (protectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)) {
-            Object includeCertChainValue = protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN);
-            if (includeCertChainValue instanceof Boolean) {
-                boolean includeCertChain = (boolean) includeCertChainValue;
-                if (includeCertChain) {
-                    List<? extends Certificate> x5Chain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
-                    try {
-                        protectedHeaderBuilder.x5chain((List<X509Certificate>) x5Chain);
-                    } catch (CertificateEncodingException e) {
-                        throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
-                                SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
-                    }
-                }
-            } else {
-                logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                        "Warning: includeCertificateChain header value is not a boolean.");
-            }
-        } else if (protectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
-            Object includeCertValue = protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE);
-            if (includeCertValue instanceof Boolean) {
-                boolean includeCert = (boolean) includeCertValue;
-                if (includeCert) {
-                    try {
-                        protectedHeaderBuilder.x5chain(Collections.singletonList(x509Certificate));
-                    } catch (CertificateEncodingException e) {
-                        throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
-                                SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
-                    }
-                }
+        // X.509 chain or single certificate
+        List<X509Certificate> x5c = determineX5Chain(certificateResponse, protectedHeaderMap, keymanagerUtil);
+        if (x5c != null && !x5c.isEmpty()) {
+            try {
+                protectedHeaderBuilder.x5chain(x5c);
+            } catch (CertificateEncodingException e) {
+                throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
+                        SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
             }
         }
 
-        if (protectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_HASH)) {
-            Object includeCertHashValue = protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_HASH);
-            if (includeCertHashValue instanceof Boolean) {
-                boolean includeCertHash = (boolean) includeCertHashValue;
-                if (includeCertHash) {
-                    try {
-                        byte[] certHash = MessageDigest.getInstance(SignatureConstant.PSS_PARAM_SHA_256).digest(x509Certificate.getEncoded());
-                        protectedHeaderBuilder.put(34, certHash);
-                    } catch (Exception e) {
-                        logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                                "Warning: error generating certificate hash for COSE protected header.");
-                    }
-                }
-            } else {
-                logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                        "Warning: includeCertHash header value is not a boolean.");
+        // Certificate hash
+        byte[] certHash = computeCertHashIfRequested(certificateResponse, protectedHeaderMap);
+        if (certHash != null) {
+            protectedHeaderBuilder.put(34, certHash);
+        }
+
+        // Certificate URL
+        String certificateUrl = extractCertificateUrl(protectedHeaderMap);
+        if (certificateUrl != null && !certificateUrl.isEmpty()) {
+            protectedHeaderBuilder.put(35, certificateUrl);
+        }
+
+        // IV or Partial IV
+        byte[] ivBytes = extractIvBytes(protectedHeaderMap);
+        if (ivBytes != null) {
+            protectedHeaderBuilder.iv(ivBytes);
+        } else {
+            byte[] partialIvBytes = extractPartialIvBytes(protectedHeaderMap);
+            if (partialIvBytes != null) {
+                protectedHeaderBuilder.partialIv(partialIvBytes);
             }
         }
 
-        if (protectedHeaderMap.containsKey(SignatureConstant.CERTIFICATE_URL)) {
-            Object certificateUrlValue = protectedHeaderMap.get(SignatureConstant.CERTIFICATE_URL);
-            if (certificateUrlValue instanceof String certificateUrl) {
-                if (!certificateUrl.isEmpty()) {
-                    protectedHeaderBuilder.put(35, certificateUrl);
-                }
-            } else {
-                logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                        "Warning: certificateUrl header value is not a string.");
-            }
-        }
-
-        if (protectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_IV)) {
-            Object ivValue = protectedHeaderMap.get(SignatureConstant.COSE_HEADER_IV);
-            if (ivValue instanceof String iv) {
-                protectedHeaderBuilder.iv(iv.getBytes());
-            }
-        } else if (protectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_PARTIAL_IV)) {
-            Object partialIVValue = protectedHeaderMap.get(SignatureConstant.COSE_HEADER_PARTIAL_IV);
-            if (partialIVValue instanceof String partialIV) {
-                protectedHeaderBuilder.partialIv(partialIV.getBytes());
-            }
-        }
-
-        if (!protectedHeaderMap.isEmpty()) {
-            for (Map.Entry<String, Object> entry : requestDto.getProtectedHeader().entrySet()) {
-                if (!STANDARD_HEADER_KEYS.contains(entry.getKey()) && !CERTIFICATE_OBJECTS.contains(entry.getKey())) {
-                    try {
-                        protectedHeaderBuilder.put(entry.getKey(), entry.getValue());
-                    } catch (Exception e) {
-                        logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                                "Warning: error adding custom protected header: " + entry.getKey(), e);
-                    }
-                }
+        // Custom headers
+        Map<String, Object> customHeaders = extractCustomHeaders(protectedHeaderMap);
+        for (Map.Entry<String, Object> entry : customHeaders.entrySet()) {
+            try {
+                protectedHeaderBuilder.put(entry.getKey(), entry.getValue());
+            } catch (Exception e) {
+                LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Warning: error adding custom protected header: " + entry.getKey(), e);
             }
         }
 
         return protectedHeaderBuilder;
     }
 
-    public COSEUnprotectedHeaderBuilder buildUnprotected() {
+    public COSEUnprotectedHeaderBuilder buildUnprotectedHeader(SignatureCertificate certificateResponse, CoseSignRequestDto requestDto, KeymanagerUtil keymanagerUtil) {
         COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder = new COSEUnprotectedHeaderBuilder();
         Map<String, Object> unprotectedHeaderMap = requestDto.getUnprotectedHeader();
 
@@ -165,107 +114,64 @@ public class CoseHeaderBuilder {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
-        if (unprotectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_CRITICAL_PARAM)) {
-            Object critValue = unprotectedHeaderMap.get(SignatureConstant.COSE_HEADER_CRITICAL_PARAM);
-            List<Object> critList = parseCritHeader((String) critValue);
+        List<Object> critList = extractCritList(unprotectedHeaderMap);
+        if (!critList.isEmpty()) {
             unprotectedHeaderBuilder.crit(critList);
         }
 
-        if (unprotectedHeaderMap.containsKey(SignatureConstant.JWS_HEADER_CONTENT_TYPE) || unprotectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_CONTENT_TYPE)) {
-            Object contentType = unprotectedHeaderMap.getOrDefault(SignatureConstant.JWS_HEADER_CONTENT_TYPE, unprotectedHeaderMap.get(SignatureConstant.COSE_HEADER_CONTENT_TYPE));
-            unprotectedHeaderBuilder.contentType((String) contentType);
+        String contentType = extractContentType(unprotectedHeaderMap);
+        if (contentType != null) {
+            unprotectedHeaderBuilder.contentType(contentType);
         }
 
-        X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
-        if (!requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN) && !requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
-            if (unprotectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)) {
-                Object includeCertChainValue = unprotectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN);
-                if (includeCertChainValue instanceof Boolean) {
-                    boolean includeCertChain = (boolean) includeCertChainValue;
-                    if (includeCertChain) {
-                        List<? extends Certificate> x5Chain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
-                        try {
-                            unprotectedHeaderBuilder.x5chain((List<X509Certificate>) x5Chain);
-                        } catch (CertificateEncodingException e) {
-                            throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
-                                    SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
-                        }
-                    }
-                } else {
-                    logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                            "Warning: includeCertificateChain header value is not a boolean.");
-                }
-            } else if (unprotectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
-                Object includeCertValue = unprotectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE);
-                if (includeCertValue instanceof Boolean) {
-                    boolean includeCert = (boolean) includeCertValue;
-                    if (includeCert) {
-                        try {
-                            unprotectedHeaderBuilder.x5chain(Collections.singletonList(x509Certificate));
-                        } catch (CertificateEncodingException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+        // X.509 chain or single certificate (only if not requested in protected headers)
+        if (!(requestDto.getProtectedHeader() != null &&
+                (requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)
+                        || requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE)))) {
+            List<X509Certificate> x5c = determineX5Chain(certificateResponse, unprotectedHeaderMap, keymanagerUtil);
+            if (x5c != null && !x5c.isEmpty()) {
+                try {
+                    unprotectedHeaderBuilder.x5chain(x5c);
+                } catch (CertificateEncodingException e) {
+                    throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
+                            SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
                 }
             }
         }
 
-        if (unprotectedHeaderMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_HASH)) {
-            Object includeCertHashValue = unprotectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_HASH);
-            if (includeCertHashValue instanceof Boolean) {
-                boolean includeCertHash = (boolean) includeCertHashValue;
-                if (includeCertHash) {
-                    try {
-                        byte[] certHash = MessageDigest.getInstance(SignatureConstant.PSS_PARAM_SHA_256).digest(x509Certificate.getEncoded());
-                        unprotectedHeaderBuilder.put(34, certHash);
-                    } catch (Exception e) {
-                        logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                                "Warning: error generating certificate hash for COSE protected header.");
-                    }
-                }
-            } else {
-                logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                        "Warning: includeCertHash header value is not a boolean.");
+        // Certificate hash
+        byte[] certHash = computeCertHashIfRequested(certificateResponse, unprotectedHeaderMap);
+        if (certHash != null) {
+            unprotectedHeaderBuilder.put(34, certHash);
+        }
+
+        // Certificate URL
+        String certificateUrl = extractCertificateUrl(unprotectedHeaderMap);
+        if (certificateUrl != null && !certificateUrl.isEmpty()) {
+            unprotectedHeaderBuilder.put(35, certificateUrl);
+        }
+
+        // IV or Partial IV
+        byte[] ivBytes = extractIvBytes(unprotectedHeaderMap);
+        if (ivBytes != null) {
+            unprotectedHeaderBuilder.iv(ivBytes);
+        } else {
+            byte[] partialIvBytes = extractPartialIvBytes(unprotectedHeaderMap);
+            if (partialIvBytes != null) {
+                unprotectedHeaderBuilder.partialIv(partialIvBytes);
             }
         }
 
-        if (unprotectedHeaderMap.containsKey(SignatureConstant.CERTIFICATE_URL)) {
-            Object certificateUrlValue = unprotectedHeaderMap.get(SignatureConstant.CERTIFICATE_URL);
-            if (certificateUrlValue instanceof String certificateUrl) {
-                if (!certificateUrl.isEmpty()) {
-                    unprotectedHeaderBuilder.put(35, certificateUrl);
-                }
-            } else {
-                logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                        "Warning: certificateUrl header value is not a string.");
+        // Custom headers
+        Map<String, Object> customHeaders = extractCustomHeaders(unprotectedHeaderMap);
+        for (Map.Entry<String, Object> entry : customHeaders.entrySet()) {
+            try {
+                unprotectedHeaderBuilder.put(entry.getKey(), entry.getValue());
+            } catch (Exception e) {
+                LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Warning: error adding custom unprotected header: " + entry.getKey(), e);
             }
         }
-
-        if (unprotectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_IV)) {
-            Object ivValue = unprotectedHeaderMap.get(SignatureConstant.COSE_HEADER_IV);
-            if (ivValue instanceof String iv) {
-                unprotectedHeaderBuilder.iv(iv.getBytes());
-            }
-        } else if (unprotectedHeaderMap.containsKey(SignatureConstant.COSE_HEADER_PARTIAL_IV)) {
-            Object partialIVValue = unprotectedHeaderMap.get(SignatureConstant.COSE_HEADER_PARTIAL_IV);
-            if (partialIVValue instanceof String partialIV) {
-                unprotectedHeaderBuilder.partialIv(partialIV.getBytes());
-            }
-        }
-
-        if (!unprotectedHeaderMap.isEmpty()) {
-            for (Map.Entry<String, Object> entry : unprotectedHeaderMap.entrySet()) {
-                if (!STANDARD_HEADER_KEYS.contains(entry.getKey()) && !CERTIFICATE_OBJECTS.contains(entry.getKey())) {
-                    try {
-                        unprotectedHeaderBuilder.put(entry.getKey(), entry.getValue());
-                    } catch (Exception e) {
-                        logger.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                                "Warning: error adding custom unprotected header: " + entry.getKey(), e);
-                    }
-                }
-            }
-        }
-
         return unprotectedHeaderBuilder;
     }
 
@@ -281,8 +187,121 @@ public class CoseHeaderBuilder {
                 .collect(Collectors.toList());
     }
 
-    private static final Set<Object> STANDARD_HEADER_KEYS = Set.of("alg", "crit", "content-type", "cty", "kid", "iv", "x5c", "x5t",
-            "x5t#S256", "x5u", "content", "partialIV", "partial-iv", 1, 2, 3, 4, 5, 6, 32, 33, 34, 35);
+    private static List<Object> extractCritList(Map<String, Object> headerMap) {
+        if (headerMap.containsKey(SignatureConstant.COSE_HEADER_CRITICAL_PARAM)) {
+            Object critValue = headerMap.get(SignatureConstant.COSE_HEADER_CRITICAL_PARAM);
+            return parseCritHeader((String) critValue);
+        }
+        return Collections.emptyList();
+    }
 
-    private static final Set<Object> CERTIFICATE_OBJECTS = Set.of("includeCertificate", "includeCertificateChain", "includeCertificateHash", "certificateUrl");
-} 
+    private static String extractContentType(Map<String, Object> headerMap) {
+        if (headerMap.containsKey(SignatureConstant.JWS_HEADER_CONTENT_TYPE) || headerMap.containsKey(SignatureConstant.COSE_HEADER_CONTENT_TYPE)) {
+            Object contentType = headerMap.getOrDefault(SignatureConstant.JWS_HEADER_CONTENT_TYPE,
+                    headerMap.get(SignatureConstant.COSE_HEADER_CONTENT_TYPE));
+            return (String) contentType;
+        }
+        return null;
+    }
+
+    private static List<X509Certificate> determineX5Chain(SignatureCertificate certificateResponse, Map<String, Object> headerMap, KeymanagerUtil keymanagerUtil) {
+        X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
+        if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)) {
+            Object includeCertChainValue = headerMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN);
+            if (includeCertChainValue instanceof Boolean) {
+                boolean includeCertChain = (boolean) includeCertChainValue;
+                if (includeCertChain) {
+                    List<? extends Certificate> x5Chain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+                    return toX509CertificateList(x5Chain);
+                }
+            } else {
+                LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Warning: includeCertificateChain header value is not a boolean.");
+            }
+        } else if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
+            Object includeCertValue = headerMap.get(SignatureConstant.INCLUDE_CERTIFICATE);
+            if (includeCertValue instanceof Boolean) {
+                boolean includeCert = (boolean) includeCertValue;
+                if (includeCert) {
+                    return Collections.singletonList(x509Certificate);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static List<X509Certificate> toX509CertificateList(List<? extends Certificate> certificates) {
+        if (certificates == null || certificates.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return certificates.stream()
+                .filter(Objects::nonNull)
+                .filter(c -> c instanceof X509Certificate)
+                .map(c -> (X509Certificate) c)
+                .collect(Collectors.toList());
+    }
+
+    private static byte[] computeCertHashIfRequested(SignatureCertificate certificateResponse, Map<String, Object> headerMap) {
+        X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
+        if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_HASH)) {
+            Object includeCertHashValue = headerMap.get(SignatureConstant.INCLUDE_CERTIFICATE_HASH);
+            if (includeCertHashValue instanceof Boolean) {
+                boolean includeCertHash = (boolean) includeCertHashValue;
+                if (includeCertHash) {
+                    try {
+                        return MessageDigest.getInstance(SignatureConstant.PSS_PARAM_SHA_256).digest(x509Certificate.getEncoded());
+                    } catch (Exception e) {
+                        LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                                "Warning: error generating certificate hash for COSE protected header.");
+                    }
+                }
+            } else {
+                LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Warning: includeCertHash header value is not a boolean.");
+            }
+        }
+        return null;
+    }
+
+    private static String extractCertificateUrl(Map<String, Object> headerMap) {
+        if (headerMap.containsKey(SignatureConstant.CERTIFICATE_URL)) {
+            Object certificateUrlValue = headerMap.get(SignatureConstant.CERTIFICATE_URL);
+            if (certificateUrlValue instanceof String) {
+                return (String) certificateUrlValue;
+            } else {
+                LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Warning: certificateUrl header value is not a string.");
+            }
+        }
+        return null;
+    }
+
+    private static byte[] extractIvBytes(Map<String, Object> headerMap) {
+        if (headerMap.containsKey(SignatureConstant.COSE_HEADER_IV)) {
+            Object ivValue = headerMap.get(SignatureConstant.COSE_HEADER_IV);
+            if (ivValue instanceof String) {
+                return ((String) ivValue).getBytes();
+            }
+        }
+        return null;
+    }
+
+    private static byte[] extractPartialIvBytes(Map<String, Object> headerMap) {
+        if (headerMap.containsKey(SignatureConstant.COSE_HEADER_PARTIAL_IV)) {
+            Object partialIVValue = headerMap.get(SignatureConstant.COSE_HEADER_PARTIAL_IV);
+            if (partialIVValue instanceof String) {
+                return ((String) partialIVValue).getBytes();
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> extractCustomHeaders(Map<String, Object> headerMap) {
+        if (headerMap == null || headerMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return headerMap.entrySet().stream()
+                .filter(entry -> !STANDARD_HEADER_KEYS.contains(entry.getKey()) && !CERTIFICATE_OBJECTS.contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+}

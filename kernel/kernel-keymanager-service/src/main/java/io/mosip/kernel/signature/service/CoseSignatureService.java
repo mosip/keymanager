@@ -13,7 +13,7 @@ public interface CoseSignatureService {
      * @param coseSignRequestDto the COSESignRequestDto
      * @return the COSESignResponseDto
      */
-    public CoseSignResponseDto coseSign(CoseSignRequestDto coseSignRequestDto);
+    public CoseSignResponseDto coseSign1(CoseSignRequestDto coseSignRequestDto);
 
     /**
      * COSE Verify

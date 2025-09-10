@@ -11,18 +11,20 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
+import com.authlete.cbor.CBORPairList;
+import com.authlete.cbor.CBORizer;
+import com.authlete.cose.COSEProtectedHeader;
+import com.authlete.cose.COSESign1;
+import com.authlete.cose.COSEUnprotectedHeader;
+import com.authlete.cwt.constants.CWTClaims;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -335,6 +337,9 @@ public class SignatureUtil {
 
 	private JWSHeader.Builder addRegisteredJWSHeaders(Map<String, String> additionalHeaders, JWSHeader.Builder jwsHeaderBuilder) {
 
+        if (additionalHeaders == null)
+            return jwsHeaderBuilder;
+
 		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_TYPE_KEY)) {
 			jwsHeaderBuilder.type(new JOSEObjectType(additionalHeaders.get(SignatureConstant.JWS_HEADER_TYPE_KEY)));
 		}
@@ -362,4 +367,11 @@ public class SignatureUtil {
 		}
 		return jwsHeaderBuilder;
 	}
+
+    public List<X509Certificate> getX5ChainfromCoseSign1(COSESign1 coseSign1) {
+        COSEProtectedHeader protectedHeader = coseSign1.getProtectedHeader();
+        COSEUnprotectedHeader unprotectedHeader = coseSign1.getUnprotectedHeader();
+
+        return protectedHeader.getX5Chain() != null ? protectedHeader.getX5Chain() : unprotectedHeader.getX5Chain();
+    }
 }
