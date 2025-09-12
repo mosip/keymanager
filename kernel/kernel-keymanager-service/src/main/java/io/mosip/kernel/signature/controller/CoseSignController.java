@@ -7,6 +7,7 @@ import io.mosip.kernel.signature.dto.CoseSignRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignResponseDto;
 import io.mosip.kernel.signature.dto.CoseSignVerifyRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignVerifyResponseDto;
+import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.CoseSignatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -53,7 +54,7 @@ public class CoseSignController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     @ResponseFilter
-    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcosesign())")
+    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcosesign1())")
     @PostMapping(value = "/coseSign1")
     public ResponseWrapper<CoseSignResponseDto> coseSign(@RequestBody @Valid RequestWrapper<CoseSignRequestDto> requestDto) {
         CoseSignResponseDto coseSignResponse = service.coseSign1(requestDto.getRequest());
@@ -75,10 +76,10 @@ public class CoseSignController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     @ResponseFilter
-    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcoseverify())")
-    @PostMapping(value = "/coseVerify")
-    public ResponseWrapper<CoseSignVerifyResponseDto> coseVerify(@RequestBody @Valid RequestWrapper<CoseSignVerifyRequestDto> requestDto) {
-        CoseSignVerifyResponseDto coseSignVerifyResponse = service.coseVerify(requestDto.getRequest());
+    @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcoseverify1())")
+    @PostMapping(value = "/coseVerify1")
+    public ResponseWrapper<CoseSignVerifyResponseDto> coseVerify1(@RequestBody @Valid RequestWrapper<CoseSignVerifyRequestDto> requestDto) {
+        CoseSignVerifyResponseDto coseSignVerifyResponse = service.coseVerify1(requestDto.getRequest());
         ResponseWrapper<CoseSignVerifyResponseDto> response = new ResponseWrapper<>();
         response.setResponse(coseSignVerifyResponse);
         return response;

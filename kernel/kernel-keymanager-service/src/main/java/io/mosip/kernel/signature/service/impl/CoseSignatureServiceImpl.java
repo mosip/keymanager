@@ -186,7 +186,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     }
 
     @Override
-    public CoseSignVerifyResponseDto coseVerify(CoseSignVerifyRequestDto requestDto) {
+    public CoseSignVerifyResponseDto coseVerify1(CoseSignVerifyRequestDto requestDto) {
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                 "COSE Signature Verification Request.");
 

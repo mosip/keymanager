@@ -21,5 +21,5 @@ public interface CoseSignatureService {
      * @param coseSignVerifyRequestDto the COSESignVerifyRequestDto
      * @return the COSESignVerifyResponseDto
      */
-    public CoseSignVerifyResponseDto coseVerify(CoseSignVerifyRequestDto coseSignVerifyRequestDto);
+    public CoseSignVerifyResponseDto coseVerify1(CoseSignVerifyRequestDto coseSignVerifyRequestDto);
 }

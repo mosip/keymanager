@@ -32,7 +32,7 @@ public class AuthorizedRolesDTO
 
 	private List<String> postsignrawdata;
 
-	private List<String> postcosesign;
+	private List<String> postcosesign1;
 
-	private List<String> postcoseverify;
+	private List<String> postcoseverify1;
 }
