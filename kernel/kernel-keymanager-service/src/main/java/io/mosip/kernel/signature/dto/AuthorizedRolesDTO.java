@@ -31,4 +31,8 @@ public class AuthorizedRolesDTO
 	private List<String> postsignv2;
 
 	private List<String> postsignrawdata;
+
+	private List<String> postcosesign1;
+
+	private List<String> postcoseverify1;
 }
