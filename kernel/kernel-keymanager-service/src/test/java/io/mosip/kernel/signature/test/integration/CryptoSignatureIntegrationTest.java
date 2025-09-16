@@ -61,7 +61,6 @@ public class CryptoSignatureIntegrationTest {
 	
 	@Autowired
 	private KeyGenerator generator;
-
 	
 	private KeyPair keyPair;
 	

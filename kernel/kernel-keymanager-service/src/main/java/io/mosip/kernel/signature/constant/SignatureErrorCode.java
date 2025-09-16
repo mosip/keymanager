@@ -38,7 +38,13 @@ public enum SignatureErrorCode {
 
     SIGN_ALGO_NOT_SUPPORTED("KER-SIG-113", "Signature Algorithm Not Supported"),
 
-    DATA_PARSING_ERROR("KER-SIG-114", "Input data parsing error.");
+    DATA_PARSING_ERROR("KER-SIG-114", "Input data parsing error."),
+
+    FUTURE_DATE_ERROR("KER-SIG-115", "Future Date Error."),
+
+    NEGETIVE_INTEGER_ERROR("KER-SIG-117", "Negetive Integer Not Allowed."),
+
+    EXPIRE_DATE_ERROR("KER-SIG-116", "Expire Date Error");
 
 	private final String errorCode;
 	private final String errorMessage;

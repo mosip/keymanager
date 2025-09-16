@@ -3,6 +3,7 @@ package io.mosip.kernel.signature.service.impl;
 import com.authlete.cbor.*;
 import com.authlete.cose.*;
 import com.authlete.cose.constants.COSEAlgorithms;
+import com.authlete.cwt.constants.CWTClaims;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
@@ -454,6 +455,154 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             protectedHeaderBuilder.kid(keyId);
         } else if (keyId != null) {
             unprotectedHeaderBuilder.kid(keyId);
+        }
+    }
+
+    @Override
+    public CoseSignResponseDto cwtSign(CWTRequestDto requestDto) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                "CWT Sign Request");
+
+        if (!cryptomanagerUtil.hasKeyAccess(requestDto.getApplicationId())) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Signing Data is not allowed for the authenticated user for the provided application id." + " App Id: " + requestDto.getApplicationId());
+            throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+                    SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
+        }
+
+        String b64Payload = requestDto.getPayload();
+        if (!SignatureUtil.isDataValid(b64Payload)) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Provided Payload is invalid.");
+            throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+                    SignatureErrorCode.INVALID_INPUT.getErrorMessage());
+        }
+
+        String payload = new String(CryptoUtil.decodeURLSafeBase64(b64Payload));
+        if (!SignatureUtil.isJsonValid(payload)) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Provided Payload is not a valid JSON.");
+            throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+                    SignatureErrorCode.INVALID_JSON.getErrorMessage());
+        }
+
+        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String applicationId = requestDto.getApplicationId();
+        String referenceId = requestDto.getReferenceId();
+        if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+            applicationId = signApplicationid;
+            referenceId = signRefid;
+        }
+
+        SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId, Optional.of(referenceId), timestamp);
+        byte[] cborClaimsPayload = signatureUtil.buildCborClaimSet(requestDto);
+        CoseSignRequestDto coseSignRequestDto = getCoseSignRequestDto(requestDto);
+        String signedData = signCose1(cborClaimsPayload, certificateResponse, referenceId, coseSignRequestDto, true);
+
+        CoseSignResponseDto responseDto = new CoseSignResponseDto();
+        responseDto.setSignedData(signedData);
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                "CWT Sign Request Successful.");
+        return responseDto;
+    }
+
+    private static CoseSignRequestDto getCoseSignRequestDto(CWTRequestDto requestDto) {
+        CoseSignRequestDto coseSignRequestDto = new CoseSignRequestDto();
+        coseSignRequestDto.setPayload(requestDto.getPayload());
+        coseSignRequestDto.setApplicationId(requestDto.getApplicationId());
+        coseSignRequestDto.setReferenceId(requestDto.getReferenceId());
+        coseSignRequestDto.setProtectedHeader(requestDto.getProtectedHeader());
+        coseSignRequestDto.setUnprotectedHeader(requestDto.getUnprotectedHeader());
+        coseSignRequestDto.setAlgorithm(requestDto.getAlgorithm());
+        return coseSignRequestDto;
+    }
+
+    @Override
+    public CoseSignVerifyResponseDto cwtVerify(CoseSignVerifyRequestDto requestDto) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                "CWT Verify Request");
+
+        try {
+            String cwtHexData = requestDto.getCoseSignedData();
+            if (!SignatureUtil.isDataValid(cwtHexData)) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Provided CWT data is invalid.");
+                throw new RequestException(SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorCode(),
+                        SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorMessage());
+            }
+
+            String reqCertData = SignatureUtil.isDataValid(requestDto.getCertificateData()) ? requestDto.getCertificateData() : null;
+            String applicationId = requestDto.getApplicationId();
+            String referenceId = requestDto.getReferenceId();
+            if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+                applicationId = signApplicationid;
+                referenceId = signRefid;
+            }
+
+            byte[] cwtData = hexStringToByteArray(cwtHexData);
+            CBORDecoder cborDecoder = new CBORDecoder(cwtData);
+            CBORTaggedItem outerCborTaggedItem = (CBORTaggedItem) cborDecoder.next();
+            if ((int) outerCborTaggedItem.getTagNumber() != 61 ) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Provided Data is not CWT or missing CWT Tag." + " CWT Tag Number: " + outerCborTaggedItem.getTagNumber());
+                throw new RequestException(SignatureErrorCode.INVALID_CWT_INPUT.getErrorCode(),
+                        SignatureErrorCode.INVALID_CWT_INPUT.getErrorMessage());
+            }
+
+            CBORTaggedItem innerTaggedItem = (CBORTaggedItem) outerCborTaggedItem.getTagContent();
+            if ((int) innerTaggedItem.getTagNumber() != 18) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Provided CWT data does not have COSE Sign1 Array tag (or) is not signed by COSE Sign1." + " COSE Sign1 Tag Number: " + innerTaggedItem.getTagNumber());
+                throw new RequestException(SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorCode(),
+                        SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorMessage());
+            }
+
+            COSESign1 cwtSign1 = (COSESign1) innerTaggedItem.getTagContent();
+            Map<Object, Object> claimsMap = signatureUtil.constructMapfromCoseSign1Payload(cwtSign1);
+            basicCWTChecks(claimsMap);
+            boolean signatureValid = verifyCoseSignature(cwtSign1, reqCertData, applicationId, referenceId);
+
+            CoseSignVerifyResponseDto responseDto = new CoseSignVerifyResponseDto();
+            responseDto.setSignatureValid(signatureValid);
+            responseDto.setMessage(signatureValid ? SignatureConstant.VALIDATION_SUCCESSFUL : SignatureConstant.VALIDATION_FAILED);
+            responseDto.setTrustValid(validateTrustForCose(applicationId, referenceId, cwtSign1, reqCertData, requestDto));
+            return responseDto;
+        } catch (IOException e) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                    "Error occurred while verifying CWT data.", e);
+            throw new RequestException(SignatureErrorCode.COSE_VERIFY_ERROR.getErrorCode(),
+                    SignatureErrorCode.COSE_VERIFY_ERROR.getErrorMessage(), e);
+        }
+    }
+
+    private void basicCWTChecks(Map<Object, Object> payloadMap) {
+
+        if (payloadMap == null || payloadMap.isEmpty()) {
+            throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+                    SignatureErrorCode.INVALID_JSON.getErrorMessage());
+        }
+
+        if (payloadMap.containsKey(CWTClaims.NBF)) {
+            long nbfMillis = ((Number) payloadMap.get(CWTClaims.NBF)).longValue();
+            Date nbfDate = new Date(nbfMillis * 1000);
+            if (!signatureUtil.isNotBeforeDateValid(nbfDate)) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Provided CWT Sign is not ACTIVATED. NotBeforeDate is in the future.");
+                throw new RequestException(SignatureErrorCode.FUTURE_DATE_ERROR.getErrorCode(),
+                        SignatureErrorCode.FUTURE_DATE_ERROR.getErrorMessage());
+            }
+        }
+
+        if (payloadMap.containsKey(CWTClaims.EXP)) {
+            long expMillis = ((Number) payloadMap.get(CWTClaims.EXP)).longValue();
+            Date expDate = new Date(expMillis * 1000);
+            if (!signatureUtil.isExpireDateValid(expDate)) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Provided CWT Sign is EXPIRED. ExpiryDate is in the past.");
+                throw new RequestException(SignatureErrorCode.EXPIRE_DATE_ERROR.getErrorCode(),
+                        SignatureErrorCode.EXPIRE_DATE_ERROR.getErrorMessage());
+            }
         }
     }
 }

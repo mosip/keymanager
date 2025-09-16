@@ -13,25 +13,27 @@ import java.security.cert.X509Certificate;
 import java.time.ZoneId;
 import java.util.*;
 
-import com.authlete.cbor.CBORPairList;
-import com.authlete.cbor.CBORizer;
+import com.authlete.cbor.CBORItem;
+import com.authlete.cbor.CBORParser;
 import com.authlete.cose.COSEProtectedHeader;
 import com.authlete.cose.COSESign1;
 import com.authlete.cose.COSEUnprotectedHeader;
-import com.authlete.cwt.constants.CWTClaims;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.authlete.cwt.CWTClaimsSetBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
+import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.signature.constant.SignatureErrorCode;
+import io.mosip.kernel.signature.dto.CWTRequestDto;
+import io.mosip.kernel.signature.exception.RequestException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -43,6 +45,7 @@ import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
@@ -61,6 +64,15 @@ public class SignatureUtil {
 
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
+
+    @Value("${mosip.keymanager.signature.cwt.iss:}")
+    private String iss;
+
+    @Value("${mosip.keymanager.signature.cwt.exp:180}")
+    private int expInDays;
+
+    @Value("${mosip.keymanager.signature.cwt.nbf:0}")
+    private int nbfInDays;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
@@ -373,5 +385,134 @@ public class SignatureUtil {
         COSEUnprotectedHeader unprotectedHeader = coseSign1.getUnprotectedHeader();
 
         return protectedHeader.getX5Chain() != null ? protectedHeader.getX5Chain() : unprotectedHeader.getX5Chain();
+    }
+
+    public byte[] buildCborClaimSet(CWTRequestDto requestDto) {
+        CWTClaimsSetBuilder claimsSetBuilder = new CWTClaimsSetBuilder();
+
+        String issuer = requestDto.getIssuer() != null ? requestDto.getIssuer() : this.iss;
+        int notBeforeIndays = requestDto.getNotBeforeDateInDays() != null ? requestDto.getNotBeforeDateInDays() : this.nbfInDays;
+        int expireIndays = requestDto.getExpireDateInDays() != null ? requestDto.getExpireDateInDays() : this.expInDays;
+
+        if (notBeforeIndays < 0 || expireIndays < 0) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Not Before or Expire Date In Days cannot be negative.");
+            throw new KeymanagerServiceException(SignatureErrorCode.NEGETIVE_INTEGER_ERROR.getErrorCode(),
+                    SignatureErrorCode.NEGETIVE_INTEGER_ERROR.getErrorMessage());
+        }
+
+        try {
+            String payload = new String(CryptoUtil.decodeURLSafeBase64(requestDto.getPayload()));
+            JsonNode node = mapper.readTree(payload);
+
+            Iterator<String> fieldNames = node.fieldNames();
+            while (fieldNames.hasNext()) {
+                String key = fieldNames.next();
+                JsonNode valueNode = node.get(key);
+                Object value = mapper.treeToValue(valueNode, Object.class);
+                claimsSetBuilder.put(key, value);
+            }
+        } catch (IOException e) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Invalid JSON Payload Data Provided.");
+            throw  new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+                    SignatureErrorCode.INVALID_JSON.getErrorMessage());
+        }
+
+        Date issuedAt = new Date();
+        Date notBefore = DateUtils.addDays(issuedAt, notBeforeIndays);
+        Date expire = DateUtils.addDays(notBefore, expireIndays);
+        String cwtUniqueId = UUID.randomUUID().toString();
+
+        if (issuer != null && !issuer.isBlank()) {
+            claimsSetBuilder.iss(issuer);
+        }
+
+        if (requestDto.getSubject() != null && !requestDto.getSubject().isBlank()) {
+            claimsSetBuilder.sub(requestDto.getSubject());
+        }
+
+        if (requestDto.getAudience() != null && !requestDto.getAudience().isBlank()) {
+            claimsSetBuilder.aud(requestDto.getAudience());
+        }
+
+        claimsSetBuilder.exp(expire);
+        claimsSetBuilder.nbf(notBefore);
+        claimsSetBuilder.iat(issuedAt);
+        claimsSetBuilder.cti(cwtUniqueId);
+
+        CBORItem claimSet = claimsSetBuilder.build();
+        return claimSet.encode();
+    }
+
+    public boolean isNotBeforeDateValid(Date notBeforeDate) {
+        if (notBeforeDate == null) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.BLANK, SignatureConstant.BLANK,
+                    "Not Before Date is null.");
+            throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
+                    KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage());
+        }
+        Date currentDate = new Date();
+        return !currentDate.before(notBeforeDate);
+    }
+
+    public boolean isExpireDateValid(Date expireDate) {
+        if (expireDate == null) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.BLANK, SignatureConstant.BLANK,
+                    "Expire Date is null.");
+            throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
+                    KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage());
+        }
+        Date currentDate = new Date();
+        return currentDate.before(expireDate);
+    }
+
+    public Map<Object, Object> constructMapfromCoseSign1Payload(COSESign1 cwtSign1) {
+        try {
+            CBORItem cborItem = cwtSign1.getPayload();
+            byte[] cborPayloadBytes = cwtSign1.getPayload().encode();
+            CBORParser cborParser = new CBORParser(cborPayloadBytes);
+            Object payloadDecoder = cborParser.next();
+            byte[] firstLevelBytes = (byte[]) payloadDecoder;
+            CBORParser nestedParser = new CBORParser(firstLevelBytes);
+            Object nestedDecoded = nestedParser.next();
+            if (!(nestedDecoded instanceof Map)) {
+                throw new IllegalArgumentException("Inner payload not a Map");
+            }
+            return (Map<Object, Object>) nestedDecoded;
+        } catch (IOException e) {
+            throw new RequestException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
+                    SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
+        }
+    }
+
+    public static Map<String, Object> filterMapEntries(Map<String, Object> protectedHeaderMap, Map<String, Object> unprotectedHeaderMap) {
+        if (protectedHeaderMap != null && !protectedHeaderMap.isEmpty()) {
+
+            boolean includeCertChain = Boolean.TRUE.equals(protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN));
+            boolean includeCert = Boolean.TRUE.equals(protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE));
+
+            // If any one is true in protected, remove both keys from unprotected if present and filter out other keys with Boolean true in protected
+            if (includeCertChain || includeCert) {
+                unprotectedHeaderMap = unprotectedHeaderMap.entrySet().stream()
+                        .filter(entry -> !SignatureConstant.INCLUDE_CERTIFICATE_CHAIN.equals(entry.getKey())
+                                && !SignatureConstant.INCLUDE_CERTIFICATE.equals(entry.getKey()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            } else {
+                unprotectedHeaderMap = unprotectedHeaderMap.entrySet().stream()
+                        .filter(entry -> {
+                            String key = entry.getKey();
+
+                            if (protectedHeaderMap.containsKey(key)) {
+                                Object protectedVal = protectedHeaderMap.get(key);
+                                // Remove only if protected header value is Boolean true
+                                return !(protectedVal instanceof Boolean && (Boolean) protectedVal);
+                            }
+                            return true;
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+        }
+        return unprotectedHeaderMap;
     }
 }
