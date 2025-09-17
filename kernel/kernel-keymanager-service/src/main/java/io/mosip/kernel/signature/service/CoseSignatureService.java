@@ -1,6 +1,7 @@
 package io.mosip.kernel.signature.service;
 
-import io.mosip.kernel.signature.dto.CWTRequestDto;
+import io.mosip.kernel.signature.dto.CWTSignRequestDto;
+import io.mosip.kernel.signature.dto.CWTVerifyRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignResponseDto;
 import io.mosip.kernel.signature.dto.CoseSignVerifyRequestDto;
@@ -27,10 +28,10 @@ public interface CoseSignatureService {
     /**
      * CWT Sign
      *
-     * @param cwtRequestDto the CoseSignRequestDto
+     * @param cwtSignRequestDto the CoseSignRequestDto
      * @return the CoseSignResponseDto
      */
-    public CoseSignResponseDto cwtSign(CWTRequestDto cwtRequestDto);
+    public CoseSignResponseDto cwtSign(CWTSignRequestDto cwtSignRequestDto);
 
     /**
      * CWT Verify
@@ -38,5 +39,5 @@ public interface CoseSignatureService {
      * @param coseSignVerifyRequestDto the CoseSignVerifyRequestDto
      * @return the CoseSignVerifyResponseDto
      */
-    public CoseSignVerifyResponseDto cwtVerify(CoseSignVerifyRequestDto coseSignVerifyRequestDto);
+    public CoseSignVerifyResponseDto cwtVerify(CWTVerifyRequestDto coseSignVerifyRequestDto);
 }

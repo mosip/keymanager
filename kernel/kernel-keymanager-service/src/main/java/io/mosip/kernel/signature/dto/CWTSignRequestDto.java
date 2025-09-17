@@ -8,10 +8,18 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
+/**
+ * Request DTO for CWT data signing.
+ *
+ * @author Nagendra
+ * @since 1.3.0
+ *
+ */
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CWTRequestDto {
+public class CWTSignRequestDto {
     @NotBlank
     @ApiModelProperty(notes = "Base64 encoded Data to sign", example = "ewogICAiYW55S2V5IjogIlRlc3QgSnNvbiIKfQ", required = true)
     private String payload;
@@ -68,11 +76,11 @@ public class CWTRequestDto {
      * Expire date in number of days
      */
     @ApiModelProperty(notes = "Expire date in number of days", example = "30", required = false)
-    private Integer expireDateInDays;
+    private Integer expireDays;
 
     /**
      * Not Before date in number of days
      */
     @ApiModelProperty(notes = "Not Before date in number of days", example = "1", required = false)
-    private Integer notBeforeDateInDays;
+    private Integer notBeforeDays;
 }

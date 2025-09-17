@@ -4,9 +4,6 @@ import com.authlete.cbor.*;
 import com.authlete.cose.*;
 import com.authlete.cose.constants.COSEAlgorithms;
 import com.authlete.cwt.constants.CWTClaims;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
@@ -85,7 +82,17 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     @Value("${mosip.kernel.keymanager.signature.kid.prepend:}")
     private String kidPrepend;
 
-    private static final ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+    @Value("${mosip.kernel.keymanager.signature.cwt.verify.iss:}")
+    private String verifyIss;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.verify.sub:}")
+    private String verifySub;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.verify.iss.enable:false}")
+    private boolean issVerifyEnable;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.verify.sub.enable:false}")
+    private boolean subVerifyEnable;
 
     @Override
     public CoseSignResponseDto coseSign1(CoseSignRequestDto coseSignRequestDto) {
@@ -176,10 +183,10 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         byte[] coseBytes = coseSign1.encode();
         CBORDecoder decoder = new CBORDecoder(coseBytes);
         CBORItem coseItem = decoder.next();
-        CBORTaggedItem sign1Tagged = new CBORTaggedItem(18, coseItem);
+        CBORTaggedItem sign1Tagged = new CBORTaggedItem(SignatureConstant.COSE_SIGN1_TAG, coseItem);
 
         if (isCwt) {
-            CBORTaggedItem cwtTagged = new CBORTaggedItem(61, sign1Tagged);
+            CBORTaggedItem cwtTagged = new CBORTaggedItem(SignatureConstant.CWT_SIGN_TAG, sign1Tagged);
             return cwtTagged.encode();
         } else {
             return sign1Tagged.encode();
@@ -211,7 +218,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             byte[] coseData = hexStringToByteArray(coseHexdata);
             CBORDecoder cborDecoder = new CBORDecoder(coseData);
             CBORTaggedItem cborTaggedItem = (CBORTaggedItem) cborDecoder.next();
-            if ((int)cborTaggedItem.getTagNumber() != 18) {
+            if ((int)cborTaggedItem.getTagNumber() != SignatureConstant.COSE_SIGN1_TAG) {
                 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Provided CWT data does not have COSE Sign1 Array tag." + " CWT Tag Number: " + cborTaggedItem.getTagNumber());
                 throw new RequestException(SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorCode(),
@@ -459,7 +466,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     }
 
     @Override
-    public CoseSignResponseDto cwtSign(CWTRequestDto requestDto) {
+    public CoseSignResponseDto cwtSign(CWTSignRequestDto requestDto) {
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                 "CWT Sign Request");
 
@@ -478,14 +485,6 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                     SignatureErrorCode.INVALID_INPUT.getErrorMessage());
         }
 
-        String payload = new String(CryptoUtil.decodeURLSafeBase64(b64Payload));
-        if (!SignatureUtil.isJsonValid(payload)) {
-            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                    "Provided Payload is not a valid JSON.");
-            throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
-                    SignatureErrorCode.INVALID_JSON.getErrorMessage());
-        }
-
         String timestamp = DateUtils.getUTCCurrentDateTimeString();
         String applicationId = requestDto.getApplicationId();
         String referenceId = requestDto.getReferenceId();
@@ -495,8 +494,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         }
 
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId, Optional.of(referenceId), timestamp);
-        byte[] cborClaimsPayload = signatureUtil.buildCborClaimSet(requestDto);
-        CoseSignRequestDto coseSignRequestDto = getCoseSignRequestDto(requestDto);
+        byte[] cborClaimsPayload = signatureUtil.buildCWTClaimSet(requestDto);
+        CoseSignRequestDto coseSignRequestDto = buildCoseSignRequestDto(requestDto);
         String signedData = signCose1(cborClaimsPayload, certificateResponse, referenceId, coseSignRequestDto, true);
 
         CoseSignResponseDto responseDto = new CoseSignResponseDto();
@@ -507,7 +506,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         return responseDto;
     }
 
-    private static CoseSignRequestDto getCoseSignRequestDto(CWTRequestDto requestDto) {
+    private static CoseSignRequestDto buildCoseSignRequestDto(CWTSignRequestDto requestDto) {
         CoseSignRequestDto coseSignRequestDto = new CoseSignRequestDto();
         coseSignRequestDto.setPayload(requestDto.getPayload());
         coseSignRequestDto.setApplicationId(requestDto.getApplicationId());
@@ -518,8 +517,19 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         return coseSignRequestDto;
     }
 
+    private static CoseSignVerifyRequestDto buildCoseSignVerifyRequestDto(CWTVerifyRequestDto requestDto) {
+        CoseSignVerifyRequestDto coseSignVerifyRequestDto = new CoseSignVerifyRequestDto();
+        coseSignVerifyRequestDto.setCoseSignedData(requestDto.getCoseSignedData());
+        coseSignVerifyRequestDto.setApplicationId(requestDto.getApplicationId());
+        coseSignVerifyRequestDto.setReferenceId(requestDto.getReferenceId());
+        coseSignVerifyRequestDto.setCertificateData(requestDto.getCertificateData());
+        coseSignVerifyRequestDto.setValidateTrust(requestDto.getValidateTrust());
+        coseSignVerifyRequestDto.setDomain(requestDto.getDomain());
+        return coseSignVerifyRequestDto;
+    }
+
     @Override
-    public CoseSignVerifyResponseDto cwtVerify(CoseSignVerifyRequestDto requestDto) {
+    public CoseSignVerifyResponseDto cwtVerify(CWTVerifyRequestDto requestDto) {
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                 "CWT Verify Request");
 
@@ -543,7 +553,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             byte[] cwtData = hexStringToByteArray(cwtHexData);
             CBORDecoder cborDecoder = new CBORDecoder(cwtData);
             CBORTaggedItem outerCborTaggedItem = (CBORTaggedItem) cborDecoder.next();
-            if ((int) outerCborTaggedItem.getTagNumber() != 61 ) {
+            if ((int) outerCborTaggedItem.getTagNumber() != SignatureConstant.CWT_SIGN_TAG ) {
                 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Provided Data is not CWT or missing CWT Tag." + " CWT Tag Number: " + outerCborTaggedItem.getTagNumber());
                 throw new RequestException(SignatureErrorCode.INVALID_CWT_INPUT.getErrorCode(),
@@ -551,7 +561,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             }
 
             CBORTaggedItem innerTaggedItem = (CBORTaggedItem) outerCborTaggedItem.getTagContent();
-            if ((int) innerTaggedItem.getTagNumber() != 18) {
+            if ((int) innerTaggedItem.getTagNumber() != SignatureConstant.COSE_SIGN1_TAG) {
                 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Provided CWT data does not have COSE Sign1 Array tag (or) is not signed by COSE Sign1." + " COSE Sign1 Tag Number: " + innerTaggedItem.getTagNumber());
                 throw new RequestException(SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorCode(),
@@ -560,13 +570,14 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
 
             COSESign1 cwtSign1 = (COSESign1) innerTaggedItem.getTagContent();
             Map<Object, Object> claimsMap = signatureUtil.constructMapfromCoseSign1Payload(cwtSign1);
-            basicCWTChecks(claimsMap);
+            basicCWTChecks(claimsMap, requestDto);
             boolean signatureValid = verifyCoseSignature(cwtSign1, reqCertData, applicationId, referenceId);
 
             CoseSignVerifyResponseDto responseDto = new CoseSignVerifyResponseDto();
             responseDto.setSignatureValid(signatureValid);
             responseDto.setMessage(signatureValid ? SignatureConstant.VALIDATION_SUCCESSFUL : SignatureConstant.VALIDATION_FAILED);
-            responseDto.setTrustValid(validateTrustForCose(applicationId, referenceId, cwtSign1, reqCertData, requestDto));
+            CoseSignVerifyRequestDto coseSignVerifyRequestDto = buildCoseSignVerifyRequestDto(requestDto);
+            responseDto.setTrustValid(validateTrustForCose(applicationId, referenceId, cwtSign1, reqCertData, coseSignVerifyRequestDto));
             return responseDto;
         } catch (IOException e) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
@@ -576,7 +587,10 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         }
     }
 
-    private void basicCWTChecks(Map<Object, Object> payloadMap) {
+    private void basicCWTChecks(Map<Object, Object> payloadMap, CWTVerifyRequestDto requestDto) {
+
+        String issuer = requestDto.getIssuer() != null ? requestDto.getIssuer() : verifyIss;
+        String subject = requestDto.getSubject() != null ? requestDto.getSubject() : verifySub;
 
         if (payloadMap == null || payloadMap.isEmpty()) {
             throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
@@ -584,8 +598,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         }
 
         if (payloadMap.containsKey(CWTClaims.NBF)) {
-            long nbfMillis = ((Number) payloadMap.get(CWTClaims.NBF)).longValue();
-            Date nbfDate = new Date(nbfMillis * 1000);
+            long nbfSeconds = ((Number) payloadMap.get(CWTClaims.NBF)).longValue();
+            Date nbfDate = new Date(nbfSeconds * 1000);
             if (!signatureUtil.isNotBeforeDateValid(nbfDate)) {
                 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Provided CWT Sign is not ACTIVATED. NotBeforeDate is in the future.");
@@ -595,13 +609,47 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         }
 
         if (payloadMap.containsKey(CWTClaims.EXP)) {
-            long expMillis = ((Number) payloadMap.get(CWTClaims.EXP)).longValue();
-            Date expDate = new Date(expMillis * 1000);
+            long expSeconds = ((Number) payloadMap.get(CWTClaims.EXP)).longValue();
+            Date expDate = new Date(expSeconds * 1000);
             if (!signatureUtil.isExpireDateValid(expDate)) {
                 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                         "Provided CWT Sign is EXPIRED. ExpiryDate is in the past.");
                 throw new RequestException(SignatureErrorCode.EXPIRE_DATE_ERROR.getErrorCode(),
                         SignatureErrorCode.EXPIRE_DATE_ERROR.getErrorMessage());
+            }
+        }
+
+        if (issVerifyEnable) {
+            String cwtIss = payloadMap.get(CWTClaims.ISS) != null ? payloadMap.get(CWTClaims.ISS).toString() : null;
+            if (cwtIss == null) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Issuer claim is missing in the token payload." + " Issuer: " + null);
+                throw new RequestException(SignatureErrorCode.CLAIM_NOT_FOUND.getErrorCode(),
+                        SignatureErrorCode.CLAIM_NOT_FOUND.getErrorMessage().replace("{claim}", "Issuer"));
+            } else {
+                if (!cwtIss.equals(issuer)) {
+                    LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                            "Issuer claim value does not match." + " Expected Issuer: " + issuer + ", Provided Issuer: " + cwtIss);
+                    throw new RequestException(SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorCode(),
+                            SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorMessage().replace("{claim}", "Issuer"));
+                }
+            }
+        }
+
+        if (subVerifyEnable) {
+            String cwtSub = payloadMap.get(CWTClaims.SUB) != null ? payloadMap.get(CWTClaims.SUB).toString() : null;
+            if (cwtSub == null) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                        "Subject claim is missing in the token payload." + " Subject: " + null);
+                throw new RequestException(SignatureErrorCode.CLAIM_NOT_FOUND.getErrorCode(),
+                        SignatureErrorCode.CLAIM_NOT_FOUND.getErrorMessage().replace("{claim}", "Subject"));
+            } else {
+                if (!cwtSub.equals(subject)) {
+                    LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                            "Subject claim value does not match." + " Expected Subject: " + subject + ", Provided Subject: " + cwtSub);
+                    throw new RequestException(SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorCode(),
+                            SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorMessage().replace("{claim}", "Subject"));
+                }
             }
         }
     }

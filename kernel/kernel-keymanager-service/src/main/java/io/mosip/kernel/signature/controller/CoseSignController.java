@@ -3,7 +3,8 @@ package io.mosip.kernel.signature.controller;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.signature.dto.CWTRequestDto;
+import io.mosip.kernel.signature.dto.CWTSignRequestDto;
+import io.mosip.kernel.signature.dto.CWTVerifyRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignRequestDto;
 import io.mosip.kernel.signature.dto.CoseSignResponseDto;
 import io.mosip.kernel.signature.dto.CoseSignVerifyRequestDto;
@@ -100,7 +101,7 @@ public class CoseSignController {
     @ResponseFilter
     @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcwtsign())")
     @PostMapping(value = "/cwtSign")
-    public ResponseWrapper<CoseSignResponseDto> cwtSign(@RequestBody @Valid RequestWrapper<CWTRequestDto> requestDto) {
+    public ResponseWrapper<CoseSignResponseDto> cwtSign(@RequestBody @Valid RequestWrapper<CWTSignRequestDto> requestDto) {
         CoseSignResponseDto coseSignResponse = service.cwtSign(requestDto.getRequest());
         ResponseWrapper<CoseSignResponseDto> response = new ResponseWrapper<>();
         response.setResponse(coseSignResponse);
@@ -122,7 +123,7 @@ public class CoseSignController {
     @ResponseFilter
     @PreAuthorize("hasAnyRole(@signAuthRoles.getPostcwtverify())")
     @PostMapping(value = "/cwtVerify")
-    public ResponseWrapper<CoseSignVerifyResponseDto> cwtVerify(@RequestBody @Valid RequestWrapper<CoseSignVerifyRequestDto> requestDto) {
+    public ResponseWrapper<CoseSignVerifyResponseDto> cwtVerify(@RequestBody @Valid RequestWrapper<CWTVerifyRequestDto> requestDto) {
         CoseSignVerifyResponseDto coseSignVerifyResponse = service.cwtVerify(requestDto.getRequest());
         ResponseWrapper<CoseSignVerifyResponseDto> response = new ResponseWrapper<>();
         response.setResponse(coseSignVerifyResponse);

@@ -32,7 +32,7 @@ import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
-import io.mosip.kernel.signature.dto.CWTRequestDto;
+import io.mosip.kernel.signature.dto.CWTSignRequestDto;
 import io.mosip.kernel.signature.exception.RequestException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -65,17 +65,19 @@ public class SignatureUtil {
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
 
-    @Value("${mosip.keymanager.signature.cwt.iss:}")
-    private String iss;
+    @Value("${mosip.kernel.keymanager.signature.cwt.sign.iss:}")
+    private String signIss;
 
-    @Value("${mosip.keymanager.signature.cwt.exp:180}")
+    @Value("${mosip.kernel.keymanager.signature.cwt.exp:180}")
     private int expInDays;
 
-    @Value("${mosip.keymanager.signature.cwt.nbf:0}")
+    @Value("${mosip.kernel.keymanager.signature.cwt.nbf:0}")
     private int nbfInDays;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
+
+    private static final Set<String> REGISTERED_CLAIMS = Set.of("iss", "sub", "aud", "exp", "nbf", "iat", "cti", "1", "2", "3", "4", "5", "6", "7");
 
 	public static boolean isDataValid(String anyData) {
 		return anyData != null && !anyData.trim().isEmpty();
@@ -387,19 +389,9 @@ public class SignatureUtil {
         return protectedHeader.getX5Chain() != null ? protectedHeader.getX5Chain() : unprotectedHeader.getX5Chain();
     }
 
-    public byte[] buildCborClaimSet(CWTRequestDto requestDto) {
-        CWTClaimsSetBuilder claimsSetBuilder = new CWTClaimsSetBuilder();
+    public byte[] buildCWTClaimSet(CWTSignRequestDto requestDto) {
 
-        String issuer = requestDto.getIssuer() != null ? requestDto.getIssuer() : this.iss;
-        int notBeforeIndays = requestDto.getNotBeforeDateInDays() != null ? requestDto.getNotBeforeDateInDays() : this.nbfInDays;
-        int expireIndays = requestDto.getExpireDateInDays() != null ? requestDto.getExpireDateInDays() : this.expInDays;
-
-        if (notBeforeIndays < 0 || expireIndays < 0) {
-            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                    "Not Before or Expire Date In Days cannot be negative.");
-            throw new KeymanagerServiceException(SignatureErrorCode.NEGETIVE_INTEGER_ERROR.getErrorCode(),
-                    SignatureErrorCode.NEGETIVE_INTEGER_ERROR.getErrorMessage());
-        }
+        CWTClaimsSetBuilder claimsSetBuilder = buildRegisteredCWTClaims(requestDto);
 
         try {
             String payload = new String(CryptoUtil.decodeURLSafeBase64(requestDto.getPayload()));
@@ -407,9 +399,29 @@ public class SignatureUtil {
 
             Iterator<String> fieldNames = node.fieldNames();
             while (fieldNames.hasNext()) {
-                String key = fieldNames.next();
-                JsonNode valueNode = node.get(key);
-                Object value = mapper.treeToValue(valueNode, Object.class);
+                String keyStr = fieldNames.next();
+
+                // Skip registered claims
+                if (REGISTERED_CLAIMS.contains(keyStr)) {
+                    continue;
+                }
+
+                Object key;
+                if (isNumeric(keyStr)) {
+                    key = Integer.parseInt(keyStr);
+                } else {
+                    key = keyStr;
+                }
+
+                JsonNode valueNode = node.get(keyStr);
+                Object value;
+
+                if (valueNode.isTextual() && isNumeric(valueNode.asText())) {
+                    value = Integer.parseInt(valueNode.asText());
+                } else {
+                    value = mapper.treeToValue(valueNode, Object.class);
+                }
+
                 claimsSetBuilder.put(key, value);
             }
         } catch (IOException e) {
@@ -417,6 +429,24 @@ public class SignatureUtil {
                     "Invalid JSON Payload Data Provided.");
             throw  new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
                     SignatureErrorCode.INVALID_JSON.getErrorMessage());
+        }
+
+        CBORItem claimSet = claimsSetBuilder.build();
+        return claimSet.encode();
+    }
+
+    private CWTClaimsSetBuilder buildRegisteredCWTClaims(CWTSignRequestDto requestDto) {
+        CWTClaimsSetBuilder claimsSetBuilder = new CWTClaimsSetBuilder();
+
+        String issuer = requestDto.getIssuer() != null ? requestDto.getIssuer() : this.signIss;
+        int notBeforeIndays = requestDto.getNotBeforeDays() != null ? requestDto.getNotBeforeDays() : this.nbfInDays;
+        int expireIndays = requestDto.getExpireDays() != null ? requestDto.getExpireDays() : this.expInDays;
+
+        if (notBeforeIndays < 0 || expireIndays < 0) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Not Before or Expire Date In Days cannot be negative.");
+            throw new KeymanagerServiceException(SignatureErrorCode.NEGATIVE_INTEGER_ERROR.getErrorCode(),
+                    SignatureErrorCode.NEGATIVE_INTEGER_ERROR.getErrorMessage().replace("{variable}", "days"));
         }
 
         Date issuedAt = new Date();
@@ -441,8 +471,7 @@ public class SignatureUtil {
         claimsSetBuilder.iat(issuedAt);
         claimsSetBuilder.cti(cwtUniqueId);
 
-        CBORItem claimSet = claimsSetBuilder.build();
-        return claimSet.encode();
+        return claimsSetBuilder;
     }
 
     public boolean isNotBeforeDateValid(Date notBeforeDate) {
@@ -469,7 +498,6 @@ public class SignatureUtil {
 
     public Map<Object, Object> constructMapfromCoseSign1Payload(COSESign1 cwtSign1) {
         try {
-            CBORItem cborItem = cwtSign1.getPayload();
             byte[] cborPayloadBytes = cwtSign1.getPayload().encode();
             CBORParser cborParser = new CBORParser(cborPayloadBytes);
             Object payloadDecoder = cborParser.next();
@@ -514,5 +542,14 @@ public class SignatureUtil {
             }
         }
         return unprotectedHeaderMap;
+    }
+
+    public static boolean isNumeric(String str) {
+        try {
+            Integer.parseInt(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

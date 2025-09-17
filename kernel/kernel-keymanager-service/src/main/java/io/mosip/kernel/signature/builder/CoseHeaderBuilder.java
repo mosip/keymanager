@@ -53,7 +53,7 @@ public class CoseHeaderBuilder {
         }
 
         // X.509 chain or single certificate
-        List<X509Certificate> x5c = determineX5Chain(certificateResponse, protectedHeaderMap, keymanagerUtil);
+        List<X509Certificate> x5c = getX509CertificateList(certificateResponse, protectedHeaderMap, keymanagerUtil);
         if (x5c != null && !x5c.isEmpty()) {
             try {
                 protectedHeaderBuilder.x5chain(x5c);
@@ -121,7 +121,7 @@ public class CoseHeaderBuilder {
         }
 
         // X.509 chain or single certificate (only if not requested in protected headers)
-        List<X509Certificate> x5c = determineX5Chain(certificateResponse, unprotectedHeaderMap, keymanagerUtil);
+        List<X509Certificate> x5c = getX509CertificateList(certificateResponse, unprotectedHeaderMap, keymanagerUtil);
         if (x5c != null && !x5c.isEmpty()) {
             try {
                 unprotectedHeaderBuilder.x5chain(x5c);
@@ -197,7 +197,7 @@ public class CoseHeaderBuilder {
         return null;
     }
 
-    private static List<X509Certificate> determineX5Chain(SignatureCertificate certificateResponse, Map<String, Object> headerMap, KeymanagerUtil keymanagerUtil) {
+    private static List<X509Certificate> getX509CertificateList(SignatureCertificate certificateResponse, Map<String, Object> headerMap, KeymanagerUtil keymanagerUtil) {
         X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 
         if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)) {
@@ -206,7 +206,7 @@ public class CoseHeaderBuilder {
                 boolean includeCertChain = (boolean) includeCertChainValue;
                 if (includeCertChain) {
                     List<? extends Certificate> x5Chain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
-                    return toX509CertificateList(x5Chain);
+                    return convertToX509CertificateList(x5Chain);
                 }
             } else {
                 LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
@@ -226,7 +226,7 @@ public class CoseHeaderBuilder {
         return null;
     }
 
-    private static List<X509Certificate> toX509CertificateList(List<? extends Certificate> certificates) {
+    private static List<X509Certificate> convertToX509CertificateList(List<? extends Certificate> certificates) {
         if (certificates == null || certificates.isEmpty()) {
             return Collections.emptyList();
         }

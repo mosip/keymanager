@@ -122,4 +122,8 @@ public class SignatureConstant {
 	public static final String CERTIFICATE_URL = "certificateUrl";
 
     public static final String RSA_PS256_SIGN_ALGORITHM_INSTANCE = "SHA256withRSAandMGF1";
+
+    public static final int COSE_SIGN1_TAG = 18 ;
+
+    public static final int CWT_SIGN_TAG = 61;
 }
