@@ -38,7 +38,17 @@ public enum SignatureErrorCode {
 
     SIGN_ALGO_NOT_SUPPORTED("KER-SIG-113", "Signature Algorithm Not Supported"),
 
-    DATA_PARSING_ERROR("KER-SIG-114", "Input data parsing error.");
+    DATA_PARSING_ERROR("KER-SIG-114", "Input data parsing error."),
+
+    FUTURE_DATE_ERROR("KER-SIG-115", "Token is not yet valid; Not Before date is in the future."),
+
+    EXPIRE_DATE_ERROR("KER-SIG-116", "Token is no longer valid; Expiry date exceeded."),
+
+    NEGATIVE_INTEGER_ERROR("KER-SIG-117", "Negative values are not allowed for {variable}."),
+
+    CLAIM_NOT_FOUND("KER-SIG-118", "{claim} Claim not found in the CWT Token."),
+
+    CLAIM_NOT_MATCHED("KER-SIG-119", "Provided {claim} Claim value not matched with CWT.");
 
 	private final String errorCode;
 	private final String errorMessage;

@@ -16,6 +16,7 @@ public class SignatureConstant {
 	}
 
 	public static final String VALIDATION_SUCCESSFUL = "Validation Successful";
+
 	public static final String SUCCESS = "success";
 
 	public static final String SESSIONID = "SignatureSessionId";
@@ -112,8 +113,6 @@ public class SignatureConstant {
 
 	public static final String COSE_HEADER_PARTIAL_IV = "partial-iv";
 
-	public static final String COSE_HEADER_KEY_ID = "kid";
-
 	public static final String INCLUDE_CERTIFICATE = "includeCertificate";
 
 	public static final String INCLUDE_CERTIFICATE_CHAIN = "includeCertificateChain";
@@ -124,5 +123,7 @@ public class SignatureConstant {
 
     public static final String RSA_PS256_SIGN_ALGORITHM_INSTANCE = "SHA256withRSAandMGF1";
 
-	public static final String BC_PROVIDER = "BC";
+    public static final int COSE_SIGN1_TAG = 18 ;
+
+    public static final int CWT_SIGN_TAG = 61;
 }

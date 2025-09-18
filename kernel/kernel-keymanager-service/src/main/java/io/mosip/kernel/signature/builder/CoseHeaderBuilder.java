@@ -10,7 +10,7 @@ import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.dto.CoseSignRequestDto;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
-import io.mosip.kernel.signature.service.impl.CoseSignatureServiceImpl;
+import io.mosip.kernel.signature.util.SignatureUtil;
 import org.springframework.stereotype.Component;
 
 import java.security.MessageDigest;
@@ -53,7 +53,7 @@ public class CoseHeaderBuilder {
         }
 
         // X.509 chain or single certificate
-        List<X509Certificate> x5c = determineX5Chain(certificateResponse, protectedHeaderMap, keymanagerUtil);
+        List<X509Certificate> x5c = getX509CertificateList(certificateResponse, protectedHeaderMap, keymanagerUtil);
         if (x5c != null && !x5c.isEmpty()) {
             try {
                 protectedHeaderBuilder.x5chain(x5c);
@@ -108,11 +108,7 @@ public class CoseHeaderBuilder {
             return unprotectedHeaderBuilder;
         }
 
-        if (requestDto.getProtectedHeader() != null && !requestDto.getProtectedHeader().isEmpty()) {
-            unprotectedHeaderMap = unprotectedHeaderMap.entrySet().stream()
-                    .filter(entry -> !requestDto.getProtectedHeader().containsKey(entry.getKey()))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        }
+        unprotectedHeaderMap = SignatureUtil.filterMapEntries(requestDto.getProtectedHeader(), unprotectedHeaderMap);
 
         List<Object> critList = extractCritList(unprotectedHeaderMap);
         if (!critList.isEmpty()) {
@@ -125,19 +121,16 @@ public class CoseHeaderBuilder {
         }
 
         // X.509 chain or single certificate (only if not requested in protected headers)
-        if (!(requestDto.getProtectedHeader() != null &&
-                (requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)
-                        || requestDto.getProtectedHeader().containsKey(SignatureConstant.INCLUDE_CERTIFICATE)))) {
-            List<X509Certificate> x5c = determineX5Chain(certificateResponse, unprotectedHeaderMap, keymanagerUtil);
-            if (x5c != null && !x5c.isEmpty()) {
-                try {
-                    unprotectedHeaderBuilder.x5chain(x5c);
-                } catch (CertificateEncodingException e) {
-                    throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
-                            SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
-                }
+        List<X509Certificate> x5c = getX509CertificateList(certificateResponse, unprotectedHeaderMap, keymanagerUtil);
+        if (x5c != null && !x5c.isEmpty()) {
+            try {
+                unprotectedHeaderBuilder.x5chain(x5c);
+            } catch (CertificateEncodingException e) {
+                throw new SignatureFailureException(SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorCode(),
+                        SignatureErrorCode.INTERNAL_SERVER_ERROR.getErrorMessage(), e);
             }
         }
+
 
         // Certificate hash
         byte[] certHash = computeCertHashIfRequested(certificateResponse, unprotectedHeaderMap);
@@ -204,21 +197,24 @@ public class CoseHeaderBuilder {
         return null;
     }
 
-    private static List<X509Certificate> determineX5Chain(SignatureCertificate certificateResponse, Map<String, Object> headerMap, KeymanagerUtil keymanagerUtil) {
+    private static List<X509Certificate> getX509CertificateList(SignatureCertificate certificateResponse, Map<String, Object> headerMap, KeymanagerUtil keymanagerUtil) {
         X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
+
         if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN)) {
             Object includeCertChainValue = headerMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN);
             if (includeCertChainValue instanceof Boolean) {
                 boolean includeCertChain = (boolean) includeCertChainValue;
                 if (includeCertChain) {
                     List<? extends Certificate> x5Chain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
-                    return toX509CertificateList(x5Chain);
+                    return convertToX509CertificateList(x5Chain);
                 }
             } else {
                 LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                         "Warning: includeCertificateChain header value is not a boolean.");
             }
-        } else if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
+        }
+
+        if (headerMap.containsKey(SignatureConstant.INCLUDE_CERTIFICATE)) {
             Object includeCertValue = headerMap.get(SignatureConstant.INCLUDE_CERTIFICATE);
             if (includeCertValue instanceof Boolean) {
                 boolean includeCert = (boolean) includeCertValue;
@@ -230,7 +226,7 @@ public class CoseHeaderBuilder {
         return null;
     }
 
-    private static List<X509Certificate> toX509CertificateList(List<? extends Certificate> certificates) {
+    private static List<X509Certificate> convertToX509CertificateList(List<? extends Certificate> certificates) {
         if (certificates == null || certificates.isEmpty()) {
             return Collections.emptyList();
         }
