@@ -66,13 +66,13 @@ public class CoseHeaderBuilder {
         // Certificate hash
         byte[] certHash = computeCertHashIfRequested(certificateResponse, protectedHeaderMap);
         if (certHash != null) {
-            protectedHeaderBuilder.put(34, certHash);
+            protectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, certHash);
         }
 
         // Certificate URL
         String certificateUrl = extractCertificateUrl(protectedHeaderMap);
         if (certificateUrl != null && !certificateUrl.isEmpty()) {
-            protectedHeaderBuilder.put(35, certificateUrl);
+            protectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_URL_TAG, certificateUrl);
         }
 
         // IV or Partial IV
@@ -135,13 +135,13 @@ public class CoseHeaderBuilder {
         // Certificate hash
         byte[] certHash = computeCertHashIfRequested(certificateResponse, unprotectedHeaderMap);
         if (certHash != null) {
-            unprotectedHeaderBuilder.put(34, certHash);
+            unprotectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, certHash);
         }
 
         // Certificate URL
         String certificateUrl = extractCertificateUrl(unprotectedHeaderMap);
         if (certificateUrl != null && !certificateUrl.isEmpty()) {
-            unprotectedHeaderBuilder.put(35, certificateUrl);
+            unprotectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_URL_TAG, certificateUrl);
         }
 
         // IV or Partial IV

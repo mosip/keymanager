@@ -215,7 +215,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 referenceId = signRefid;
             }
 
-            byte[] coseData = hexStringToByteArray(coseHexdata);
+            byte[] coseData = signatureUtil.hexStringToByteArray(coseHexdata);
             CBORDecoder cborDecoder = new CBORDecoder(coseData);
             CBORTaggedItem cborTaggedItem = (CBORTaggedItem) cborDecoder.next();
             if ((int)cborTaggedItem.getTagNumber() != SignatureConstant.COSE_SIGN1_TAG) {
@@ -372,34 +372,10 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         return sb.toString();
     }
 
-    private byte[] hexStringToByteArray(String hex) {
-        try {
-            int length = hex.length();
-            if (length % 2 != 0) {
-                throw new IllegalArgumentException("Invalid hex string length.");
-            }
-            byte[] data = new byte[length / 2];
-            for (int i = 0; i < length; i += 2) {
-                int firstDigit = Character.digit(hex.charAt(i), 16);
-                int secondDigit = Character.digit(hex.charAt(i + 1), 16);
-                if (firstDigit == -1 || secondDigit == -1) {
-                    throw new IllegalArgumentException("Invalid hex character at position " + i);
-                }
-                data[i / 2] = (byte) ((firstDigit << 4) + secondDigit);
-            }
-            return data;
-        } catch (IllegalArgumentException e) {
-            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
-                    "Error occurred parsing hex string to byte array. Check provided data is hex or not.", e);
-            throw new SignatureFailureException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
-                    SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
-        }
-    }
-
     public String getKeyId(String kidPrepend, SignatureCertificate certificateResponse, CoseSignRequestDto requestDto, boolean includeKeyId) {
 
-        if ((requestDto.getProtectedHeader() != null && requestDto.getProtectedHeader().containsKey("kid")) ||
-                (requestDto.getUnprotectedHeader() != null && requestDto.getUnprotectedHeader().containsKey("kid"))) {
+        if ((requestDto.getProtectedHeader() != null && requestDto.getProtectedHeader().containsKey(SignatureConstant.COSE_HEADER_KID)) ||
+                (requestDto.getUnprotectedHeader() != null && requestDto.getUnprotectedHeader().containsKey(SignatureConstant.COSE_HEADER_KID))) {
             String kidPrefix = kidPrepend;
             if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
                 kidPrefix = SignatureUtil.getIssuerFromPayload(requestDto.getPayload()).concat(SignatureConstant.KEY_ID_SEPARATOR);
@@ -458,7 +434,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     }
 
     private static void setKidHeader(String keyId, CoseSignRequestDto requestDto, COSEProtectedHeaderBuilder protectedHeaderBuilder, COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder) {
-        if (keyId != null && Boolean.TRUE.equals(requestDto.getProtectedHeader().get("kid"))) {
+        boolean protectedKid = requestDto.getProtectedHeader() != null && requestDto.getProtectedHeader().containsKey(SignatureConstant.COSE_HEADER_KID);
+        if (keyId != null && protectedKid) {
             protectedHeaderBuilder.kid(keyId);
         } else if (keyId != null) {
             unprotectedHeaderBuilder.kid(keyId);
@@ -478,7 +455,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         }
 
         String b64Payload = requestDto.getPayload();
-        if (!SignatureUtil.isDataValid(b64Payload)) {
+        if (!SignatureUtil.isDataValid(b64Payload) && !SignatureUtil.isDataValid(requestDto.getClaim169Payload())) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                     "Provided Payload is invalid.");
             throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
@@ -550,7 +527,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 referenceId = signRefid;
             }
 
-            byte[] cwtData = hexStringToByteArray(cwtHexData);
+            byte[] cwtData = signatureUtil.hexStringToByteArray(cwtHexData);
             CBORDecoder cborDecoder = new CBORDecoder(cwtData);
             CBORTaggedItem outerCborTaggedItem = (CBORTaggedItem) cborDecoder.next();
             if ((int) outerCborTaggedItem.getTagNumber() != SignatureConstant.CWT_SIGN_TAG ) {

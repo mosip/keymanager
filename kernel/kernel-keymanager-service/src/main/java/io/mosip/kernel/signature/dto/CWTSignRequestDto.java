@@ -1,5 +1,6 @@
 package io.mosip.kernel.signature.dto;
 
+import com.authlete.cbor.CBORItem;
 import io.swagger.annotations.ApiModelProperty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -20,9 +21,17 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CWTSignRequestDto {
-    @NotBlank
+    /**
+     * Base64 encoded JSON Data to sign
+     */
     @ApiModelProperty(notes = "Base64 encoded Data to sign", example = "ewogICAiYW55S2V5IjogIlRlc3QgSnNvbiIKfQ", required = true)
     private String payload;
+
+    /**
+     * claim 169 data Payload
+     */
+    @ApiModelProperty(notes = "claim 169 data Payload", example = "", required = false)
+    private String claim169Payload;
 
     /**
      * Application id
