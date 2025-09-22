@@ -34,6 +34,7 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.dto.CWTSignRequestDto;
 import io.mosip.kernel.signature.exception.RequestException;
+import io.mosip.kernel.signature.exception.SignatureFailureException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -393,42 +394,49 @@ public class SignatureUtil {
 
         CWTClaimsSetBuilder claimsSetBuilder = buildRegisteredCWTClaims(requestDto);
 
-        try {
-            String payload = new String(CryptoUtil.decodeURLSafeBase64(requestDto.getPayload()));
-            JsonNode node = mapper.readTree(payload);
+        if (isDataValid(requestDto.getClaim169Payload())) {
+            byte[] claim169Data = decodeHex(requestDto.getClaim169Payload());
+            claimsSetBuilder.put(SignatureConstant.CLAIM169_TAG, claim169Data);
+        }
 
-            Iterator<String> fieldNames = node.fieldNames();
-            while (fieldNames.hasNext()) {
-                String keyStr = fieldNames.next();
+        if (isDataValid(requestDto.getPayload())) {
+            try {
+                String payload = new String(CryptoUtil.decodeURLSafeBase64(requestDto.getPayload()));
+                JsonNode node = mapper.readTree(payload);
 
-                // Skip registered claims
-                if (REGISTERED_CLAIMS.contains(keyStr)) {
-                    continue;
+                Iterator<String> fieldNames = node.fieldNames();
+                while (fieldNames.hasNext()) {
+                    String keyStr = fieldNames.next();
+
+                    // Skip registered claims
+                    if (REGISTERED_CLAIMS.contains(keyStr)) {
+                        continue;
+                    }
+
+                    Object key;
+                    if (isNumeric(keyStr)) {
+                        key = Integer.parseInt(keyStr);
+                    } else {
+                        key = keyStr;
+                    }
+
+                    JsonNode valueNode = node.get(keyStr);
+                    Object value;
+
+                    if (valueNode.isTextual() && isNumeric(valueNode.asText())) {
+                        value = Integer.parseInt(valueNode.asText());
+                    } else {
+                        value = mapper.treeToValue(valueNode, Object.class);
+                    }
+
+                    claimsSetBuilder.put(key, value);
                 }
-
-                Object key;
-                if (isNumeric(keyStr)) {
-                    key = Integer.parseInt(keyStr);
-                } else {
-                    key = keyStr;
-                }
-
-                JsonNode valueNode = node.get(keyStr);
-                Object value;
-
-                if (valueNode.isTextual() && isNumeric(valueNode.asText())) {
-                    value = Integer.parseInt(valueNode.asText());
-                } else {
-                    value = mapper.treeToValue(valueNode, Object.class);
-                }
-
-                claimsSetBuilder.put(key, value);
+            } catch (IOException e) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Invalid JSON Payload Data Provided.");
+                throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+                        SignatureErrorCode.INVALID_JSON.getErrorMessage());
             }
-        } catch (IOException e) {
-            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
-                    "Invalid JSON Payload Data Provided.");
-            throw  new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
-                    SignatureErrorCode.INVALID_JSON.getErrorMessage());
         }
 
         CBORItem claimSet = claimsSetBuilder.build();
@@ -550,6 +558,19 @@ public class SignatureUtil {
             return true;
         } catch (NumberFormatException e) {
             return false;
+        }
+    }
+
+    public byte[] decodeHex(String hex) {
+        try {
+            if (!isDataValid(hex))
+                return null;
+            return org.bouncycastle.util.encoders.Hex.decode(hex);
+        } catch (Exception e) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                    "Error occurred parsing hex string to byte array. Check provided data is hex or not.", e);
+            throw new SignatureFailureException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
+                    SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
         }
     }
 }

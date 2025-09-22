@@ -109,6 +109,8 @@ public class SignatureConstant {
 
 	public static final String COSE_HEADER_CONTENT_TYPE = "content-type";
 
+    public static final String COSE_HEADER_KID = "kid";
+
 	public static final String COSE_HEADER_IV = "iv";
 
 	public static final String COSE_HEADER_PARTIAL_IV = "partial-iv";
@@ -126,4 +128,10 @@ public class SignatureConstant {
     public static final int COSE_SIGN1_TAG = 18 ;
 
     public static final int CWT_SIGN_TAG = 61;
+
+    public static final int CERTIFICATE_HASH_TAG = 34;
+
+    public static final int CERTIFICATE_URL_TAG = 35;
+
+    public static final int CLAIM169_TAG = 169;
 }
