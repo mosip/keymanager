@@ -395,8 +395,8 @@ public class SignatureUtil {
         CWTClaimsSetBuilder claimsSetBuilder = buildRegisteredCWTClaims(requestDto);
 
         if (isDataValid(requestDto.getClaim169Payload())) {
-            byte[] claim169Data = hexStringToByteArray(requestDto.getClaim169Payload());
-            claimsSetBuilder.put(169, claim169Data);
+            byte[] claim169Data = decodeHex(requestDto.getClaim169Payload());
+            claimsSetBuilder.put(SignatureConstant.CLAIM169_TAG, claim169Data);
         }
 
         if (isDataValid(requestDto.getPayload())) {
@@ -561,23 +561,12 @@ public class SignatureUtil {
         }
     }
 
-    public byte[] hexStringToByteArray(String hex) {
+    public byte[] decodeHex(String hex) {
         try {
-            int length = hex.length();
-            if (length % 2 != 0) {
-                throw new IllegalArgumentException("Invalid hex string length.");
-            }
-            byte[] data = new byte[length / 2];
-            for (int i = 0; i < length; i += 2) {
-                int firstDigit = Character.digit(hex.charAt(i), 16);
-                int secondDigit = Character.digit(hex.charAt(i + 1), 16);
-                if (firstDigit == -1 || secondDigit == -1) {
-                    throw new IllegalArgumentException("Invalid hex character at position " + i);
-                }
-                data[i / 2] = (byte) ((firstDigit << 4) + secondDigit);
-            }
-            return data;
-        } catch (IllegalArgumentException e) {
+            if (!isDataValid(hex))
+                return null;
+            return org.bouncycastle.util.encoders.Hex.decode(hex);
+        } catch (Exception e) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                     "Error occurred parsing hex string to byte array. Check provided data is hex or not.", e);
             throw new SignatureFailureException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),

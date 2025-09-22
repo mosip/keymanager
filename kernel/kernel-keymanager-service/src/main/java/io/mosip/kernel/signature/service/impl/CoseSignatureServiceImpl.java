@@ -215,7 +215,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 referenceId = signRefid;
             }
 
-            byte[] coseData = signatureUtil.hexStringToByteArray(coseHexdata);
+            byte[] coseData = signatureUtil.decodeHex(coseHexdata);
             CBORDecoder cborDecoder = new CBORDecoder(coseData);
             CBORTaggedItem cborTaggedItem = (CBORTaggedItem) cborDecoder.next();
             if ((int)cborTaggedItem.getTagNumber() != SignatureConstant.COSE_SIGN1_TAG) {
@@ -527,7 +527,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 referenceId = signRefid;
             }
 
-            byte[] cwtData = signatureUtil.hexStringToByteArray(cwtHexData);
+            byte[] cwtData = signatureUtil.decodeHex(cwtHexData);
             CBORDecoder cborDecoder = new CBORDecoder(cwtData);
             CBORTaggedItem outerCborTaggedItem = (CBORTaggedItem) cborDecoder.next();
             if ((int) outerCborTaggedItem.getTagNumber() != SignatureConstant.CWT_SIGN_TAG ) {

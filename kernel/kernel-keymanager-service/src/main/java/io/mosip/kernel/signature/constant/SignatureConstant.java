@@ -132,4 +132,6 @@ public class SignatureConstant {
     public static final int CERTIFICATE_HASH_TAG = 34;
 
     public static final int CERTIFICATE_URL_TAG = 35;
+
+    public static final int CLAIM169_TAG = 169;
 }
