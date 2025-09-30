@@ -45,6 +45,7 @@ import javax.security.auth.x500.X500Principal;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mosip.kernel.core.keymanager.spi.KeyStore;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
 import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
 import io.mosip.kernel.keymanagerservice.dto.*;
@@ -202,6 +203,9 @@ public class KeymanagerUtil {
 	 */
 	@Autowired
 	KeyGenerator keyGenerator;
+
+    @Autowired
+    private KeyStore keyStore;
 
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
@@ -587,12 +591,17 @@ public class KeymanagerUtil {
 
 		try {
 			X500Principal csrSubject = new X500Principal("CN=" + certParams.getCommonName() + ", OU=" + certParams.getOrganizationUnit() +
-												", O=" + certParams.getOrganization() + ", L=" + certParams.getLocation() + 
+												", O=" + certParams.getOrganization() + ", L=" + certParams.getLocation() +
 												", S=" + certParams.getState() + ", C=" + certParams.getCountry());
-			ContentSigner contentSigner = new JcaContentSignerBuilder(getSignatureAlgorithm(keyAlgorithm)).build(privateKey);
-			PKCS10CertificationRequestBuilder pcks10Builder = new JcaPKCS10CertificationRequestBuilder(csrSubject, publicKey);
-			PKCS10CertificationRequest csrObject = pcks10Builder.build(contentSigner);
-			return getPEMFormatedData(csrObject);
+            ContentSigner contentSigner;
+            if (privateKey.getAlgorithm().equals(KeymanagerConstant.ED25519_KEY_TYPE)) {
+                contentSigner = new JcaContentSignerBuilder(edSignAlgorithm).build(privateKey);
+            } else {
+                contentSigner = new JcaContentSignerBuilder(getSignatureAlgorithm(keyAlgorithm)).setProvider(keyStore.getKeystoreProviderName()).build(privateKey);
+            }
+            PKCS10CertificationRequestBuilder pcks10Builder = new JcaPKCS10CertificationRequestBuilder(csrSubject, publicKey);
+            PKCS10CertificationRequest csrObject = pcks10Builder.build(contentSigner);
+            return getPEMFormatedData(csrObject);
 		} catch (OperatorCreationException exp) {
 			throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage(), exp);
