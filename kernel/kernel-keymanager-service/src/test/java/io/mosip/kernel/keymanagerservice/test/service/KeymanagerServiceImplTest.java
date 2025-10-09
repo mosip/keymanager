@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,8 +55,6 @@ public class KeymanagerServiceImplTest {
     private KeymanagerUtil keymanagerUtil;
 
     KeyPairGenerateResponseDto generateMasterKey;
-
-
 
     String timestampStr;
 
@@ -689,5 +688,49 @@ public class KeymanagerServiceImplTest {
         });
         Assert.assertEquals(KeymanagerErrorConstant.INVALID_REQUEST.getErrorCode(), exception.getErrorCode());
         Assert.assertEquals("KER-KMS-005 --> Invalid request Allowed values are CSR/CERTIFICATE.", exception.getMessage());
+    }
+
+    @Test
+    public void testGenerateKeyPairInHSM() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("RESIDENT");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+        
+        // Update expiry column for the generated key
+        updateKeyExpiry("RESIDENT", "", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B2584A");
+        KeyPairGenerateResponseDto result = service.getCertificate("RESIDENT", Optional.of(""));
+        Assert.assertNotNull(result);
+
+        keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+        updateKeyExpiry("RESIDENT", "EC_SECP256R1_SIGN", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258B1");
+        result = service.generateECSignKey("CSR", keyPairGenRequestDto);
+        Assert.assertNotNull(result);
+    }
+    
+    private void updateKeyExpiry(String appId, String refId, LocalDateTime newExpiryTime, String uniqueId) {
+        keyAliasRepository.findByApplicationIdAndReferenceId(appId, refId)
+            .forEach(keyAlias -> {
+                keyAlias.setKeyExpiryTime(newExpiryTime);
+                keyAlias.setUniqueIdentifier(uniqueId);
+                keyAliasRepository.save(keyAlias);
+            });
+    }
+
+    @Test
+    public void testGetCertificateTrustPath() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("ROOT");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setApplicationId("TEST");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        KeyPairGenerateResponseDto certdetails = service.getCertificate("TEST", Optional.of(""));
+        X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certdetails.getCertificate());
+        keymanagerUtil.getCertificateTrustPath(x509Certificate);
     }
 }
