@@ -10,7 +10,8 @@ import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
-import io.mosip.kernel.keymanagerservice.validator.ECKeyPairGenRequestValidator;
+
+import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,9 +49,6 @@ public class KeymanagerUtilTest {
 
 	@Autowired
 	private KeymanagerUtil keymanagerUtil;
-
-    @Autowired
-    ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
 
 	private KeyPair keyPairMaster;
 
@@ -287,4 +285,23 @@ public class KeymanagerUtilTest {
 	public void testPurgeKeyAliasTrustAnchorsCache() {
 		keymanagerUtil.purgeKeyAliasTrustAnchorsCache();
 	}
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testConvertToCertificateKeymanagerServiceException() {
+        keymanagerUtil.convertToCertificate("INVALID_CERT_DATA");
+        keymanagerUtil.convertToCertificate((byte[]) null);
+    }
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testGetPEMFormatedDataKeymanagerServiceException() {
+        keymanagerUtil.getPEMFormatedData("CERTIFICATE_DATA_INVALID");
+    }
+
+    @Test
+    public void testDestroySecreteKey() throws NoSuchAlgorithmException {
+        javax.crypto.KeyGenerator keyGenerator = javax.crypto.KeyGenerator.getInstance("AES");
+        keyGenerator.init(256);
+        javax.crypto.SecretKey secretKey = keyGenerator.generateKey();
+        keymanagerUtil.destoryKey(secretKey);
+    }
 }
