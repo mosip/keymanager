@@ -204,6 +204,8 @@ public class KeymanagerServiceImplTest {
 
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB75C");
+        dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
+                "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBC86C");
         NoUniqueAliasException exception2 = assertThrows(NoUniqueAliasException.class, () -> {
             service.getCertificate("TEST", Optional.of("abc"));
         });
@@ -595,7 +597,7 @@ public class KeymanagerServiceImplTest {
         Assert.assertEquals("KER-KMS-020 --> Signing operation not allowed for the provided application id & reference id.", exception.getMessage());
 
         exception = assertThrows(KeymanagerServiceException.class, () -> {
-            service.getSignPublicKey("ID_REPO", timestampStr, Optional.of(""));
+            service.getSignPublicKey("COMPLIANCE_TOOLKIT", timestampStr, Optional.of(""));
         });
         Assert.assertEquals(KeymanagerErrorConstant.KEY_GENERATION_NOT_DONE.getErrorCode(), exception.getErrorCode());
         Assert.assertEquals("KER-KMS-012 --> Key Generation Process is not completed.", exception.getMessage());

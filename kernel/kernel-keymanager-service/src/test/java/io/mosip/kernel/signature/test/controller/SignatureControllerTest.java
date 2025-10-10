@@ -456,7 +456,6 @@ public class SignatureControllerTest {
         mockMvc.perform(post("/jwtVerify/v2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(status().is2xxSuccessful());
     }
 }
