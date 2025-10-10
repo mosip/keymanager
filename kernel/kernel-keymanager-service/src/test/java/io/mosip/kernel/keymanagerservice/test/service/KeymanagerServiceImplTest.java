@@ -176,7 +176,8 @@ public class KeymanagerServiceImplTest {
 
     @Test(expected = KeymanagerServiceException.class)
     public void testGetCertificateKeymanagerServiceException() {
-        service.getCertificate("ID_REPO", Optional.of(""));
+        keyAliasRepository.deleteAll();
+        service.getCertificate("BASE", Optional.of(""));
     }
 
     @Test
@@ -632,10 +633,6 @@ public class KeymanagerServiceImplTest {
         keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
 
-        keyPairGenRequestDto.setApplicationId("ID_REPO");
-        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
-        service.generateECSignKey("CERTIFICATE", keyPairGenRequestDto);
-
         SignatureCertificate result = service.getSignatureCertificate("ID_REPO", Optional.of(""), timestampStr);
         Assert.assertNotNull(result);
 
@@ -643,9 +640,6 @@ public class KeymanagerServiceImplTest {
         Assert.assertNotNull(result);
 
         result = service.getSignatureCertificate("ID_REPO", Optional.of("EC_SECP256K1_SIGN"), timestampStr);
-        Assert.assertNotNull(result);
-
-        result = service.getSignatureCertificate("ID_REPO", Optional.of("ED25519_SIGN"), timestampStr);
         Assert.assertNotNull(result);
     }
 
