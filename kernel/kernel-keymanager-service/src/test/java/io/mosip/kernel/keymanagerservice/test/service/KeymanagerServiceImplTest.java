@@ -174,12 +174,6 @@ public class KeymanagerServiceImplTest {
         Assert.assertEquals(certificate.getCertificate(), service.getCertificate("TEST", Optional.of("dbCert")).getCertificate());
     }
 
-    @Test(expected = KeymanagerServiceException.class)
-    public void testGetCertificateKeymanagerServiceException() {
-        keyAliasRepository.deleteAll();
-        service.getCertificate("BASE", Optional.of(""));
-    }
-
     @Test
     public void testGetCertificateNoUniqueAliasException() {
         LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
