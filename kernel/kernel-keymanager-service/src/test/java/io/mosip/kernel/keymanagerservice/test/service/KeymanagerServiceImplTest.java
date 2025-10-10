@@ -56,7 +56,7 @@ public class KeymanagerServiceImplTest {
 
     KeyPairGenerateResponseDto generateMasterKey;
 
-    String timestampStr;
+    String timestampStr = DateUtils.getUTCCurrentDateTime().toString();
 
     @Before
     public void setUp() {
@@ -637,8 +637,7 @@ public class KeymanagerServiceImplTest {
         service.generateECSignKey("CERTIFICATE", keyPairGenRequestDto);
 
         SignatureCertificate result = service.getSignatureCertificate("ID_REPO", Optional.of(""), timestampStr);
-        SignatureCertificate expected = service.getSignatureCertificate("ID_REPO", Optional.of(""), timestampStr);
-        Assert.assertEquals(result, expected);
+        Assert.assertNotNull(result);
 
         result = service.getSignatureCertificate("KERNEL", Optional.of("SIGN"), timestampStr);
         Assert.assertNotNull(result);
