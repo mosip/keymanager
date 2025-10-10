@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.CoseSignatureService;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,6 +43,9 @@ public class SignatureControllerTest {
     @Autowired
     private CoseSignatureService coseSignatureService;
 
+    @Autowired
+    private KeyAliasRepository keyAliasRepository;
+
     private MockMvc mockMvc;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -69,10 +74,15 @@ public class SignatureControllerTest {
         keymanagerService.generateMasterKey("CSR", rootKeyPairGenRequestDto);
     }
 
+    @After
+    public void tearDown() {
+        keyAliasRepository.deleteAll();
+    }
+
     // ===== CoseSignController endpoints =====
 
     @Test
-    public void testCoseSign1_statusOk() throws Exception {
+    public void testCoseSign1StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -93,7 +103,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testCoseVerify1_statusOk() throws Exception {
+    public void testCoseVerify1StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -120,7 +130,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testCwtSign_statusOk() throws Exception {
+    public void testCwtSignStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("ID_REPO");
         key.setReferenceId("");
@@ -141,7 +151,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testCwtVerify_statusOk() throws Exception {
+    public void testCwtVerifyStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("ID_REPO");
         key.setReferenceId("");
@@ -170,7 +180,7 @@ public class SignatureControllerTest {
     // ===== SignatureController endpoints =====
 
     @Test
-    public void testSign_statusOk() throws Exception {
+    public void testSignStatusOk() throws Exception {
         RequestWrapper<SignRequestDto> req = new RequestWrapper<>();
         SignRequestDto dto = new SignRequestDto();
         dto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
@@ -184,7 +194,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testValidate_statusOk() throws Exception {
+    public void testValidateStatusOk() throws Exception {
         // Generate KERNEL/SIGN key for validation
         KeyPairGenerateRequestDto kernelKey = new KeyPairGenerateRequestDto();
         kernelKey.setApplicationId("KERNEL");
@@ -218,7 +228,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testPdfSign_statusHandled() throws Exception {
+    public void testPdfSignStatusHandled() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -244,7 +254,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwtSign_statusOk() throws Exception {
+    public void testJwtSignStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -266,7 +276,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwtVerify_statusOk() throws Exception {
+    public void testJwtVerifyStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -301,7 +311,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwsSign_statusOk() throws Exception {
+    public void testJwsSignStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -324,7 +334,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testSignV2_statusOk() throws Exception {
+    public void testSignV2StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -347,7 +357,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testSignRawData_statusOk() throws Exception {
+    public void testSignRawDataStatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -369,7 +379,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwtSignV2_statusOk() throws Exception {
+    public void testJwtSignV2StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("TEST");
         key.setReferenceId("");
@@ -391,7 +401,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwsSignV2_statusOk() throws Exception {
+    public void testJwsSignV2StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("BASE");
         key.setReferenceId("");
@@ -414,7 +424,7 @@ public class SignatureControllerTest {
     }
 
     @Test
-    public void testJwtVerifyV2_statusOk() throws Exception {
+    public void testJwtVerifyV2StatusOk() throws Exception {
         KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
         key.setApplicationId("RESIDENT");
         key.setReferenceId("");

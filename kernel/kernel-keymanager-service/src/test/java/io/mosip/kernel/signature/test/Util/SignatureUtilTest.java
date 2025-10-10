@@ -5,6 +5,7 @@ import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -12,6 +13,7 @@ import io.mosip.kernel.signature.dto.CWTSignRequestDto;
 import io.mosip.kernel.signature.exception.RequestException;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
 import io.mosip.kernel.signature.util.SignatureUtil;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,6 +38,9 @@ public class SignatureUtilTest {
     @Autowired
     private KeymanagerUtil keymanagerUtil;
 
+    @Autowired
+    private KeyAliasRepository keyAliasRepository;
+
     private String testUniqueId = "1234567890ABCDEF";
 
     @Before
@@ -44,6 +49,11 @@ public class SignatureUtilTest {
         keyPairGenRequestDto.setApplicationId("ROOT");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+    }
+
+    @After
+    public void tearDown() {
+        keyAliasRepository.deleteAll();
     }
 
     @Test
