@@ -629,7 +629,7 @@ public class KeymanagerServiceImplTest {
         service.generateMasterKey("CSR", keyPairGenRequestDto);
 
         keyPairGenRequestDto.setApplicationId("ID_REPO");
-        keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
+        keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
 
         keyPairGenRequestDto.setApplicationId("ID_REPO");
@@ -642,7 +642,7 @@ public class KeymanagerServiceImplTest {
         result = service.getSignatureCertificate("KERNEL", Optional.of("SIGN"), timestampStr);
         Assert.assertNotNull(result);
 
-        result = service.getSignatureCertificate("ID_REPO", Optional.of("EC_SECP256R1_SIGN"), timestampStr);
+        result = service.getSignatureCertificate("ID_REPO", Optional.of("EC_SECP256K1_SIGN"), timestampStr);
         Assert.assertNotNull(result);
 
         result = service.getSignatureCertificate("ID_REPO", Optional.of("ED25519_SIGN"), timestampStr);
