@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -61,8 +60,49 @@ public class PartnerCertManagerControllerTest {
     private MockMvc mockMvc;
     private ObjectMapper objectMapper = new ObjectMapper();
 
-    private String validCACertData;
-    private String validPartnerCertData;
+    private String validCACertData = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIDbDCCAlSgAwIBAgIUTW8ScXGEgz/C0o7xnAsBmd3P8hswDQYJKoZIhvcNAQEL\n" +
+            "BQAwbzELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5nYWx1\n" +
+            "cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRowGAYDVQQD\n" +
+            "DBFQTVMtcm9vdC10ZXN0Y2FzZTAgFw0yNTEwMTMxMzQzMzZaGA8yMTI1MTAxMzEz\n" +
+            "NDMzNlowbzELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5n\n" +
+            "YWx1cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRowGAYD\n" +
+            "VQQDDBFQTVMtcm9vdC10ZXN0Y2FzZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\n" +
+            "AQoCggEBANZqa/+RIVKaoIiQ11pFXOCL1NgOd6F1a98KIWU3ZZ8Kh/CjPN5V5QN/\n" +
+            "pqLX5/4+Zw4tJJqsruQmCz76LCLFREuoWTByNtnKZDni1quNRkcz7uiKeOLFHzk4\n" +
+            "QODDF4BfefaQElOLSMdHueoKgWBor+/E9aK8+vvk3kPOtC67RmhWCJ5TAI19kCaY\n" +
+            "lBrneAx+JmQxJ8sAHszErHxjdlEIUNSoU4GbIrgw4C8dtdG6yVb3arM9+kCsa0hg\n" +
+            "JGYCW8igi8P0yyUoeGpi86ZiYjiIVGZS7dmZM/vGun+JjaHtTlBCvCsMxVstrhMZ\n" +
+            "AgVZouiaXgmbvubSXDuBBOL6pDRWFocCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA\n" +
+            "irKsATgEedB8IoD4WeGW7KRuPxT6iow4yQUf9kODEYzsNKRdvowUD97MnORaF1ns\n" +
+            "EtA+vTfutktHHMhnBNfuFyZFsZCqq3skbRGst9RjxokznljE/OZc0q+24Hm9dRfZ\n" +
+            "SMBYWPEnFQzpvPmOexLwRRwt6EGrZPWUh22NGYLbJR22CP5wTgsUKwA6MHcAVVTS\n" +
+            "5+WcxMD0OMoRX5LIlFLUSyyZb6POs/lsta7+fr2FU84FNLrooz0Q+8/QzTpW/XND\n" +
+            "N3yr7o9LBHFXwVB+Fb6ow4/r9hPuBFg58FM+wQt5AJ5cz/LeOKsVpDJ8Bvuodrxa\n" +
+            "vb31TtM0csPVLODrpnNZyA==\n" +
+            "-----END CERTIFICATE-----";
+
+    private String validPartnerCertData = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIDbTCCAlWgAwIBAgIUVB019PvL2p+YbdMZydcBmd3SydcwDQYJKoZIhvcNAQEL\n" +
+            "BQAwbzELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5nYWx1\n" +
+            "cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRowGAYDVQQD\n" +
+            "DBFQTVMtcm9vdC10ZXN0Y2FzZTAgFw0yNTEwMTMxMzQ2NDNaGA8yMTI0MTAxMzEz\n" +
+            "NDY0M1owcDELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5n\n" +
+            "YWx1cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRswGQYD\n" +
+            "VQQDDBJQTVMtaW50ZXItdGVzdGNhc2UwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\n" +
+            "ggEKAoIBAQCVULKkf6haXwl7AQJG1iDWcPy5dNa8wqALEOnwAEGrRcWHgGy+UPEf\n" +
+            "8KiwOyOTDMY5ioq4LK5DWCc4RJ0m8JzmhppHq4xQhXkucjLMPgM3+MBljvOQDSlh\n" +
+            "u9hgelTF44LP9RPTWePXroTwGHe6Kc9/S93KNh6+MU29TbuW7nY/xEBpf0D58iwF\n" +
+            "y3axO3SjEnnRkWaL+v4agYCV8xs92UaLoEw3gGzRb9tDUWEkxyJUyGxzelIV3XgW\n" +
+            "+a29QWp2qJRupe4c5yfG+d/cbdDyBvVSxQKQBMGAiCb8Xi3SmDUYgkDgJsRgKUc7\n" +
+            "w3xfB3+cyyG75PaA80p8hjsxzY5ZUJh1AgMBAAEwDQYJKoZIhvcNAQELBQADggEB\n" +
+            "AJKwswIouSJB3LShLLqPx5b602FlzHmYTG8xIr7aWYjknHDoj6KEod4+wro999Hx\n" +
+            "KEERIu79rw0HZtj0uVe+nZK3OJaKcKRhTlzrErrg/niZlvp4E2imMGNug+3npphY\n" +
+            "4zhW3sWR2QPv3tNmm+C35jCKY30o5wYwSlOqTdHG/iq6XabYOaLHYjz9fe0ynWFL\n" +
+            "0HS8B9fpW7jiz2u/XelIQnjPz8GrS66mjYJzdyx9YKiVi72fFUdtceubihyJSucJ\n" +
+            "3XJvNPXeyNuCVCiwv8frI1mkkWyi//I+qxjmbQEkbAP1eLwiirier56MidZa6ZDt\n" +
+            "TqOhYcxaaqJaO+XnmrzedjM=\n" +
+            "-----END CERTIFICATE-----\n";
 
     @Before
     public void setUp() {
@@ -89,9 +129,6 @@ public class PartnerCertManagerControllerTest {
         keyPairGenRequestDto.setApplicationId("PMS");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        validCACertData = keymanagerService.getCertificate("ROOT", Optional.of("")).getCertificate();
-        validPartnerCertData = keymanagerService.getCertificate("PMS", Optional.of("")).getCertificate();
     }
 
     @After
@@ -127,7 +164,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadCACertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-001"));
     }
 
     @Test
@@ -141,7 +179,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadCACertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-011"));
     }
 
     @Test
@@ -149,7 +188,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadCACertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("null"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
     }
 
     @Test
@@ -157,7 +197,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadCACertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(""))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
     }
 
     @Test
@@ -178,7 +219,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadPartnerCertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-008"));
     }
 
     @Test
@@ -201,7 +243,8 @@ public class PartnerCertManagerControllerTest {
         mockMvc.perform(post("/uploadPartnerCertificate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("null"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
     }
 
     @Test
@@ -213,7 +256,7 @@ public class PartnerCertManagerControllerTest {
 
         PartnerCertificateRequestDto partnerCertRequestDto = new PartnerCertificateRequestDto();
         partnerCertRequestDto.setCertificateData(validPartnerCertData);
-        partnerCertRequestDto.setOrganizationName("IITB");
+        partnerCertRequestDto.setOrganizationName("Mosip");
         partnerCertRequestDto.setPartnerDomain("FTM");
         PartnerCertificateResponseDto uploadResponse = partnerCertService.uploadPartnerCertificate(partnerCertRequestDto);
 
@@ -225,7 +268,7 @@ public class PartnerCertManagerControllerTest {
     public void testGetPartnerCertificate_InvalidId() throws Exception {
         mockMvc.perform(get("/getPartnerCertificate/invalid-id"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors").exists());
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-012"));
     }
 
     @Test
@@ -260,7 +303,7 @@ public class PartnerCertManagerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors").exists());
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-013"));
     }
 
     @Test
@@ -304,7 +347,7 @@ public class PartnerCertManagerControllerTest {
 
         PartnerCertificateRequestDto partnerCertRequestDto = new PartnerCertificateRequestDto();
         partnerCertRequestDto.setCertificateData(validPartnerCertData);
-        partnerCertRequestDto.setOrganizationName("IITB");
+        partnerCertRequestDto.setOrganizationName("Mosip");
         partnerCertRequestDto.setPartnerDomain("FTM");
         PartnerCertificateResponseDto uploadResponse = partnerCertService.uploadPartnerCertificate(partnerCertRequestDto);
 
@@ -440,7 +483,7 @@ public class PartnerCertManagerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors").exists());
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
     }
 
     @Test
@@ -456,7 +499,7 @@ public class PartnerCertManagerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors").exists());
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
     }
 
     // Test large payload
@@ -472,6 +515,6 @@ public class PartnerCertManagerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors").exists());
+                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-001"));
     }
 }
