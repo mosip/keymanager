@@ -398,6 +398,8 @@ public class CoseSignatureServiceTest {
         cwtSignRequestDto.setApplicationId("ID_REPO");
         cwtSignRequestDto.setReferenceId("EC_SECP256K1_SIGN");
         cwtSignRequestDto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
+        cwtSignRequestDto.setIssuer("keymgr");
+        cwtSignRequestDto.setSubject("signature");
         CoseSignResponseDto signResponse = coseSignatureService.cwtSign(cwtSignRequestDto);
         
         // Then verify it
@@ -405,6 +407,8 @@ public class CoseSignatureServiceTest {
         cwtVerifyRequestDto.setApplicationId("ID_REPO");
         cwtVerifyRequestDto.setReferenceId("EC_SECP256K1_SIGN");
         cwtVerifyRequestDto.setCoseSignedData(signResponse.getSignedData());
+        cwtVerifyRequestDto.setIssuer("keymgr");
+        cwtVerifyRequestDto.setSubject("signature");
         CoseSignVerifyResponseDto verifyResponse = coseSignatureService.cwtVerify(cwtVerifyRequestDto);
         
         Assert.assertNotNull(verifyResponse);
