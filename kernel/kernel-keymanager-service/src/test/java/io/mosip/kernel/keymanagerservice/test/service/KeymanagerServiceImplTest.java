@@ -722,4 +722,60 @@ public class KeymanagerServiceImplTest {
         X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certdetails.getCertificate());
         keymanagerUtil.getCertificateTrustPath(x509Certificate);
     }
+
+    @Test
+    public void testGenerateEd25519KeyPairDetails() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("PRE_REGISTRATION");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+        updateKeyExpiry("PRE_REGISTRATION", "ED25519_SIGN", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258C2");
+
+        SignatureCertificate result = service.getSignatureCertificate("PRE_REGISTRATION", Optional.of("ED25519_SIGN"), timestampStr);
+        Assert.assertNotNull(result);
+    }
+
+    @Test
+    public void testGenerateCSRKeymanagerServiceException() {
+        CSRGenerateRequestDto requestDto = new CSRGenerateRequestDto();
+        requestDto.setApplicationId("KERNEL");
+        requestDto.setReferenceId("IDENTITY_CACHE");
+        KeymanagerServiceException exception = assertThrows(KeymanagerServiceException.class, () -> {
+            service.generateCSR(requestDto);
+        });
+        Assert.assertEquals(KeymanagerErrorConstant.GENERATION_CSR_ALLOWED.getErrorCode(), exception.getErrorCode());
+        Assert.assertEquals("KER-KMS-022 --> CSR Generation not allowed for the provided App Id & Ref Id.", exception.getMessage());
+    }
+
+    @Test
+    public void testGenerateCSRECKeys() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("REGISTRATION");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+
+        CSRGenerateRequestDto requestDto = new CSRGenerateRequestDto();
+        requestDto.setApplicationId("REGISTRATION");
+        requestDto.setReferenceId("EC_SECP256K1_SIGN");
+        KeyPairGenerateResponseDto response = service.generateCSR(requestDto);
+
+        Assert.assertNotNull(response);
+
+        requestDto.setReferenceId("EC_SECP256R1_SIGN");
+        response = service.generateCSR(requestDto);
+        Assert.assertNotNull(response);
+
+        requestDto.setReferenceId("ED25519_SIGN");
+        response = service.generateCSR(requestDto);
+        Assert.assertNotNull(response);
+    }
 }

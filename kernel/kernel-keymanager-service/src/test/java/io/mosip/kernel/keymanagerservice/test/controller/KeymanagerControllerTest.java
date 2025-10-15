@@ -29,6 +29,8 @@ import java.util.Optional;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 
 @SpringBootTest(classes = { KeymanagerTestBootApplication.class })
 @RunWith(SpringRunner.class)
@@ -769,5 +771,61 @@ public class KeymanagerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+    }
+
+    // Additional negative and boundary tests inspired by PartnerCertManagerController tests
+    @Test
+    public void testUploadCertificate_InvalidCertificate() throws Exception {
+        RequestWrapper<UploadCertificateRequestDto> request = new RequestWrapper<>();
+        UploadCertificateRequestDto uploadCertRequest = new UploadCertificateRequestDto();
+        uploadCertRequest.setApplicationId("TEST");
+        uploadCertRequest.setReferenceId("");
+        uploadCertRequest.setCertificateData("invalid-certificate");
+        request.setRequest(uploadCertRequest);
+
+        mockMvc.perform(post("/uploadCertificate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode", anyOf(is("KER-KMS-013"), is("KER-KMS-005"))));
+    }
+
+    @Test
+    public void testUploadCertificate_LargePayload() throws Exception {
+        RequestWrapper<UploadCertificateRequestDto> request = new RequestWrapper<>();
+        UploadCertificateRequestDto uploadCertRequest = new UploadCertificateRequestDto();
+        uploadCertRequest.setApplicationId("TEST");
+        uploadCertRequest.setReferenceId("");
+        uploadCertRequest.setCertificateData("A".repeat(10000));
+        request.setRequest(uploadCertRequest);
+
+        mockMvc.perform(post("/uploadCertificate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode", anyOf(is("KER-KMS-013"), is("KER-KMS-005"))));
+    }
+
+    @Test
+    public void testGenerateCSR_EmptyFields() throws Exception {
+        RequestWrapper<CSRGenerateRequestDto> request = new RequestWrapper<>();
+        CSRGenerateRequestDto csrDto = new CSRGenerateRequestDto();
+        csrDto.setApplicationId("");
+        csrDto.setReferenceId("");
+        request.setRequest(csrDto);
+
+        mockMvc.perform(post("/generateCSR")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors[0].errorCode", anyOf(is("KER-KMS-005"), is("KER-KMS-013"))));
+    }
+
+    @Test
+    public void testInvalidContentType_generateECSignKey() throws Exception {
+        mockMvc.perform(post("/generateECSignKey/CSR")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("{}"))
+                .andExpect(status().isInternalServerError());
     }
 }

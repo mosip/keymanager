@@ -26,6 +26,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Arrays;
 
+import static org.junit.Assert.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -95,11 +96,18 @@ public class SignatureControllerTest {
         dto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
         req.setRequest(dto);
 
-        mockMvc.perform(post("/coseSign1")
+        String content = mockMvc.perform(post("/coseSign1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull("Root JSON should not be null", root);
+        assertTrue("Response field should exist", root.has("response"));
+        assertNotNull("Response object should not be null", root.get("response"));
+        assertTrue("Errors should be absent or empty", !root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -122,11 +130,18 @@ public class SignatureControllerTest {
         verifyDto.setCoseSignedData(signed.getSignedData());
         req.setRequest(verifyDto);
 
-        mockMvc.perform(post("/coseVerify1")
+        String content = mockMvc.perform(post("/coseVerify1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -143,11 +158,18 @@ public class SignatureControllerTest {
         dto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
         req.setRequest(dto);
 
-        mockMvc.perform(post("/cwtSign")
+        String content = mockMvc.perform(post("/cwtSign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -170,10 +192,14 @@ public class SignatureControllerTest {
         verifyDto.setCoseSignedData(signed.getSignedData());
         req.setRequest(verifyDto);
 
-        mockMvc.perform(post("/cwtVerify")
+        String content = mockMvc.perform(post("/cwtVerify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
     }
 
     // ===== SignatureController endpoints =====
@@ -185,11 +211,18 @@ public class SignatureControllerTest {
         dto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
         req.setRequest(dto);
 
-        mockMvc.perform(post("/sign")
+        String content = mockMvc.perform(post("/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -220,10 +253,14 @@ public class SignatureControllerTest {
         dto.setTimestamp(io.mosip.kernel.core.util.DateUtils.getUTCCurrentDateTime());
         req.setRequest(dto);
 
-        mockMvc.perform(post("/validate")
+        String content = mockMvc.perform(post("/validate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().is2xxSuccessful())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
     }
 
     @Test
@@ -246,10 +283,14 @@ public class SignatureControllerTest {
         dto.setUpperRightY(100);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/pdf/sign")
+        String content = mockMvc.perform(post("/pdf/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().is2xxSuccessful())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
     }
 
     @Test
@@ -267,11 +308,18 @@ public class SignatureControllerTest {
         dto.setIncludePayload(true);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwtSign")
+        String content = mockMvc.perform(post("/jwtSign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -302,11 +350,18 @@ public class SignatureControllerTest {
         dto.setJwtSignatureData(jwt);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwtVerify")
+        String content = mockMvc.perform(post("/jwtVerify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -325,11 +380,18 @@ public class SignatureControllerTest {
         dto.setValidateJson(true);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwsSign")
+        String content = mockMvc.perform(post("/jwsSign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -348,11 +410,18 @@ public class SignatureControllerTest {
         dto.setResponseEncodingFormat("base64url");
         req.setRequest(dto);
 
-        mockMvc.perform(post("/signV2")
+        String content = mockMvc.perform(post("/signV2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -370,11 +439,18 @@ public class SignatureControllerTest {
         dto.setSignAlgorithm("PS256");
         req.setRequest(dto);
 
-        mockMvc.perform(post("/signRawData")
+        String content = mockMvc.perform(post("/signRawData")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -392,11 +468,18 @@ public class SignatureControllerTest {
         dto.setIncludePayload(true);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwtSign/v2")
+        String content = mockMvc.perform(post("/jwtSign/v2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -415,11 +498,18 @@ public class SignatureControllerTest {
         dto.setValidateJson(false);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwsSign/v2")
+        String content = mockMvc.perform(post("/jwsSign/v2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists());
+                .andExpect(jsonPath("$.response").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
+        assertTrue(root.has("response"));
+        assertNotNull(root.get("response"));
+        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
     }
 
     @Test
@@ -452,9 +542,13 @@ public class SignatureControllerTest {
         dto.setValidateTrust(false);
         req.setRequest(dto);
 
-        mockMvc.perform(post("/jwtVerify/v2")
+        String content = mockMvc.perform(post("/jwtVerify/v2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().is2xxSuccessful())
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
+        assertNotNull(root);
     }
 }
