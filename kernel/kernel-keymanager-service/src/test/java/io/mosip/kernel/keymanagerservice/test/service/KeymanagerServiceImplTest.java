@@ -770,7 +770,6 @@ public class KeymanagerServiceImplTest {
         requestDto.setApplicationId("REGISTRATION");
         requestDto.setReferenceId("EC_SECP256K1_SIGN");
         KeyPairGenerateResponseDto response = service.generateCSR(requestDto);
-
         Assert.assertNotNull(response);
 
         requestDto.setReferenceId("EC_SECP256R1_SIGN");
