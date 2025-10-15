@@ -763,6 +763,9 @@ public class KeymanagerServiceImplTest {
         keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
 
+        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
+        service.generateECSignKey("CERTIFICATE", keyPairGenRequestDto);
+
         CSRGenerateRequestDto requestDto = new CSRGenerateRequestDto();
         requestDto.setApplicationId("REGISTRATION");
         requestDto.setReferenceId("EC_SECP256K1_SIGN");
