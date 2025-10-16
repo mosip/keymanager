@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.partnercertservice.exception.PartnerCertManagerException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -412,5 +413,17 @@ public class PartnerCertificateManagerUtilTest {
         Assert.assertEquals("Minimal Test", params.getCommonName());
         Assert.assertEquals("", params.getOrganization());
         Assert.assertEquals("", params.getCountry());
+    }
+
+    @Test
+    public void testMinValidityCertException() {
+        boolean result = PartnerCertificateManagerUtil.isMinValidityCertificate(null, 1);
+        Assert.assertFalse(result);
+    }
+
+    @Test
+    public void testFutureDatedCertException() {
+        boolean result = PartnerCertificateManagerUtil.isFutureDatedCertificate(null);
+        Assert.assertFalse(result);
     }
 }
