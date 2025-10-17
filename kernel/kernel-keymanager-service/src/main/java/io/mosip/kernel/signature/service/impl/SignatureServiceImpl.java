@@ -841,7 +841,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		JsonWebSignature jwSign = new JsonWebSignature();
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = signatureUtil.getCertificateTrustChain(x509Certificate);
 		if (includeCertificate) {
 			X509Certificate[] certArray = certificateChain.stream()
 					.filter(cert -> cert instanceof X509Certificate)
@@ -1099,8 +1099,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		List<X509Certificate> x509CertChain = headerCertificateChain.stream()
 				.map(cert -> (X509Certificate) cert)
 				.toList();
-
-		X509Certificate rootCert = x509CertChain.getLast();
 
 		Set<X509Certificate> intermediateCerts = new HashSet<>();
 		intermediateCerts.addAll(x509CertChain.subList(0, x509CertChain.size() - 1));

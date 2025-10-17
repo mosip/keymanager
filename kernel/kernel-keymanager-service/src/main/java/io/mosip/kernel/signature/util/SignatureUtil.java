@@ -28,6 +28,11 @@ import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
+import io.mosip.kernel.signature.constant.SignatureErrorCode;
+import io.mosip.kernel.signature.dto.CWTSignRequestDto;
+import io.mosip.kernel.signature.exception.RequestException;
+import io.mosip.kernel.signature.exception.SignatureFailureException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -57,6 +62,21 @@ public class SignatureUtil {
 
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
+
+    @Autowired
+    PartnerCertificateManagerService partnerCertificateManagerService;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.sign.iss:}")
+    private String signIss;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.exp:180}")
+    private int expInDays;
+
+    @Value("${mosip.kernel.keymanager.signature.cwt.nbf:0}")
+    private int nbfInDays;
+
+    @Value("${mosip.kernel.partner.trust.validate.domain.name:TRUST}")
+    private String trustDomain;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
@@ -234,7 +254,7 @@ public class SignatureUtil {
 			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
 					.criticalParams(Collections.singleton(SignatureConstant.B64));
 
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = getCertificateTrustChain(x509Certificate);
 
 		if (includeCertificateChain) {
 			List<Base64> x5c = buildX509CertChain((List<X509Certificate>) certificateChain);
@@ -359,4 +379,208 @@ public class SignatureUtil {
 		}
 		return jwsHeaderBuilder;
 	}
+
+    public List<X509Certificate> getX5ChainfromCoseSign1(COSESign1 coseSign1) {
+        COSEProtectedHeader protectedHeader = coseSign1.getProtectedHeader();
+        COSEUnprotectedHeader unprotectedHeader = coseSign1.getUnprotectedHeader();
+
+        return protectedHeader.getX5Chain() != null ? protectedHeader.getX5Chain() : unprotectedHeader.getX5Chain();
+    }
+
+    public byte[] buildCWTClaimSet(CWTSignRequestDto requestDto) {
+
+        CWTClaimsSetBuilder claimsSetBuilder = buildRegisteredCWTClaims(requestDto);
+
+        if (isDataValid(requestDto.getClaim169Payload())) {
+            byte[] claim169Data = decodeHex(requestDto.getClaim169Payload());
+            claimsSetBuilder.put(SignatureConstant.CLAIM169_TAG, claim169Data);
+        }
+
+        if (isDataValid(requestDto.getPayload())) {
+            try {
+                String payload = new String(CryptoUtil.decodeURLSafeBase64(requestDto.getPayload()));
+                JsonNode node = mapper.readTree(payload);
+
+                Iterator<String> fieldNames = node.fieldNames();
+                while (fieldNames.hasNext()) {
+                    String keyStr = fieldNames.next();
+
+                    // Skip registered claims
+                    if (REGISTERED_CLAIMS.contains(keyStr)) {
+                        continue;
+                    }
+
+                    Object key;
+                    if (isNumeric(keyStr)) {
+                        key = Integer.parseInt(keyStr);
+                    } else {
+                        key = keyStr;
+                    }
+
+                    JsonNode valueNode = node.get(keyStr);
+                    Object value;
+
+                    if (valueNode.isTextual() && isNumeric(valueNode.asText())) {
+                        value = Integer.parseInt(valueNode.asText());
+                    } else {
+                        value = mapper.treeToValue(valueNode, Object.class);
+                    }
+
+                    claimsSetBuilder.put(key, value);
+                }
+            } catch (IOException e) {
+                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                        "Invalid JSON Payload Data Provided.");
+                throw new RequestException(SignatureErrorCode.INVALID_JSON.getErrorCode(),
+                        SignatureErrorCode.INVALID_JSON.getErrorMessage());
+            }
+        }
+
+        CBORItem claimSet = claimsSetBuilder.build();
+        return claimSet.encode();
+    }
+
+    private CWTClaimsSetBuilder buildRegisteredCWTClaims(CWTSignRequestDto requestDto) {
+        CWTClaimsSetBuilder claimsSetBuilder = new CWTClaimsSetBuilder();
+
+        String issuer = requestDto.getIssuer() != null ? requestDto.getIssuer() : this.signIss;
+        int notBeforeIndays = requestDto.getNotBeforeDays() != null ? requestDto.getNotBeforeDays() : this.nbfInDays;
+        int expireIndays = requestDto.getExpireDays() != null ? requestDto.getExpireDays() : this.expInDays;
+
+        if (notBeforeIndays < 0 || expireIndays < 0) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
+                    "Not Before or Expire Date In Days cannot be negative.");
+            throw new KeymanagerServiceException(SignatureErrorCode.NEGATIVE_INTEGER_ERROR.getErrorCode(),
+                    SignatureErrorCode.NEGATIVE_INTEGER_ERROR.getErrorMessage().replace("{variable}", "days"));
+        }
+
+        Date issuedAt = new Date();
+        Date notBefore = DateUtils.addDays(issuedAt, notBeforeIndays);
+        Date expire = DateUtils.addDays(notBefore, expireIndays);
+        String cwtUniqueId = UUID.randomUUID().toString();
+
+        if (issuer != null && !issuer.isBlank()) {
+            claimsSetBuilder.iss(issuer);
+        }
+
+        if (requestDto.getSubject() != null && !requestDto.getSubject().isBlank()) {
+            claimsSetBuilder.sub(requestDto.getSubject());
+        }
+
+        if (requestDto.getAudience() != null && !requestDto.getAudience().isBlank()) {
+            claimsSetBuilder.aud(requestDto.getAudience());
+        }
+
+        claimsSetBuilder.exp(expire);
+        claimsSetBuilder.nbf(notBefore);
+        claimsSetBuilder.iat(issuedAt);
+        claimsSetBuilder.cti(cwtUniqueId);
+
+        return claimsSetBuilder;
+    }
+
+    public boolean isNotBeforeDateValid(Date notBeforeDate) {
+        if (notBeforeDate == null) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.BLANK, SignatureConstant.BLANK,
+                    "Not Before Date is null.");
+            throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
+                    KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage());
+        }
+        Date currentDate = new Date();
+        return !currentDate.before(notBeforeDate);
+    }
+
+    public boolean isExpireDateValid(Date expireDate) {
+        if (expireDate == null) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.BLANK, SignatureConstant.BLANK,
+                    "Expire Date is null.");
+            throw new KeymanagerServiceException(KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorCode(),
+                    KeymanagerErrorConstant.INTERNAL_SERVER_ERROR.getErrorMessage());
+        }
+        Date currentDate = new Date();
+        return currentDate.before(expireDate);
+    }
+
+    public Map<Object, Object> constructMapfromCoseSign1Payload(COSESign1 cwtSign1) {
+        try {
+            byte[] cborPayloadBytes = cwtSign1.getPayload().encode();
+            CBORParser cborParser = new CBORParser(cborPayloadBytes);
+            Object payloadDecoder = cborParser.next();
+            byte[] firstLevelBytes = (byte[]) payloadDecoder;
+            CBORParser nestedParser = new CBORParser(firstLevelBytes);
+            Object nestedDecoded = nestedParser.next();
+            if (!(nestedDecoded instanceof Map)) {
+                throw new IllegalArgumentException("Inner payload not a Map");
+            }
+            return (Map<Object, Object>) nestedDecoded;
+        } catch (IOException e) {
+            throw new RequestException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
+                    SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
+        }
+    }
+
+    public static Map<String, Object> filterMapEntries(Map<String, Object> protectedHeaderMap, Map<String, Object> unprotectedHeaderMap) {
+        if (protectedHeaderMap != null && !protectedHeaderMap.isEmpty()) {
+
+            boolean includeCertChain = Boolean.TRUE.equals(protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE_CHAIN));
+            boolean includeCert = Boolean.TRUE.equals(protectedHeaderMap.get(SignatureConstant.INCLUDE_CERTIFICATE));
+
+            // If any one is true in protected, remove both keys from unprotected if present and filter out other keys with Boolean true in protected
+            if (includeCertChain || includeCert) {
+                unprotectedHeaderMap = unprotectedHeaderMap.entrySet().stream()
+                        .filter(entry -> !SignatureConstant.INCLUDE_CERTIFICATE_CHAIN.equals(entry.getKey())
+                                && !SignatureConstant.INCLUDE_CERTIFICATE.equals(entry.getKey()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            } else {
+                unprotectedHeaderMap = unprotectedHeaderMap.entrySet().stream()
+                        .filter(entry -> {
+                            String key = entry.getKey();
+
+                            if (protectedHeaderMap.containsKey(key)) {
+                                Object protectedVal = protectedHeaderMap.get(key);
+                                // Remove only if protected header value is Boolean true
+                                return !(protectedVal instanceof Boolean && (Boolean) protectedVal);
+                            }
+                            return true;
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+        }
+        return unprotectedHeaderMap;
+    }
+
+    public static boolean isNumeric(String str) {
+        try {
+            Integer.parseInt(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public byte[] decodeHex(String hex) {
+        try {
+            if (!isDataValid(hex))
+                return null;
+            return org.bouncycastle.util.encoders.Hex.decode(hex);
+        } catch (Exception e) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                    "Error occurred parsing hex string to byte array. Check provided data is hex or not.", e);
+            throw new SignatureFailureException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
+                    SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
+        }
+    }
+
+    public List<? extends Certificate> getCertificateTrustChain(X509Certificate x509Certificate) {
+        List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+        if (certificateChain == null) {
+            certificateChain = partnerCertificateManagerService.getCertificateTrustPath(x509Certificate, trustDomain, null);
+        }
+
+        if (certificateChain == null) {
+            certificateChain = Collections.singletonList(x509Certificate);
+        }
+
+        return certificateChain;
+    }
 }
