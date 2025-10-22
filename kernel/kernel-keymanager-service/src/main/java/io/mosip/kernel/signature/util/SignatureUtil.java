@@ -584,7 +584,7 @@ public class SignatureUtil {
     public List<? extends Certificate> getCertificateTrustChain(X509Certificate x509Certificate) {
         List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
         if (certificateChain == null) {
-            certificateChain = partnerCertificateManagerService.getCertificateTrustPath(x509Certificate, trustDomain, null);
+            certificateChain = partnerCertificateManagerService.getCertificateTrustChain(x509Certificate, trustDomain, null);
         }
 
         if (certificateChain == null) {

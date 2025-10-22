@@ -108,5 +108,5 @@ public interface PartnerCertificateManagerService {
      * @param interCertsTrust Intermediate Certificate Trust
      * @return List of Certificate
      */
-    public List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust);
+    public List<? extends Certificate> getCertificateTrustChain(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust);
 }
