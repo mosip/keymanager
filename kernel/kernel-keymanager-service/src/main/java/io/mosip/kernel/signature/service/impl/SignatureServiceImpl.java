@@ -1104,7 +1104,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (trustCertData == null)
 			return SignatureConstant.TRUST_NOT_VERIFIED;
 
-        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(trustCertData);
 		boolean isTrustValid = partnerCertManagerService.validateCertificatePathWithInterCertTrust(trustCertData, domain, intermediateCerts);
 		if (isTrustValid) {
             LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
@@ -1112,6 +1111,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			return SignatureConstant.TRUST_VALID;
 		}
 
+        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(trustCertData);
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation - Failed. Certificate Thumbprint: " + certThumbprint);
 		return SignatureConstant.TRUST_NOT_VALID;
