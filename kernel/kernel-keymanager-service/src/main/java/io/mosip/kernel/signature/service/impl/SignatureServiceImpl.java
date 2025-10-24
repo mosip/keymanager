@@ -391,6 +391,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		JWTSignatureVerifyResponseDto responseDto = new JWTSignatureVerifyResponseDto();
@@ -509,17 +510,20 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		if (trustCertData == null) 
 			return SignatureConstant.TRUST_NOT_VERIFIED;
-		
+
+		String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(keymanagerUtil.convertToCertificate(trustCertData));
 		CertificateTrustRequestDto trustRequestDto = new CertificateTrustRequestDto();
 		trustRequestDto.setCertificateData(trustCertData);
 		trustRequestDto.setPartnerDomain(domain);
 		CertificateTrustResponeDto responseDto = partnerCertManagerService.verifyCertificateTrust(trustRequestDto);
 		
 		if (responseDto.getStatus()){
+            LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                    "JWT Signature Verification Request - Trust Validation - Success.");
 			return SignatureConstant.TRUST_VALID;
 		}
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"JWT Signature Verification Request - Trust Validation - Completed.");
+				"JWT Signature Verification Request - Trust Validation - Failed. Certificate Thumbprint: " + certThumbprint);
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
 
@@ -1032,6 +1036,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		List<Certificate> certChain = certificateExistsInHeaderV2(jwtTokens[0]);
@@ -1099,13 +1104,16 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (trustCertData == null)
 			return SignatureConstant.TRUST_NOT_VERIFIED;
 
+        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(trustCertData);
 		boolean isTrustValid = partnerCertManagerService.validateCertificatePathWithInterCertTrust(trustCertData, domain, intermediateCerts);
 		if (isTrustValid) {
+            LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                    "JWT Signature Verification Request - Trust Validation - Successful.");
 			return SignatureConstant.TRUST_VALID;
 		}
 
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"JWT Signature Verification Request - Trust Validation - Completed.");
+				"JWT Signature Verification Request - Trust Validation - Failed. Certificate Thumbprint: " + certThumbprint);
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
 }
