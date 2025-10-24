@@ -139,8 +139,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         try {
             String algorithm = (requestDto.getAlgorithm() == null || requestDto.getAlgorithm().isEmpty()) ?
                     SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId) : requestDto.getAlgorithm();
-            COSEProtectedHeaderBuilder protectedHeaderBuilder = coseHeaderBuilder.buildProtectedHeader(certificateResponse, requestDto, getCoseAlgorithm(algorithm), keymanagerUtil);
-            COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder = coseHeaderBuilder.buildUnprotectedHeader(certificateResponse, requestDto, keymanagerUtil);
+            COSEProtectedHeaderBuilder protectedHeaderBuilder = coseHeaderBuilder.buildProtectedHeader(certificateResponse, requestDto, getCoseAlgorithm(algorithm), signatureUtil);
+            COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder = coseHeaderBuilder.buildUnprotectedHeader(certificateResponse, requestDto, signatureUtil);
             String keyId = getKeyId(kidPrepend, certificateResponse, requestDto, includeKeyId);
             setKidHeader(keyId, requestDto, protectedHeaderBuilder, unprotectedHeaderBuilder);
 

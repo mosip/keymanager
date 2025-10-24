@@ -31,6 +31,7 @@ import com.nimbusds.jose.util.Base64URL;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.dto.CWTSignRequestDto;
 import io.mosip.kernel.signature.exception.RequestException;
@@ -66,6 +67,9 @@ public class SignatureUtil {
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
 
+    @Autowired
+    PartnerCertificateManagerService partnerCertificateManagerService;
+
     @Value("${mosip.kernel.keymanager.signature.cwt.sign.iss:}")
     private String signIss;
 
@@ -74,6 +78,9 @@ public class SignatureUtil {
 
     @Value("${mosip.kernel.keymanager.signature.cwt.nbf:0}")
     private int nbfInDays;
+
+    @Value("${mosip.kernel.partner.trust.validate.domain.name:TRUST}")
+    private String trustDomain;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
@@ -253,7 +260,7 @@ public class SignatureUtil {
 			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
 					.criticalParams(Collections.singleton(SignatureConstant.B64));
 
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = getCertificateTrustChain(x509Certificate);
 
 		if (includeCertificateChain) {
 			List<Base64> x5c = buildX509CertChain((List<X509Certificate>) certificateChain);
@@ -572,5 +579,18 @@ public class SignatureUtil {
             throw new SignatureFailureException(SignatureErrorCode.DATA_PARSING_ERROR.getErrorCode(),
                     SignatureErrorCode.DATA_PARSING_ERROR.getErrorMessage(), e);
         }
+    }
+
+    public List<? extends Certificate> getCertificateTrustChain(X509Certificate x509Certificate) {
+        List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+        if (certificateChain == null) {
+            certificateChain = partnerCertificateManagerService.getCertificateTrustChain(x509Certificate, trustDomain, null);
+        }
+
+        if (certificateChain == null) {
+            certificateChain = Collections.singletonList(x509Certificate);
+        }
+
+        return certificateChain;
     }
 }
