@@ -14,6 +14,7 @@ import io.mosip.kernel.clientcrypto.test.ClientCryptoTestBootApplication;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.util.CryptoUtil;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,6 +26,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -237,5 +239,43 @@ public class ClientCryptoControllerTest {
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response.publicKey").isNotEmpty());
+    }
+
+    @Test
+    @WithUserDetails("test")
+    public void testVerifySignature_Success() throws Exception {
+        // First sign the data
+        RequestWrapper<TpmSignRequestDto> signRequest = new RequestWrapper<>();
+        signRequest.setId(ID);
+        signRequest.setVersion(VERSION);
+        signRequest.setRequesttime(LocalDateTime.now());
+        TpmSignRequestDto signRequestDto = new TpmSignRequestDto();
+        signRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(testData));
+        signRequest.setRequest(signRequestDto);
+        ResponseWrapper<TpmSignResponseDto> signResult = clientCryptoController.signData(signRequest);
+
+        // Now verify the signature
+        RequestWrapper<TpmSignVerifyRequestDto> request = new RequestWrapper<>();
+        request.setId(ID);
+        request.setVersion(VERSION);
+        request.setRequesttime(LocalDateTime.now());
+        TpmSignVerifyRequestDto requestDto = new TpmSignVerifyRequestDto();
+        requestDto.setData(CryptoUtil.encodeToURLSafeBase64(testData));
+        requestDto.setSignature(signResult.getResponse().getData());
+
+        ClientCryptoService clientCryptoService = clientCryptoFacade.getClientSecurity();
+        byte[] signingPublicKey = clientCryptoService.getSigningPublicPart();
+        requestDto.setPublicKey(CryptoUtil.encodeToURLSafeBase64(signingPublicKey));
+        requestDto.setClientType(ClientType.LOCAL);
+        request.setRequest(requestDto);
+
+        MvcResult result = mockMvc.perform(post("/csverifysign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(request))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Assert.assertTrue(result.getResponse().getContentAsString().contains("verified"));
     }
 }
