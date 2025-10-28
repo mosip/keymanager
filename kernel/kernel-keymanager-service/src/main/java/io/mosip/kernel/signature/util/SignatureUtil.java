@@ -28,6 +28,7 @@ import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -39,6 +40,7 @@ import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -57,6 +59,12 @@ public class SignatureUtil {
 
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
+
+    @Autowired
+    PartnerCertificateManagerService partnerCertificateManagerService;
+
+    @Value("${mosip.kernel.partner.trust.validate.domain.name:TRUST_CA}")
+    private String trustDomain;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
@@ -234,7 +242,7 @@ public class SignatureUtil {
 			jwsHeaderBuilder = jwsHeaderBuilder.base64URLEncodePayload(false)
 					.criticalParams(Collections.singleton(SignatureConstant.B64));
 
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = getCertificateTrustChain(x509Certificate);
 
 		if (includeCertificateChain) {
 			List<Base64> x5c = buildX509CertChain((List<X509Certificate>) certificateChain);
@@ -333,6 +341,9 @@ public class SignatureUtil {
 
 	private JWSHeader.Builder addRegisteredJWSHeaders(Map<String, String> additionalHeaders, JWSHeader.Builder jwsHeaderBuilder) {
 
+        if (additionalHeaders == null)
+            return jwsHeaderBuilder;
+
 		if (additionalHeaders.containsKey(SignatureConstant.JWS_HEADER_TYPE_KEY)) {
 			jwsHeaderBuilder.type(new JOSEObjectType(additionalHeaders.get(SignatureConstant.JWS_HEADER_TYPE_KEY)));
 		}
@@ -359,4 +370,17 @@ public class SignatureUtil {
 		}
 		return jwsHeaderBuilder;
 	}
+
+    public List<? extends Certificate> getCertificateTrustChain(X509Certificate x509Certificate) {
+        List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+        if (certificateChain == null) {
+            certificateChain = partnerCertificateManagerService.getCertificateTrustChain(x509Certificate, trustDomain, null);
+        }
+
+        if (certificateChain == null) {
+            certificateChain = Collections.singletonList(x509Certificate);
+        }
+
+        return certificateChain;
+    }
 }
