@@ -388,6 +388,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return null;
     }
 
+    public List<? extends Certificate> getCertificateTrustChain(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
+        LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
+                PartnerCertManagerConstants.EMPTY, "Certificate Trust chain for domain: " + partnerDomain);
+        return getCertificateTrustPath(reqX509Cert, partnerDomain, interCertsTrust);
+    }
+
     private boolean validateCertificatePath(X509Certificate reqX509Cert, String partnerDomain) {
         List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, null);
         return Objects.nonNull(certList);

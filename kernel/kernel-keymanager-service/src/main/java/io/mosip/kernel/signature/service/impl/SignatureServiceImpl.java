@@ -409,6 +409,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		JWTSignatureVerifyResponseDto responseDto = new JWTSignatureVerifyResponseDto();
@@ -841,7 +842,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		JsonWebSignature jwSign = new JsonWebSignature();
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = signatureUtil.getCertificateTrustChain(x509Certificate);
 		if (includeCertificate) {
 			X509Certificate[] certArray = certificateChain.stream()
 					.filter(cert -> cert instanceof X509Certificate)
@@ -1047,6 +1048,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		List<Certificate> certChain = certificateExistsInHeaderV2(jwtTokens[0]);
