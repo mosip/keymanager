@@ -628,6 +628,4 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
         secureRandom.nextBytes(bytes);
         return bytes;
 	}
-
-
 }
