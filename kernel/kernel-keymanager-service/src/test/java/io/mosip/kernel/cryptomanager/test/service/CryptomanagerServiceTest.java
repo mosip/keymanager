@@ -69,7 +69,7 @@ public class CryptomanagerServiceTest {
     public void testEncrypt_Success() {
         CryptomanagerRequestDto requestDto = new CryptomanagerRequestDto();
         requestDto.setApplicationId("TEST");
-        requestDto.setReferenceId("ref");
+        requestDto.setReferenceId("encrypt");
         requestDto.setData(testData);
 
         CryptomanagerResponseDto response = cryptomanagerService.encrypt(requestDto);
@@ -204,13 +204,13 @@ public class CryptomanagerServiceTest {
     public void testJwtDecrypt_Success() {
         JWTEncryptRequestDto encryptRequestDto = new JWTEncryptRequestDto();
         encryptRequestDto.setApplicationId("TEST");
-        encryptRequestDto.setReferenceId("json");
+        encryptRequestDto.setReferenceId("decrypt");
         encryptRequestDto.setData("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0");
         JWTCipherResponseDto encryptResponse = cryptomanagerService.jwtEncrypt(encryptRequestDto);
 
         JWTDecryptRequestDto requestDto = new JWTDecryptRequestDto();
         requestDto.setApplicationId("TEST");
-        requestDto.setReferenceId("json");
+        requestDto.setReferenceId("decrypt");
         requestDto.setEncData(encryptResponse.getData());
 
         JWTCipherResponseDto response = cryptomanagerService.jwtDecrypt(requestDto);
