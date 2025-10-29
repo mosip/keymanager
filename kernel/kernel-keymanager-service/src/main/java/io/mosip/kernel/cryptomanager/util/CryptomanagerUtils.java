@@ -397,5 +397,4 @@ public class CryptomanagerUtils {
 		}
 		return true;
 	}
-
 }
