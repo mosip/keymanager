@@ -79,7 +79,7 @@ public class SignatureUtil {
     @Value("${mosip.kernel.keymanager.signature.cwt.nbf:0}")
     private int nbfInDays;
 
-    @Value("${mosip.kernel.partner.trust.validate.domain.name:TRUST}")
+    @Value("${mosip.kernel.partner.trust.validate.domain.name:TRUST_CA}")
     private String trustDomain;
 
 	private static final Logger LOGGER = KeymanagerLogger.getLogger(SignatureUtil.class);
