@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.mosip.kernel.clientcrypto.constant.ClientType;
 import io.mosip.kernel.clientcrypto.dto.*;
+import io.mosip.kernel.clientcrypto.exception.ClientCryptoException;
+import io.mosip.kernel.clientcrypto.service.impl.AndroidClientCryptoServiceImpl;
 import io.mosip.kernel.clientcrypto.service.impl.ClientCryptoFacade;
 import io.mosip.kernel.clientcrypto.service.spi.ClientCryptoManagerService;
 import io.mosip.kernel.clientcrypto.test.ClientCryptoTestBootApplication;
 import io.mosip.kernel.core.util.CryptoUtil;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -227,5 +230,99 @@ public class ClientCryptoServiceTest {
             ClientCryptoFacade.setIsTPMRequired(true);
             ClientCryptoFacade.setIsTPMRequired(false);
         });
+    }
+
+    @Test
+    public void testCsSign_WithEmptyData() {
+        TpmSignRequestDto requestDto = new TpmSignRequestDto();
+        requestDto.setData("");
+        
+        assertThrows(Exception.class, () -> {
+            clientCryptoManagerService.csSign(requestDto);
+        });
+    }
+
+    @Test
+    public void testCsEncrypt_WithInvalidPublicKey() {
+        TpmCryptoRequestDto requestDto = new TpmCryptoRequestDto();
+        requestDto.setValue(CryptoUtil.encodeToURLSafeBase64(testData));
+        requestDto.setPublicKey("invalid-key");
+        requestDto.setClientType(ClientType.LOCAL);
+
+        assertThrows(Exception.class, () -> {
+            clientCryptoManagerService.csEncrypt(requestDto);
+        });
+    }
+
+    @Test
+    public void testCsVerify_WithInvalidSignature() {
+        TpmSignVerifyRequestDto requestDto = new TpmSignVerifyRequestDto();
+        requestDto.setData(CryptoUtil.encodeToURLSafeBase64(testData));
+        requestDto.setSignature("invalid-signature");
+        requestDto.setPublicKey(CryptoUtil.encodeToURLSafeBase64(testPublicKey.getEncoded()));
+        requestDto.setClientType(ClientType.LOCAL);
+
+        assertThrows(Exception.class, () -> {
+            clientCryptoManagerService.csVerify(requestDto);
+        });
+    }
+
+    @Test
+    public void testEncrypt_WithNullPublicKey() {
+        assertThrows(Exception.class, () -> {
+            clientCryptoFacade.encrypt(null, testData);
+        });
+    }
+
+    @Test
+    public void testEncrypt_WithNullData() {
+        assertThrows(Exception.class, () -> {
+            clientCryptoFacade.encrypt(testPublicKey.getEncoded(), null);
+        });
+    }
+
+    @Test
+    public void testCsEncrypt_WithEmptyValue() {
+        TpmCryptoRequestDto requestDto = new TpmCryptoRequestDto();
+        requestDto.setValue("");
+        requestDto.setPublicKey(CryptoUtil.encodeToURLSafeBase64(testPublicKey.getEncoded()));
+        requestDto.setClientType(ClientType.LOCAL);
+
+        assertThrows(Exception.class, () -> {
+            clientCryptoManagerService.csEncrypt(requestDto);
+        });
+    }
+
+    @Test
+    public void testCsDecrypt_WithEmptyValue() {
+        TpmCryptoRequestDto requestDto = new TpmCryptoRequestDto();
+        requestDto.setValue("");
+
+        assertThrows(Exception.class, () -> {
+            clientCryptoManagerService.csDecrypt(requestDto);
+        });
+    }
+
+    @Test
+    public void testDecrypt_CatchBlockBackwardCompatibility() {
+        byte[] minimalData = new byte[300];
+
+        for (int i = 0; i < minimalData.length; i++) {
+            minimalData[i] = (byte) (i % 256);
+        }
+
+        assertThrows(Exception.class, () -> {
+            clientCryptoFacade.decrypt(minimalData);
+        });
+    }
+
+    @Test(expected = ClientCryptoException.class)
+    public void testValidateSignature_AndroidException()  {
+        clientCryptoFacade.validateSignature(ClientType.ANDROID, testPublicKey.getEncoded(), "signature".getBytes(), "test data".getBytes());
+    }
+
+    @Test(expected = ClientCryptoException.class)
+    public void testEncryptAndroidException()  {
+        clientCryptoFacade.encrypt(ClientType.ANDROID, "public key".getBytes(), testData);
     }
 }

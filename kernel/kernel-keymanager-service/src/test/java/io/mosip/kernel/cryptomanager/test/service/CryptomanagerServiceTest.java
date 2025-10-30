@@ -71,6 +71,7 @@ public class CryptomanagerServiceTest {
         requestDto.setApplicationId("TEST");
         requestDto.setReferenceId("encrypt");
         requestDto.setData(testData);
+        Assert.assertNotNull(requestDto.toString());
 
         CryptomanagerResponseDto response = cryptomanagerService.encrypt(requestDto);
 
@@ -178,6 +179,7 @@ public class CryptomanagerServiceTest {
         requestDto.setApplicationId("TEST");
         requestDto.setReferenceId("json");
         requestDto.setData("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0");
+        Assert.assertNotNull(requestDto.toString());
 
         JWTCipherResponseDto response = cryptomanagerService.jwtEncrypt(requestDto);
         Assert.assertNotNull(response);
@@ -212,6 +214,7 @@ public class CryptomanagerServiceTest {
         requestDto.setApplicationId("TEST");
         requestDto.setReferenceId("decrypt");
         requestDto.setEncData(encryptResponse.getData());
+        Assert.assertNotNull(requestDto.toString());
 
         JWTCipherResponseDto response = cryptomanagerService.jwtDecrypt(requestDto);
 
