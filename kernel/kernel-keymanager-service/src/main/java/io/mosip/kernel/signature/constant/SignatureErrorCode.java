@@ -2,45 +2,67 @@ package io.mosip.kernel.signature.constant;
 
 /**
  * Constants for CryptoSignaure
- * 
+ *
  * @author Uday Kumarl
  * @since 1.0.0
  *
  */
 public enum SignatureErrorCode {
-	REQUEST_DATA_NOT_VALID("KER-CSS-999", "Invalid request input"), 
-	NOT_VALID("KER-CSS-101", "Validation Unsuccessful"),
-	
-	INVALID_INPUT("KER-JWS-102", "Data to sign is not valid."),
+    REQUEST_DATA_NOT_VALID("KER-CSS-999", "Invalid request input"),
 
-	INVALID_JSON("KER-JWS-103", "Data to sign is not valid JSON."),
+    NOT_VALID("KER-CSS-101", "Validation Unsuccessful"),
 
-	SIGN_ERROR("KER-JWS-104", "Error - Unable to sign the data."),
+    INVALID_INPUT("KER-JWS-102", "Data to sign is not valid."),
 
-	VERIFY_ERROR("KER-JWS-105", "Error - Unable to verify the data."),
+    INVALID_JSON("KER-JWS-103", "Data to sign is not valid JSON."),
 
-	INVALID_VERIFY_INPUT("KER-JWS-106", "Signature data to verify not valid."),
+    SIGN_ERROR("KER-JWS-104", "Error - Unable to sign the data."),
 
-	CERT_NOT_VALID("KER-JWS-107", "Signature verification certificate not valid."),
+    VERIFY_ERROR("KER-JWS-105", "Error - Unable to verify the data."),
 
-	SIGN_NOT_ALLOWED("KER-JWS-108", "Signing data not allowed for the authenticated token."),
+    INVALID_VERIFY_INPUT("KER-JWS-106", "Signature data to verify not valid."),
 
-	INTERNAL_SERVER_ERROR("KER-CSS-102", "Internal server error");
+    CERT_NOT_VALID("KER-JWS-107", "Signature verification certificate not valid."),
 
-	private final String errorCode;
-	private final String errorMessage;
+    SIGN_NOT_ALLOWED("KER-JWS-108", "Signing data not allowed for the authenticated token."),
 
-	private SignatureErrorCode(final String errorCode, final String errorMessage) {
-		this.errorCode = errorCode;
-		this.errorMessage = errorMessage;
-	}
+    INTERNAL_SERVER_ERROR("KER-CSS-500", "Internal server error"),
 
-	public String getErrorCode() {
-		return errorCode;
-	}
+    COSE_SIGN_ERROR("KER-CWS-109", "Error - Unable to sign the data."),
 
-	public String getErrorMessage() {
-		return errorMessage;
-	}
+    COSE_VERIFY_ERROR("KER-CWS-110", "Error - Unable to verify the data."),
 
+    INVALID_CWT_INPUT("KER-CWS-111", "Error - Invalid CWT Signed input."),
+
+    INVALID_COSE_SIGN1_INPUT("KER-CWS-112", "Error - Invalid COSE Sign1."),
+
+    SIGN_ALGO_NOT_SUPPORTED("KER-SIG-113", "Signature Algorithm Not Supported"),
+
+    DATA_PARSING_ERROR("KER-SIG-114", "Input data parsing error."),
+
+    FUTURE_DATE_ERROR("KER-SIG-115", "Token is not yet valid; Not Before date is in the future."),
+
+    EXPIRE_DATE_ERROR("KER-SIG-116", "Token is no longer valid; Expiry date exceeded."),
+
+    NEGATIVE_INTEGER_ERROR("KER-SIG-117", "Negative values are not allowed for {variable}."),
+
+    CLAIM_NOT_FOUND("KER-SIG-118", "{claim} Claim not found in the CWT Token."),
+
+    CLAIM_NOT_MATCHED("KER-SIG-119", "Provided {claim} Claim value not matched with CWT.");
+
+    private final String errorCode;
+    private final String errorMessage;
+
+    private SignatureErrorCode(final String errorCode, final String errorMessage) {
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 }
