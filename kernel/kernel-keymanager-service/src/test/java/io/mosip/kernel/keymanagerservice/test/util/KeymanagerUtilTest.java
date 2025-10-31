@@ -3,11 +3,13 @@ package io.mosip.kernel.keymanagerservice.test.util;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Security;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 
@@ -303,5 +305,36 @@ public class KeymanagerUtilTest {
         keyGenerator.init(256);
         javax.crypto.SecretKey secretKey = keyGenerator.generateKey();
         keymanagerUtil.destoryKey(secretKey);
+    }
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testConvertToCertificateException() {
+        String corruptPem = "-----BEGIN CERTIFICATE-----\n"
+                + "VGhpcyBpcyBub3QgYSB2YWxpZCBjZXJ0IGRhdGE=\n"
+                + "-----END CERTIFICATE-----";
+
+        keymanagerUtil.convertToCertificate(corruptPem);
+
+        keymanagerUtil.convertToCertificate((byte[]) corruptPem.getBytes());
+    }
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testGetCSRException() throws NoSuchAlgorithmException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+
+        KeyPairGenerator keyPairGenerator2 = KeyPairGenerator.getInstance("EC");
+        keyPairGenerator2.initialize(256);
+        KeyPair keyPair2 = keyPairGenerator2.generateKeyPair();
+
+        io.mosip.kernel.core.keymanager.model.CertificateParameters certParams = new io.mosip.kernel.core.keymanager.model.CertificateParameters();
+        certParams.setCommonName("Test");
+        certParams.setOrganizationUnit("OU");
+        certParams.setOrganization("O");
+        certParams.setLocation("Bengaluru");
+        certParams.setState("ST");
+        certParams.setCountry("IN");
+        keymanagerUtil.getCSR(keyPair2.getPrivate(), keyPair.getPublic(), certParams, "RSA");
     }
 }

@@ -202,7 +202,7 @@ public class PartnerCertManagerControllerTest {
     }
 
     @Test
-    public void testUploadPartnerCertificate_Success() throws Exception {
+    public void testUploadPartnerCertificate_DomainMissMatch() throws Exception {
         // First upload CA certificate
         CACertificateRequestDto caCertRequestDto = new CACertificateRequestDto();
         caCertRequestDto.setCertificateData(validCACertData);
@@ -516,5 +516,25 @@ public class PartnerCertManagerControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.errors[0].errorCode").value("KER-PCM-001"));
+    }
+
+    @Test
+    public void testUploadPartnerCertificate_Success() throws Exception {
+        CACertificateRequestDto caCertRequestDto = new CACertificateRequestDto();
+        caCertRequestDto.setCertificateData(validCACertData);
+        caCertRequestDto.setPartnerDomain("TEST");
+        partnerCertService.uploadCACertificate(caCertRequestDto);
+
+        RequestWrapper<PartnerCertificateRequestDto> request = new RequestWrapper<>();
+        PartnerCertificateRequestDto requestDto = new PartnerCertificateRequestDto();
+        requestDto.setCertificateData(validPartnerCertData);
+        requestDto.setOrganizationName("IITB");
+        requestDto.setPartnerDomain("TEST");
+        request.setRequest(requestDto);
+
+        mockMvc.perform(post("/uploadPartnerCertificate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
     }
 }
