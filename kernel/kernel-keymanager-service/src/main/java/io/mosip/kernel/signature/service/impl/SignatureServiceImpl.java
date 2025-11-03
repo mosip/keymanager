@@ -17,10 +17,16 @@ import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.crypto.SecretKey;
 
 import io.ipfs.multibase.Multibase;
+import io.ipfs.multibase.binary.Base64;
+import io.mosip.kernel.core.util.JsonUtils;
+import io.mosip.kernel.core.util.exception.JsonMappingException;
+import io.mosip.kernel.core.util.exception.JsonParseException;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -72,6 +78,8 @@ import io.mosip.kernel.signature.service.SignatureProvider;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.mosip.kernel.signature.util.SignatureUtil;
 import jakarta.annotation.PostConstruct;
+
+import static org.apache.commons.codec.digest.DigestUtils.sha256;
 
 /**
  * @author Uday Kumar
@@ -504,6 +512,10 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
         String[] jwtTokens = signedData.split(SignatureConstant.PERIOD, -1);
 
+        // 2nd precedence: request cert; 3rd: keymanager (app/ref)
+        String reqCertData = SignatureUtil.isDataValid(jwtVerifyRequestDto.getCertificateData())
+                ? jwtVerifyRequestDto.getCertificateData() : null;
+
 		boolean signatureValid = false;
 		Certificate certToVerify = certificateExistsInHeader(jwtTokens[0]);
 		if (Objects.nonNull(certToVerify)){
@@ -852,10 +864,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
                 throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
                         KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
         }
-        responseDto.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
-        responseDto.setSignatureAlgorithm(signAlgorithm);
-        responseDto.setKeyId(SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier()));
-        return responseDto;
+        return signedData;
     }
 
 	@Override
@@ -1210,4 +1219,101 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				"JWT Signature Verification Request - Trust Validation - Completed.");
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
+
+    private PublicKey decodePublicKey(String algo, String b64Url) throws GeneralSecurityException {
+        byte[] raw = B64_DEC.get().decode(b64Url);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(raw);
+        return switch (algo) {
+            case "RSA" -> KF_RSA.get().generatePublic(spec);
+            case "EC" -> KF_EC.get().generatePublic(spec);
+            case "Ed25519" -> KF_ED.get().generatePublic(spec);
+            default -> KeyFactory.getInstance(algo).generatePublic(spec);
+        };
+    }
+
+    private static String cacheKey(String... parts) {
+        return String.join("|", parts);
+    }
+
+    private static String computeX5tS256(X509Certificate cert) {
+        try {
+            byte[] digest = sha256(cert.getEncoded());
+            return b64NoPad(digest);
+        } catch (java.security.cert.CertificateEncodingException e) {
+            return null;
+        }
+    }
+
+    private static String b64NoPad(byte[] bytes) {
+        return B64_ENC.get().withoutPadding().encodeToString(bytes);
+    }
+
+    private void cacheCert(String key, Certificate cert) {
+        if (cert instanceof X509Certificate) {
+            certCache.putIfAbsent(key, (X509Certificate) cert);
+        }
+    }
+
+    @Override
+    public SignResponseDtoV2 rawSign(SignRequestDtoV2 signatureReq) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                "Raw Sign Signature Request.");
+        String applicationId = signatureReq.getApplicationId();
+        String referenceId = signatureReq.getReferenceId();
+        boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(applicationId);
+        String reqDataToSign = signatureReq.getDataToSign();
+        if (!hasAcccess) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Signing Data is not allowed for the authenticated user for the provided application id.");
+            throw new RequestException(SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorCode(),
+                    SignatureErrorCode.SIGN_NOT_ALLOWED.getErrorMessage());
+        }
+
+        if (!SignatureUtil.isDataValid(reqDataToSign)) {
+            LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.RAW_SIGN, SignatureConstant.BLANK,
+                    "Provided Data to sign is invalid.");
+            throw new RequestException(SignatureErrorCode.INVALID_INPUT.getErrorCode(),
+                    SignatureErrorCode.INVALID_INPUT.getErrorMessage());
+        }
+        byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
+        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+            applicationId = signApplicationid;
+            referenceId = signRefid;
+        }
+        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
+                signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+
+        SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
+                Optional.of(referenceId), timestamp);
+        keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+                DateUtils.parseUTCToDate(timestamp));
+        PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
+        certificateResponse.getCertificateEntry().getChain();
+        String providerName = certificateResponse.getProviderName();
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get(signAlgorithm);
+        if (Objects.isNull(signatureProvider)) {
+            signatureProvider = SIGNATURE_PROVIDER.get(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
+        }
+        String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
+        SignResponseDtoV2 responseDto = new SignResponseDtoV2();
+        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
+        switch (encodingFromat) {
+            case SignatureConstant.BASE64URL:
+                responseDto.setSignedData(signature);
+                break;
+            case SignatureConstant.BASE58BTC:
+                byte[] data = java.util.Base64.getUrlDecoder().decode(signature);
+                responseDto.setSignedData(Multibase.encode(Multibase.Base.Base58BTC, data));
+                break;
+            default:
+                throw new KeymanagerServiceException(KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorCode(),
+                        KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
+        }
+        responseDto.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
+        responseDto.setSignatureAlgorithm(signAlgorithm);
+        responseDto.setKeyId(SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier()));
+        return responseDto;
+    }
 }
