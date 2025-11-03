@@ -3,6 +3,7 @@ package io.mosip.kernel.zkcryptoservice.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,7 +44,8 @@ public class ZKCryptoManagerController {
 	/**
 	 * Instance for KeymanagerService
 	 */
-	@Autowired
+    @Qualifier("ZKCryptoManagerService")
+    @Autowired
 	ZKCryptoManagerService zkCryptoManagerService;
 	
     /**

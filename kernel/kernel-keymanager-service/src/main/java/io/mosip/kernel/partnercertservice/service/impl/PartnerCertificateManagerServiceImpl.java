@@ -385,7 +385,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @SuppressWarnings({"unchecked", "java:S2259"}) // added suppress for sonarcloud, not possibility of null pointer exception.
-    private List<? extends Certificate> getCertificateTrustPath(X509Certificate leaf, String partnerDomain) {
+    private List<? extends Certificate> getCertificateTrustPath(X509Certificate leaf, String partnerDomain, Set<X509Certificate> interCertsTrust) {
         final String key = partnerDomain + ":" + PartnerCertificateManagerUtil.getCertificateThumbprint(leaf);
 
         try {
@@ -400,8 +400,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
             Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_ROOT);
-            Set<X509Certificate> interCerts = (Set<X509Certificate>) trustStoreMap
-                    .get(PartnerCertManagerConstants.TRUST_INTER);
+            Set<X509Certificate> interCerts = interCertsTrust == null ? (Set<X509Certificate>) trustStoreMap
+                    .get(PartnerCertManagerConstants.TRUST_INTER) : interCertsTrust;
 
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                     PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation for domain: " + partnerDomain);
