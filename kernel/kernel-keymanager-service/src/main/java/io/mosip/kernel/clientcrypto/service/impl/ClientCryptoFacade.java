@@ -182,25 +182,24 @@ public class ClientCryptoFacade {
 
     	} catch (Throwable t) {
     		LOGGER.error("Failed to decrypt using default IV/AAD lengths. Trying fallback. Error: ", t);
-
-    		// 1.1.4.4 backward compatibility block
-    		final int fallbackIvLength = 16;
-    		final int fallbackAadLength = 12;
-
-    		int fallbackIvOffset = symmetricKeyLength;
-    		int fallbackAadOffset = fallbackIvOffset + fallbackIvLength;
-    		int fallbackCipherOffset = fallbackAadOffset + fallbackAadLength;
-
-    		byte[] iv = new byte[fallbackIvLength];
-    		byte[] aad = new byte[fallbackAadLength];
-    		byte[] cipher = new byte[dataToDecrypt.length - fallbackCipherOffset];
-
-    		System.arraycopy(dataToDecrypt, fallbackIvOffset, iv, 0, fallbackIvLength);
-    		System.arraycopy(dataToDecrypt, fallbackAadOffset, aad, 0, fallbackAadLength);
-    		System.arraycopy(dataToDecrypt, fallbackCipherOffset, cipher, 0, cipher.length);
-
-    		return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
     	}
+        // 1.1.4.4 backward compatibility block
+        final int fallbackIvLength = 16;
+        final int fallbackAadLength = 12;
+
+        int fallbackIvOffset = symmetricKeyLength;
+        int fallbackAadOffset = fallbackIvOffset + fallbackIvLength;
+        int fallbackCipherOffset = fallbackAadOffset + fallbackAadLength;
+
+        byte[] iv = new byte[fallbackIvLength];
+        byte[] aad = new byte[fallbackAadLength];
+        byte[] cipher = new byte[dataToDecrypt.length - fallbackCipherOffset];
+
+        System.arraycopy(dataToDecrypt, fallbackIvOffset, iv, 0, fallbackIvLength);
+        System.arraycopy(dataToDecrypt, fallbackAadOffset, aad, 0, fallbackAadLength);
+        System.arraycopy(dataToDecrypt, fallbackCipherOffset, cipher, 0, cipher.length);
+
+        return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
     }
 
 
