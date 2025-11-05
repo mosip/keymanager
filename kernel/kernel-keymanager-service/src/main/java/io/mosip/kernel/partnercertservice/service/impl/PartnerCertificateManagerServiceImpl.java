@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
 import jakarta.annotation.PostConstruct;
+
 import javax.security.auth.x500.X500Principal;
 
 import org.cache2k.Cache;
@@ -169,14 +170,20 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     // Thread-local primitives to avoid repeated allocations
     private static final ThreadLocal<java.security.cert.CertPathValidator> CPV =
             ThreadLocal.withInitial(() -> {
-                try { return java.security.cert.CertPathValidator.getInstance("PKIX"); }
-                catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
+                try {
+                    return java.security.cert.CertPathValidator.getInstance("PKIX");
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
             });
 
     private static final ThreadLocal<java.security.cert.CertificateFactory> CF =
             ThreadLocal.withInitial(() -> {
-                try { return java.security.cert.CertificateFactory.getInstance("X.509"); }
-                catch (CertificateException e) { throw new RuntimeException(e); }
+                try {
+                    return java.security.cert.CertificateFactory.getInstance("X.509");
+                } catch (CertificateException e) {
+                    throw new RuntimeException(e);
+                }
             });
 
     @PostConstruct
@@ -186,7 +193,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         // Cache2kBuilder constructor is throwing error.
         checkAndUpdateCaCertificateTypeIsNull();
         if (!disableTrustStoreCache) {
-            caCertTrustStore = new Cache2kBuilder<String, Object>() {}
+            caCertTrustStore = new Cache2kBuilder<String, Object>() {
+            }
                     // added hashcode because test case execution failing with IllegalStateException: Cache already created
                     .name("caCertTrustStore-" + this.hashCode())
                     .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
@@ -200,13 +208,15 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                     })
                     .build();
 
-            certPathCache = new Cache2kBuilder<String, List<Certificate>>() {}
+            certPathCache = new Cache2kBuilder<String, List<Certificate>>() {
+            }
                     .name("certPathCache-" + this.hashCode())
                     .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
                     .entryCapacity(2000)
                     .build();
 
-            domainIndexCache = new Cache2kBuilder<String, DomainIndex>() {}
+            domainIndexCache = new Cache2kBuilder<String, DomainIndex>() {
+            }
                     .name("domainIndex-" + this.hashCode())
                     .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
                     .entryCapacity(10)
@@ -235,10 +245,10 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         List<CACertificateStore> certificates = caCertificateStoreRepository.findByCaCertificateTypeIsNull();
         String caCertificateType;
 
-        for(CACertificateStore certificate : certificates) {
+        for (CACertificateStore certificate : certificates) {
             X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificate.getCertData());
 
-            if(PartnerCertificateManagerUtil.isSelfSignedCertificate(x509Cert)) {
+            if (PartnerCertificateManagerUtil.isSelfSignedCertificate(x509Cert)) {
                 caCertificateType = String.valueOf(CaCertificateTypeConsts.ROOT);
             } else {
                 caCertificateType = String.valueOf(CaCertificateTypeConsts.INTERMEDIATE);
@@ -271,7 +281,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         String partnerDomain = validateAllowedDomains(caCertRequestDto.getPartnerDomain());
         boolean foundError = false;
         boolean uploadedCert = false;
-        for(Certificate cert : certList) {
+        for (Certificate cert : certList) {
             X509Certificate reqX509Cert = (X509Certificate) cert;
 
             String certThumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
@@ -337,7 +347,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             X509Certificate reqX509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
             certList.add(reqX509Cert);
             return certList;
-        } catch(KeymanagerServiceException kse) {
+        } catch (KeymanagerServiceException kse) {
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.EMPTY, "Ignore this exception, the exception thrown when certificate is not"
                             + " able to parse, may be p7b certificate data inputed.");
@@ -348,11 +358,11 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             Collection<?> p7bCertList = cf.generateCertificates(certStream);
             p7bCertList.forEach(cert -> {
-                certList.add((Certificate)cert);
+                certList.add((Certificate) cert);
             });
             Collections.reverse(certList);
             return certList;
-        } catch(CertificateException | IOException  exp) {
+        } catch (CertificateException | IOException exp) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.EMPTY, "Error Parsing P7B Certificate data.", exp);
         }
@@ -373,7 +383,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     private String validateAllowedCaCertificateType(String caCertificateType) {
         boolean isValidCaCertType = Arrays.stream(CaCertificateTypeConsts.values()).anyMatch((caCertType) -> caCertType.name()
                 .equalsIgnoreCase(caCertificateType));
-        if(!isValidCaCertType) {
+        if (!isValidCaCertType) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.EMPTY, caCertificateType,
                     "Invalid CA Certificate Type", PartnerCertManagerErrorConstants.INVALID_CA_CERTIFICATE_TYPE);
             throw new PartnerCertManagerException(
@@ -384,13 +394,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return caCertificateType.toUpperCase();
     }
 
-    @SuppressWarnings({"unchecked", "java:S2259"}) // added suppress for sonarcloud, not possibility of null pointer exception.
-    private List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
-
-        try {
-            Map<String, Set<?>> trustStoreMap = !disableTrustStoreCache ? (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain):
-                                                        certDBHelper.getTrustAnchors(partnerDomain);
-    private List<? extends Certificate> getCertificateTrustPath(X509Certificate leaf, String partnerDomain) {
+    @SuppressWarnings({"unchecked", "java:S2259"})
+    // added suppress for sonarcloud, not possibility of null pointer exception.
+    private List<? extends Certificate> getCertificateTrustPath(X509Certificate leaf, String partnerDomain, Set<X509Certificate> interCertsTrust) {
         final String key = partnerDomain + ":" + PartnerCertificateManagerUtil.getCertificateThumbprint(leaf);
 
         try {
@@ -399,17 +405,14 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 if (cached != null) return cached;
             }
 
-            Map<String, Set<?>> trustStoreMap = !disableTrustStoreCache ?
-                    (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain):
+            Map<String, Set<?>> trustStoreMap = !disableTrustStoreCache ? (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain) :
                     certDBHelper.getTrustAnchors(partnerDomain);
 
             Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_ROOT);
-            Set<X509Certificate> interCerts = interCertsTrust == null ? (Set<X509Certificate>) trustStoreMap
+
+            Set<X509Certificate> interCerts = interCertsTrust == null ?(Set<X509Certificate>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_INTER) : interCertsTrust;
-            
-            Set<X509Certificate> interCerts = (Set<X509Certificate>) trustStoreMap
-                    .get(PartnerCertManagerConstants.TRUST_INTER);
 
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                     PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation for domain: " + partnerDomain);
@@ -516,6 +519,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return null;
     }
 
+    @Override
     public List<? extends Certificate> getCertificateTrustChain(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                 PartnerCertManagerConstants.EMPTY, "Certificate Trust chain for domain: " + partnerDomain);
@@ -527,7 +531,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return Objects.nonNull(certList);
     }
 
-    public boolean validateCertificatePathWithInterCertTrust(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCerts) {
+    public boolean validateCertificatePathWithInterCertTrust(X509Certificate reqX509Cert, String
+            partnerDomain, Set<X509Certificate> interCerts) {
         List<? extends Certificate> certList = getCertificateTrustPath(reqX509Cert, partnerDomain, interCerts);
         return Objects.nonNull(certList);
     }
@@ -603,7 +608,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return responseDto;
     }
 
-    private void validateBasicPartnerCertParams(X509Certificate reqX509Cert, String certThumbprint, String reqOrgName,
+    private void validateBasicPartnerCertParams(X509Certificate reqX509Cert, String certThumbprint, String
+                                                        reqOrgName,
                                                 String partnerDomain) {
         boolean certExist = certDBHelper.isPartnerCertificateExist(certThumbprint, partnerDomain);
         if (certExist) {
@@ -654,8 +660,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         }
     }
 
-    private boolean validateBasicCaCertificateParams(X509Certificate reqX509Cert, String certThumbprint, int certsCount,
-                                                     String partnerDomain) {
+    private boolean validateBasicCaCertificateParams(X509Certificate reqX509Cert, String certThumbprint,
+                                                     int certsCount, String partnerDomain) {
         boolean foundError = false;
         boolean certExist = certDBHelper.isCertificateExist(certThumbprint, partnerDomain);
         if (certExist) {
@@ -684,7 +690,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         if (!validDates) {
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.EMPTY, "Certificate Dates are not valid.");
-            if(certsCount == 1) {
+            if (certsCount == 1) {
                 throw new PartnerCertManagerException(
                         PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorCode(),
                         PartnerCertManagerErrorConstants.CERTIFICATE_DATES_NOT_VALID.getErrorMessage());
@@ -693,7 +699,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         }
 
         boolean minimumValidity = PartnerCertificateManagerUtil.isMinValidityCertificate(reqX509Cert, minValidity);
-        if(!minimumValidity) {
+        if (!minimumValidity) {
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
                     PartnerCertManagerConstants.EMPTY, "Certificate expire before the minimum validity.");
             if (certsCount == 1) {
@@ -708,7 +714,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
                     PartnerCertManagerConstants.EMPTY,
                     "CA Certificate version not valid, the version has to be V3");
-            if (certsCount == 1){
+            if (certsCount == 1) {
                 throw new PartnerCertManagerException(PartnerCertManagerErrorConstants.INVALID_CERT_VERSION.getErrorCode(),
                         PartnerCertManagerErrorConstants.INVALID_CERT_VERSION.getErrorMessage());
             }
@@ -766,7 +772,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         }
     }
 
-    private X509Certificate reSignPartnerKey(X509Certificate reqX509Cert, SignatureCertificate certificateResponse,
+    private X509Certificate reSignPartnerKey(X509Certificate reqX509Cert, SignatureCertificate
+                                                     certificateResponse,
                                              String partnerDomain) {
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT, "KeyAlias",
@@ -799,7 +806,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @Override
-    public PartnerCertDownloadResponeDto getPartnerCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
+    public PartnerCertDownloadResponeDto getPartnerCertificate(PartnerCertDownloadRequestDto
+                                                                       certDownloadRequestDto) {
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner Certificate Request.");
@@ -846,17 +854,20 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     private void purgeCache(String partnerDomain) {
-        if(!disableTrustStoreCache) {
+        if (!disableTrustStoreCache) {
             caCertTrustStore.expireAt(partnerDomain, Expiry.NOW);
 
             domainIndexCache.expireAt(partnerDomain, Expiry.NOW);
             // wipe any chain entries for this domain
-            certPathCache.keys().forEach(k -> { if (k.startsWith(partnerDomain + ":")) certPathCache.remove(k); });
+            certPathCache.keys().forEach(k -> {
+                if (k.startsWith(partnerDomain + ":")) certPathCache.remove(k);
+            });
         }
     }
 
     @Override
-    public PartnerSignedCertDownloadResponseDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto certDownloadRequestDto) {
+    public PartnerSignedCertDownloadResponseDto getPartnerSignedCertificate(PartnerCertDownloadRequestDto
+                                                                                    certDownloadRequestDto) {
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
@@ -876,11 +887,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     @Override
-    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto caCertificateTrustPathRequestDto) {
+    public CACertificateTrustPathResponseDto getCACertificateTrustPath(CACertificateTrustPathRequestDto
+                                                                               caCertificateTrustPathRequestDto) {
 
 
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_CA_CERT_TRUST,
-                PartnerCertManagerConstants.EMPTY, "Get CA Certificate with trust request: " );
+                PartnerCertManagerConstants.EMPTY, "Get CA Certificate with trust request: ");
 
         String caCertId = caCertificateTrustPathRequestDto.getCaCertId();
         CACertificateStore caCertificateStore = getCACertificate(caCertId);
@@ -890,7 +902,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         List<? extends Certificate> certList = null;
         List<Certificate> chain = new ArrayList<>();
 
-        if (PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)){
+        if (PartnerCertificateManagerUtil.isSelfSignedCertificate(caCertificate)) {
             chain.add(caCertificate);
         } else {
             certList = getCertificateTrustPath(caCertificate, partnerDomain, null);
@@ -1029,9 +1041,20 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
     static final class ByteArrayWrapper {
         final byte[] v;
-        ByteArrayWrapper(byte[] v){ this.v = v; }
-        @Override public boolean equals(Object o){ return o instanceof ByteArrayWrapper w && java.util.Arrays.equals(v,w.v); }
-        @Override public int hashCode(){ return java.util.Arrays.hashCode(v); }
+
+        ByteArrayWrapper(byte[] v) {
+            this.v = v;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof ByteArrayWrapper w && java.util.Arrays.equals(v, w.v);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Arrays.hashCode(v);
+        }
     }
 
     // Per-domain index of intermediates + roots for O(1) narrowing
@@ -1039,6 +1062,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         final Map<X500Principal, List<X509Certificate>> bySubject = new HashMap<>();
         final Map<ByteArrayWrapper, List<X509Certificate>> bySki = new HashMap<>();
         final Map<X500Principal, TrustAnchor> rootBySubject = new HashMap<>();
+
         DomainIndex(Set<TrustAnchor> roots, Set<X509Certificate> inters) {
             for (TrustAnchor ta : roots) {
                 X509Certificate rc = ta.getTrustedCert();
@@ -1047,7 +1071,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             for (X509Certificate ic : inters) {
                 bySubject.computeIfAbsent(ic.getSubjectX500Principal(), k -> new ArrayList<>()).add(ic);
                 byte[] ski = PartnerCertificateManagerUtil.getSubjectKeyIdentifier(ic);
-                if (ski != null) bySki.computeIfAbsent(new ByteArrayWrapper(ski), k -> new ArrayList<>()).add(ic);
+                if (ski != null)
+                    bySki.computeIfAbsent(new ByteArrayWrapper(ski), k -> new ArrayList<>()).add(ic);
             }
         }
     }
