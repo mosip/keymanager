@@ -79,7 +79,7 @@ public class ClientCryptoFacade {
                 LOGGER.warn(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.INITIALIZATION, ClientCryptoManagerConstant.EMPTY,
                         "USING LOCAL CLIENT SECURITY INITIALIZED, IGNORE IF THIS IS NON-PROD ENV");
                 clientCryptoService = new LocalClientCryptoServiceImpl(cryptoCore, applicationContext,
-                    useResidentServiceModuleKey, residentServiceAppId);
+                        useResidentServiceModuleKey, residentServiceAppId);
             } catch (Throwable ex) {
                 LOGGER.error(ClientCryptoManagerConstant.SESSIONID, ClientCryptoManagerConstant.INITIALIZATION,
                         ClientCryptoManagerConstant.EMPTY, ExceptionUtils.getStackTrace(ex));
@@ -105,7 +105,7 @@ public class ClientCryptoFacade {
     }
 
     public boolean validateSignature(byte[] publicKey, byte[] signature, byte[] actualData) {
-       return validateSignature(ClientType.LOCAL, publicKey, signature, actualData);
+        return validateSignature(ClientType.LOCAL, publicKey, signature, actualData);
     }
 
     public byte[] encrypt(byte[] publicKey, byte[] dataToEncrypt) {
@@ -158,26 +158,50 @@ public class ClientCryptoFacade {
     }
 
     public byte[] decrypt(byte[] dataToDecrypt) {
-        byte[] encryptedSecretKey = Arrays.copyOfRange(dataToDecrypt, 0, symmetricKeyLength);
-        byte[] secretKeyBytes =  Objects.requireNonNull(getClientSecurity()).asymmetricDecrypt(encryptedSecretKey);
+        // Extract encrypted AES key and decrypt it
+        byte[] encryptedSecretKey = new byte[symmetricKeyLength];
+        System.arraycopy(dataToDecrypt, 0, encryptedSecretKey, 0, symmetricKeyLength);
+        byte[] secretKeyBytes = Objects.requireNonNull(getClientSecurity()).asymmetricDecrypt(encryptedSecretKey);
         SecretKey secretKey = new SecretKeySpec(secretKeyBytes, "AES");
 
+        // Pre-calculate offsets
+        final int ivOffset = symmetricKeyLength;
+        final int aadOffset = ivOffset + ivLength;
+        final int cipherOffset = aadOffset + aadLength;
+
         try {
-            byte[] iv = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength, symmetricKeyLength + ivLength);
-            byte[] aad = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + ivLength, symmetricKeyLength + ivLength + aadLength);
-            byte[] cipher = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + ivLength + aadLength,
-                    dataToDecrypt.length);
+            byte[] iv = new byte[ivLength];
+            byte[] aad = new byte[aadLength];
+            byte[] cipher = new byte[dataToDecrypt.length - cipherOffset];
+
+            System.arraycopy(dataToDecrypt, ivOffset, iv, 0, ivLength);
+            System.arraycopy(dataToDecrypt, aadOffset, aad, 0, aadLength);
+            System.arraycopy(dataToDecrypt, cipherOffset, cipher, 0, cipher.length);
+
             return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
+
         } catch (Throwable t) {
-            LOGGER.error("Failed to decrypt the data due to : ", t.getMessage());
-            //1.1.4.4 backward compatibility code, for IV_LENGTH = 16 and AAD_LENGTH = 12;
-            byte[] iv = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength, symmetricKeyLength + 16);
-            byte[] aad = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + 16, symmetricKeyLength + 16 + 12);
-            byte[] cipher = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + 16 + 12,
-                    dataToDecrypt.length);
-            return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
+            LOGGER.error("Failed to decrypt using default IV/AAD lengths. Trying fallback. Error: ", t);
         }
+        // 1.1.4.4 backward compatibility block
+        final int fallbackIvLength = 16;
+        final int fallbackAadLength = 12;
+
+        int fallbackIvOffset = symmetricKeyLength;
+        int fallbackAadOffset = fallbackIvOffset + fallbackIvLength;
+        int fallbackCipherOffset = fallbackAadOffset + fallbackAadLength;
+
+        byte[] iv = new byte[fallbackIvLength];
+        byte[] aad = new byte[fallbackAadLength];
+        byte[] cipher = new byte[dataToDecrypt.length - fallbackCipherOffset];
+
+        System.arraycopy(dataToDecrypt, fallbackIvOffset, iv, 0, fallbackIvLength);
+        System.arraycopy(dataToDecrypt, fallbackAadOffset, aad, 0, fallbackAadLength);
+        System.arraycopy(dataToDecrypt, fallbackCipherOffset, cipher, 0, cipher.length);
+
+        return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
     }
+
 
     public static byte[] generateRandomBytes(int length) {
         if(secureRandom == null)
@@ -199,7 +223,7 @@ public class ClientCryptoFacade {
         }
         // Removed returning null, instead throwing exception to understand that key generation has failed. Otherwise it is possible for null pointer exception.
         throw new ClientCryptoException(ClientCryptoErrorConstants.NOT_ABLE_GENERATE_KEY.getErrorCode(),
-                    ClientCryptoErrorConstants.NOT_ABLE_GENERATE_KEY.getErrorMessage());
+                ClientCryptoErrorConstants.NOT_ABLE_GENERATE_KEY.getErrorMessage());
     }
 
     private boolean isTPMKey(byte[] publicKey) {
