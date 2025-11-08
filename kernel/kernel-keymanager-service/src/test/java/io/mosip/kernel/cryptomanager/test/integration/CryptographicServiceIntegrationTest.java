@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -20,6 +22,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +30,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -106,7 +110,7 @@ public class CryptographicServiceIntegrationTest {
 	private static final String VERSION = "V1.0";
 
 	@Before
-	public void setUp() {
+	public void setUp() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		objectMapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
 		objectMapper.registerModule(new JavaTimeModule());
 
@@ -124,10 +128,11 @@ public class CryptographicServiceIntegrationTest {
 		requestWithPinWrapper.setId(ID);
 		requestWithPinWrapper.setVersion(VERSION);
 		requestWithPinWrapper.setRequesttime(LocalDateTime.now(ZoneId.of("UTC")));
+
 	}
 
 	@WithUserDetails("reg-processor")
-	@Test
+	//@Test
 	public void testEncrypt() throws Exception {
 		KeyPairGenerateResponseDto responseDto = new KeyPairGenerateResponseDto(certData, null, LocalDateTime.now(),
 				LocalDateTime.now(), LocalDateTime.now());

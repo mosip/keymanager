@@ -158,26 +158,50 @@ public class ClientCryptoFacade {
     }
 
     public byte[] decrypt(byte[] dataToDecrypt) {
-        byte[] encryptedSecretKey = Arrays.copyOfRange(dataToDecrypt, 0, symmetricKeyLength);
-        byte[] secretKeyBytes =  Objects.requireNonNull(getClientSecurity()).asymmetricDecrypt(encryptedSecretKey);
-        SecretKey secretKey = new SecretKeySpec(secretKeyBytes, "AES");
+    	// Extract encrypted AES key and decrypt it
+    	byte[] encryptedSecretKey = new byte[symmetricKeyLength];
+    	System.arraycopy(dataToDecrypt, 0, encryptedSecretKey, 0, symmetricKeyLength);
+    	byte[] secretKeyBytes = Objects.requireNonNull(getClientSecurity()).asymmetricDecrypt(encryptedSecretKey);
+    	SecretKey secretKey = new SecretKeySpec(secretKeyBytes, "AES");
 
-        try {
-            byte[] iv = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength, symmetricKeyLength + ivLength);
-            byte[] aad = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + ivLength, symmetricKeyLength + ivLength + aadLength);
-            byte[] cipher = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + ivLength + aadLength,
-                    dataToDecrypt.length);
-            return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
-        } catch (Throwable t) {
-            LOGGER.error("Failed to decrypt the data due to : ", t.getMessage());
-            //1.1.4.4 backward compatibility code, for IV_LENGTH = 16 and AAD_LENGTH = 12;
-            byte[] iv = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength, symmetricKeyLength + 16);
-            byte[] aad = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + 16, symmetricKeyLength + 16 + 12);
-            byte[] cipher = Arrays.copyOfRange(dataToDecrypt, symmetricKeyLength + 16 + 12,
-                    dataToDecrypt.length);
-            return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
-        }
+    	// Pre-calculate offsets
+    	final int ivOffset = symmetricKeyLength;
+    	final int aadOffset = ivOffset + ivLength;
+    	final int cipherOffset = aadOffset + aadLength;
+
+    	try {
+    		byte[] iv = new byte[ivLength];
+    		byte[] aad = new byte[aadLength];
+    		byte[] cipher = new byte[dataToDecrypt.length - cipherOffset];
+
+    		System.arraycopy(dataToDecrypt, ivOffset, iv, 0, ivLength);
+    		System.arraycopy(dataToDecrypt, aadOffset, aad, 0, aadLength);
+    		System.arraycopy(dataToDecrypt, cipherOffset, cipher, 0, cipher.length);
+
+    		return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
+
+    	} catch (Throwable t) {
+    		LOGGER.error("Failed to decrypt using default IV/AAD lengths. Trying fallback. Error: ", t);
+    	}
+        // 1.1.4.4 backward compatibility block
+        final int fallbackIvLength = 16;
+        final int fallbackAadLength = 12;
+
+        int fallbackIvOffset = symmetricKeyLength;
+        int fallbackAadOffset = fallbackIvOffset + fallbackIvLength;
+        int fallbackCipherOffset = fallbackAadOffset + fallbackAadLength;
+
+        byte[] iv = new byte[fallbackIvLength];
+        byte[] aad = new byte[fallbackAadLength];
+        byte[] cipher = new byte[dataToDecrypt.length - fallbackCipherOffset];
+
+        System.arraycopy(dataToDecrypt, fallbackIvOffset, iv, 0, fallbackIvLength);
+        System.arraycopy(dataToDecrypt, fallbackAadOffset, aad, 0, fallbackAadLength);
+        System.arraycopy(dataToDecrypt, fallbackCipherOffset, cipher, 0, cipher.length);
+
+        return cryptoCore.symmetricDecrypt(secretKey, cipher, iv, aad);
     }
+
 
     public static byte[] generateRandomBytes(int length) {
         if(secureRandom == null)
