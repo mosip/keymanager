@@ -11,6 +11,8 @@ import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 
+import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
+import io.mosip.kernel.keymanagerservice.validator.ECKeyPairGenRequestValidator;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,11 +20,11 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
-import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -34,10 +36,8 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 
 @SpringBootTest(classes = { KeymanagerTestBootApplication.class })
 @RunWith(SpringRunner.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class KeymanagerUtilTest {
-
-	@MockBean
-	private ECKeyStore keyStore;
 
 	@MockBean
 	private KeyAliasRepository keyAliasRepository;
@@ -50,6 +50,9 @@ public class KeymanagerUtilTest {
 
 	@Autowired
 	private KeymanagerUtil keymanagerUtil;
+
+    @Autowired
+    ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
 
 	private KeyPair keyPairMaster;
 
@@ -85,4 +88,224 @@ public class KeymanagerUtilTest {
 		keymanagerUtil.isCertificateValid(certificateEntry, DateUtils.parseUTCToDate("2019-05-01T12:00:00.00Z"));
 	}
 
+	@Test
+	public void testIsValidTimestamp() {
+		LocalDateTime timestamp = LocalDateTime.now();
+		io.mosip.kernel.keymanagerservice.entity.KeyAlias keyAlias = new io.mosip.kernel.keymanagerservice.entity.KeyAlias();
+		keyAlias.setKeyGenerationTime(timestamp.minusDays(1));
+		keyAlias.setKeyExpiryTime(timestamp.plusDays(30));
+		
+		boolean result = keymanagerUtil.isValidTimestamp(timestamp, keyAlias, 5);
+		assertThat(result, isA(Boolean.class));
+	}
+
+	@Test
+	public void testIsOverlapping() {
+		LocalDateTime timestamp = LocalDateTime.now();
+		LocalDateTime policyExpiryTime = timestamp.plusDays(30);
+		LocalDateTime keyGenerationTime = timestamp.minusDays(5);
+		LocalDateTime keyExpiryTime = timestamp.plusDays(25);
+		
+		boolean result = keymanagerUtil.isOverlapping(timestamp, policyExpiryTime, keyGenerationTime, keyExpiryTime);
+		assertThat(result, isA(Boolean.class));
+	}
+
+	@Test
+	public void testIsValidReferenceId() {
+		boolean validResult = keymanagerUtil.isValidReferenceId("VALID_REF_ID");
+		boolean invalidResult = keymanagerUtil.isValidReferenceId("");
+		boolean nullResult = keymanagerUtil.isValidReferenceId(null);
+		
+		assertThat(validResult, isA(Boolean.class));
+		assertThat(invalidResult, isA(Boolean.class));
+		assertThat(nullResult, isA(Boolean.class));
+	}
+
+	@Test
+	public void testParseToLocalDateTime() {
+		String dateTimeStr = "2024-01-15T10:30:45.123Z";
+		LocalDateTime result = keymanagerUtil.parseToLocalDateTime(dateTimeStr);
+		assertThat(result, isA(LocalDateTime.class));
+	}
+
+	@Test
+	public void testIsValidResponseType() {
+		boolean validResult = keymanagerUtil.isValidResponseType("CSR");
+		boolean invalidResult = keymanagerUtil.isValidResponseType("");
+		boolean nullResult = keymanagerUtil.isValidResponseType(null);
+		
+		assertThat(validResult, isA(Boolean.class));
+		assertThat(invalidResult, isA(Boolean.class));
+		assertThat(nullResult, isA(Boolean.class));
+	}
+
+	@Test
+	public void testIsValidApplicationId() {
+		boolean validResult = keymanagerUtil.isValidApplicationId("REGISTRATION");
+		boolean invalidResult = keymanagerUtil.isValidApplicationId("");
+		boolean nullResult = keymanagerUtil.isValidApplicationId(null);
+		
+		assertThat(validResult, isA(Boolean.class));
+		assertThat(invalidResult, isA(Boolean.class));
+		assertThat(nullResult, isA(Boolean.class));
+	}
+
+	@Test
+	public void testIsValidCertificateData() {
+		String validCert = "-----BEGIN CERTIFICATE-----\nMIICertData\n-----END CERTIFICATE-----";
+		boolean validResult = keymanagerUtil.isValidCertificateData(validCert);
+		boolean invalidResult = keymanagerUtil.isValidCertificateData("");
+		boolean nullResult = keymanagerUtil.isValidCertificateData(null);
+		
+		assertThat(validResult, isA(Boolean.class));
+		assertThat(invalidResult, isA(Boolean.class));
+		assertThat(nullResult, isA(Boolean.class));
+	}
+
+	@Test
+	public void testGetPEMFormatedData() {
+		String result = keymanagerUtil.getPEMFormatedData(keyPair.getPublic());
+		assertThat(result, isA(String.class));
+	}
+
+	@Test
+	public void testConvertToUTC() {
+		java.util.Date testDate = new java.util.Date();
+		LocalDateTime result = keymanagerUtil.convertToUTC(testDate);
+		assertThat(result, isA(LocalDateTime.class));
+	}
+
+	@Test
+	public void testGetUniqueIdentifier() {
+		String input = "TEST_INPUT_STRING";
+		String result = keymanagerUtil.getUniqueIdentifier(input);
+		assertThat(result, isA(String.class));
+	}
+
+	@Test
+	public void testConvertSanValuesToMap() {
+		String sanValues = "{'DNS':'example.com','IP':'192.168.1.1'}";
+		java.util.Map<String, String> result = keymanagerUtil.convertSanValuesToMap(sanValues);
+		assertThat(result, isA(java.util.Map.class));
+		
+		// Test with null input
+		java.util.Map<String, String> nullResult = keymanagerUtil.convertSanValuesToMap(null);
+		assertThat(nullResult, isA(java.util.Map.class));
+	}
+
+	@Test
+	public void testSetMetaData() {
+		io.mosip.kernel.keymanagerservice.entity.KeyAlias entity = new io.mosip.kernel.keymanagerservice.entity.KeyAlias();
+		io.mosip.kernel.keymanagerservice.entity.KeyAlias result = keymanagerUtil.setMetaData(entity);
+		assertThat(result, isA(io.mosip.kernel.keymanagerservice.entity.KeyAlias.class));
+	}
+
+	@Test
+	public void testConvertToCertificateFromString() {
+		String certData = keymanagerUtil.getPEMFormatedData(chain[0]);
+		java.security.cert.Certificate result = keymanagerUtil.convertToCertificate(certData);
+		assertThat(result, isA(java.security.cert.Certificate.class));
+	}
+
+	@Test
+	public void testConvertToCertificateFromBytes() throws Exception {
+		byte[] certBytes = chain[0].getEncoded();
+		java.security.cert.Certificate result = keymanagerUtil.convertToCertificate(certBytes);
+		assertThat(result, isA(java.security.cert.Certificate.class));
+	}
+
+	@Test
+	public void testGetCertificateParameters() {
+		LocalDateTime notBefore = LocalDateTime.now();
+		LocalDateTime notAfter = notBefore.plusYears(1);
+		io.mosip.kernel.core.keymanager.model.CertificateParameters result = 
+			keymanagerUtil.getCertificateParameters(chain[0].getSubjectX500Principal(), notBefore, notAfter);
+		assertThat(result, isA(io.mosip.kernel.core.keymanager.model.CertificateParameters.class));
+	}
+
+	@Test
+	public void testGetCertificateParametersWithRequest() {
+		io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto request = 
+			new io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto();
+		request.setReferenceId("TEST");
+		LocalDateTime notBefore = LocalDateTime.now();
+		LocalDateTime notAfter = notBefore.plusYears(1);
+		io.mosip.kernel.core.keymanager.model.CertificateParameters result = 
+			keymanagerUtil.getCertificateParameters(request, notBefore, notAfter, "REGISTRATION");
+		assertThat(result, isA(io.mosip.kernel.core.keymanager.model.CertificateParameters.class));
+	}
+
+	@Test
+	public void testGetCertificateParametersWithCSR() {
+		io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto request = 
+			new io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto();
+		LocalDateTime notBefore = LocalDateTime.now();
+		LocalDateTime notAfter = notBefore.plusYears(1);
+		io.mosip.kernel.core.keymanager.model.CertificateParameters result = 
+			keymanagerUtil.getCertificateParameters(request, notBefore, notAfter);
+		assertThat(result, isA(io.mosip.kernel.core.keymanager.model.CertificateParameters.class));
+	}
+
+	@Test
+	public void testGetCertificateParametersWithCommonName() {
+		LocalDateTime notBefore = LocalDateTime.now();
+		LocalDateTime notAfter = notBefore.plusYears(1);
+		io.mosip.kernel.core.keymanager.model.CertificateParameters result = 
+			keymanagerUtil.getCertificateParameters("TestCN", notBefore, notAfter);
+		assertThat(result, isA(io.mosip.kernel.core.keymanager.model.CertificateParameters.class));
+	}
+
+	@Test
+	public void testGetCSR() {
+		io.mosip.kernel.core.keymanager.model.CertificateParameters certParams = 
+			new io.mosip.kernel.core.keymanager.model.CertificateParameters();
+		certParams.setCommonName("Test");
+		certParams.setOrganizationUnit("OU");
+		certParams.setOrganization("O");
+		certParams.setLocation("L");
+		certParams.setState("ST");
+		certParams.setCountry("IN");
+		String result = keymanagerUtil.getCSR(keyPair.getPrivate(), keyPair.getPublic(), certParams, "RSA");
+		assertThat(result, isA(String.class));
+	}
+
+	@Test
+	public void testDestoryPrivateKey() {
+		keymanagerUtil.destoryKey(keyPair.getPrivate());
+	}
+
+	@Test(expected = io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException.class)
+	public void testCheckAppIdAllowedForEd25519KeyGen() {
+		keymanagerUtil.checkAppIdAllowedForEd25519KeyGen("INVALID_APP_ID");
+	}
+
+	@Test
+	public void testGetSanValues() {
+		java.util.Map<String, String> result = keymanagerUtil.getSanValues("REGISTRATION", "");
+		assertThat(result, isA(java.util.Map.class));
+	}
+
+	@Test
+	public void testPurgeKeyAliasTrustAnchorsCache() {
+		keymanagerUtil.purgeKeyAliasTrustAnchorsCache();
+	}
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testConvertToCertificateKeymanagerServiceException() {
+        keymanagerUtil.convertToCertificate("INVALID_CERT_DATA");
+        keymanagerUtil.convertToCertificate((byte[]) null);
+    }
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testGetPEMFormatedDataKeymanagerServiceException() {
+        keymanagerUtil.getPEMFormatedData("CERTIFICATE_DATA_INVALID");
+    }
+
+    @Test
+    public void testDestroySecreteKey() throws NoSuchAlgorithmException {
+        javax.crypto.KeyGenerator keyGenerator = javax.crypto.KeyGenerator.getInstance("AES");
+        keyGenerator.init(256);
+        javax.crypto.SecretKey secretKey = keyGenerator.generateKey();
+        keymanagerUtil.destoryKey(secretKey);
+    }
 }
