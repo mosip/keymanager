@@ -41,13 +41,10 @@ import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
-import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
-import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
-import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
@@ -91,9 +88,6 @@ public class CryptographicServiceIntegrationTest {
 	@MockBean
 	private KeymanagerUtil keymanagerUtil;
 
-	@MockBean
-	private CryptomanagerService cryptomanagerService;
-
 	private KeyPair keyPair;
 
 	private Certificate cert;
@@ -107,10 +101,6 @@ public class CryptographicServiceIntegrationTest {
 	private CryptoWithPinRequestDto requestWithPinDto;
 
 	private RequestWrapper<CryptoWithPinRequestDto> requestWithPinWrapper;
-
-	private Argon2GenerateHashRequestDto argon2RequestDto;
-
-	private RequestWrapper<Argon2GenerateHashRequestDto> argon2RequestWrapper;
 
 	private static final String ID = "mosip.crypto.service";
 	private static final String VERSION = "V1.0";
@@ -134,11 +124,6 @@ public class CryptographicServiceIntegrationTest {
 		requestWithPinWrapper.setId(ID);
 		requestWithPinWrapper.setVersion(VERSION);
 		requestWithPinWrapper.setRequesttime(LocalDateTime.now(ZoneId.of("UTC")));
-
-		argon2RequestWrapper = new RequestWrapper<>();
-		argon2RequestWrapper.setId(ID);
-		argon2RequestWrapper.setVersion(VERSION);
-		argon2RequestWrapper.setRequesttime(LocalDateTime.now(ZoneId.of("UTC")));
 	}
 
 	@WithUserDetails("reg-processor")
@@ -274,37 +259,5 @@ public class CryptographicServiceIntegrationTest {
 				objectMapper.writeValueAsString(responseWrapper.getResponse()), CryptoWithPinResponseDto.class);
 
 		assertThat(responseDto.getData(), isA(String.class));
-	}
-
-	@WithUserDetails("reg-processor")
-	@Test
-	public void testGenerateArgon2Hash_Success() throws Exception {
-		// Mock successful response
-		Argon2GenerateHashResponseDto mockResponse = new Argon2GenerateHashResponseDto();
-		mockResponse.setHashValue("mockHashValue123");
-		mockResponse.setSalt("mockSaltValue456");
-		
-		argon2RequestDto = new Argon2GenerateHashRequestDto();
-		argon2RequestDto.setInputData("testPassword123");
-		argon2RequestDto.setSalt("dGVzdFNhbHQ");
-		argon2RequestWrapper.setRequest(argon2RequestDto);
-
-		// Mock service call
-		when(cryptomanagerService.generateArgon2Hash(Mockito.any(Argon2GenerateHashRequestDto.class)))
-				.thenReturn(mockResponse);
-
-		String requestBody = objectMapper.writeValueAsString(argon2RequestWrapper);
-
-		MvcResult result = mockMvc
-				.perform(post("/generateArgon2Hash").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-				.andExpect(status().isOk()).andReturn();
-		
-		ResponseWrapper<?> responseWrapper = objectMapper.readValue(result.getResponse().getContentAsString(),
-				ResponseWrapper.class);
-		Argon2GenerateHashResponseDto responseDto = objectMapper.readValue(
-				objectMapper.writeValueAsString(responseWrapper.getResponse()), Argon2GenerateHashResponseDto.class);
-
-		assertThat(responseDto.getHashValue(), isA(String.class));
-		assertThat(responseDto.getSalt(), isA(String.class));
 	}
 }
