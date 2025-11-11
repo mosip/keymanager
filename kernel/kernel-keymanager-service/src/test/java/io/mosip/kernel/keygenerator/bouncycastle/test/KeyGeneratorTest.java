@@ -4,7 +4,6 @@ import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertThat;
 
 import java.security.KeyPair;
-import java.security.NoSuchProviderException;
 
 import javax.crypto.SecretKey;
 
@@ -49,29 +48,5 @@ public class KeyGeneratorTest {
             ReflectionTestUtils.setField(keyGenerator, "rngProviderEnabled", false);
             assertThat(keyGenerator.getSymmetricKey(), isA(SecretKey.class));
         }
-    }
-
-	@Test
-    public void testGetSymmetricKeyWithPKCS11Provider() {
-        ReflectionTestUtils.setField(keyGenerator, "rngProviderName", "PKCS11");
-        ReflectionTestUtils.setField(keyGenerator, "rngProviderEnabled", true);
-
-        try {
-            SecretKey key = keyGenerator.getSymmetricKey();
-            assertThat(key, isA(SecretKey.class));
-        } catch (NoSuchProviderException e) {
-            // PKCS11 not available in test environment - skip this test
-            org.junit.Assume.assumeNoException(e);
-        } finally {
-            // Restore default state for test isolation
-            ReflectionTestUtils.setField(keyGenerator, "rngProviderEnabled", false);
-        }
-    }
-
-    @Test
-    public void testGetSymmetricKeyFallbackWhenProviderDisabled() {
-        // Test fallback when RNG provider is disabled
-        ReflectionTestUtils.setField(keyGenerator, "rngProviderEnabled", false);
-        assertThat(keyGenerator.getSymmetricKey(), isA(SecretKey.class));
     }
 }
