@@ -6,7 +6,6 @@ import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
-import io.mosip.kernel.keymanagerservice.repository.KeyPolicyRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -41,9 +40,6 @@ public class KeymanagerServiceImplTest {
 
     @Autowired
     private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
-
-    @Autowired
-    private KeyPolicyRepository keyPolicyRepository;
 
     @Autowired
     private io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository keyAliasRepository;

@@ -224,5 +224,4 @@ public class CryptoCoreTest {
 		byte[] encryptedData = cryptoCore.asymmetricEncrypt(rsaPair.getPublic(), data);
 		assertThat(cryptoCore.asymmetricDecrypt(invalidKeyPair.getPrivate(), rsaPair.getPublic(), encryptedData), isA(byte[].class));
 	}
-
 }

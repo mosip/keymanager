@@ -187,6 +187,16 @@ public class KeymanagerControllerTest {
 
     @Test
     public void testRevokeKeyStatus() throws Exception {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("REGISTRATION");
+        keyPairGenRequestDto.setReferenceId("");
+        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        RevokeKeyRequestDto revokeKeyRequestDto = new RevokeKeyRequestDto();
+        revokeKeyRequestDto.setApplicationId("PRE_REGISTRATION");
+        revokeKeyRequestDto.setReferenceId("");
+        revokeKeyRequestDto.setDisableAutoGen(false);
+        revokeKeyRequest.setRequest(revokeKeyRequestDto);
         mockMvc.perform(put("/revokeKey")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(revokeKeyRequest)))
@@ -263,8 +273,12 @@ public class KeymanagerControllerTest {
 
     @Test
     public void testGetCertificateChainStatus() throws Exception {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("RESIDENT");
+        keyPairGenRequestDto.setReferenceId("");
+        keyPairGenRequest.setRequest(keyPairGenRequestDto);
         mockMvc.perform(get("/getCertificateChain")
-                        .param("applicationId", "REGISTRATION")
+                        .param("applicationId", "RESIDENT")
                         .param("referenceId", ""))
                 .andExpect(status().isOk());
     }

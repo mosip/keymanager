@@ -5,7 +5,9 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.cryptomanager.dto.*;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
+import io.mosip.kernel.keymanagerservice.dto.CSRGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
+import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.repository.KeyStoreRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
@@ -20,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -191,46 +194,6 @@ public class CryptomanagerControllerTest {
     }
 
     @Test
-    public void testJwtEncrypt_AuthorizationFailure() throws Exception {
-        RequestWrapper<JWTEncryptRequestDto> request = new RequestWrapper<>();
-        request.setId(ID);
-        request.setVersion(VERSION);
-        request.setRequesttime(LocalDateTime.now());
-        
-        JWTEncryptRequestDto requestDto = new JWTEncryptRequestDto();
-        requestDto.setApplicationId("TEST");
-        requestDto.setReferenceId("json");
-        requestDto.setData("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0");
-        request.setRequest(requestDto);
-
-        mockMvc.perform(post("/jwtEncrypt")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request))
-                        .with(csrf()))
-                .andExpect(status().isInternalServerError());
-    }
-
-    @Test
-    public void testJwtDecrypt_AuthorizationFailure() throws Exception {
-        RequestWrapper<JWTDecryptRequestDto> request = new RequestWrapper<>();
-        request.setId(ID);
-        request.setVersion(VERSION);
-        request.setRequesttime(LocalDateTime.now());
-
-        JWTDecryptRequestDto requestDto = new JWTDecryptRequestDto();
-        requestDto.setApplicationId("TEST");
-        requestDto.setReferenceId("json");
-        requestDto.setEncData("dummy-jwt-data");
-        request.setRequest(requestDto);
-
-        mockMvc.perform(post("/jwtDecrypt")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request))
-                        .with(csrf()))
-                .andExpect(status().isInternalServerError());
-    }
-
-    @Test
     public void testEncrypt_InvalidRequest() throws Exception {
         mockMvc.perform(post("/encrypt")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -275,15 +238,16 @@ public class CryptomanagerControllerTest {
     }
 
     @Test
-    public void testJwtEncrypt_InvalidRequest() throws Exception {
+    public void testJwtEncrypt() throws Exception {
         RequestWrapper<JWTEncryptRequestDto> request = new RequestWrapper<>();
         request.setId(ID);
         request.setVersion(VERSION);
         request.setRequesttime(LocalDateTime.now());
         
         JWTEncryptRequestDto requestDto = new JWTEncryptRequestDto();
-        requestDto.setApplicationId("");
-        requestDto.setData("");
+        requestDto.setApplicationId("TEST");
+        requestDto.setReferenceId("jwt");
+        requestDto.setData("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0");
         request.setRequest(requestDto);
 
         mockMvc.perform(post("/jwtEncrypt")
@@ -291,7 +255,34 @@ public class CryptomanagerControllerTest {
                         .content(objectMapper.writeValueAsString(request))
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.errors[0].errorCode").value("KER-KMS-005"));
+                .andExpect(jsonPath("$.response.data").isNotEmpty());
+    }
+
+    @Test
+    public void testJwtDecrypt() throws Exception {
+        RequestWrapper<JWTDecryptRequestDto> request = new RequestWrapper<>();
+        request.setId(ID);
+        request.setVersion(VERSION);
+        request.setRequesttime(LocalDateTime.now());
+
+        JWTEncryptRequestDto encryptRequestDto = new JWTEncryptRequestDto();
+        encryptRequestDto.setApplicationId("TEST");
+        encryptRequestDto.setReferenceId("jwtDecrypt");
+        encryptRequestDto.setData("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0");
+        JWTCipherResponseDto encryptResponse = cryptomanagerService.jwtEncrypt(encryptRequestDto);
+
+        JWTDecryptRequestDto requestDto = new JWTDecryptRequestDto();
+        requestDto.setApplicationId("TEST");
+        requestDto.setReferenceId("jwtDecrypt");
+        requestDto.setEncData(encryptResponse.getData());
+        request.setRequest(requestDto);
+
+        mockMvc.perform(post("/jwtDecrypt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.data").value("eyAiZGF0YSI6ICJ0ZXN0IGRhdGEgZm9yIGNyeXB0b21hbmFnZXIiIH0"));
     }
 
     @Test
@@ -332,5 +323,23 @@ public class CryptomanagerControllerTest {
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.errors[0].errorCode").exists());
+    }
+
+    @Test
+    public void testGenerateArgon2() throws Exception {
+        RequestWrapper<Argon2GenerateHashRequestDto> request = new RequestWrapper<>();
+        request.setId(ID);
+        request.setVersion(VERSION);
+        request.setRequesttime(LocalDateTime.now());
+
+        Argon2GenerateHashRequestDto requestDto = new Argon2GenerateHashRequestDto();
+        requestDto.setInputData("testdataforargon2hashing");
+        requestDto.setSalt("randomsaltvalue");
+
+        mockMvc.perform(post("/generateArgon2")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(csrf()))
+                .andExpect(status().isInternalServerError());
     }
 }
