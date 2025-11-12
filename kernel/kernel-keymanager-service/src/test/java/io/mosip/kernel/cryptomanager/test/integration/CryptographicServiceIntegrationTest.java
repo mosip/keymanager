@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +41,6 @@ import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptoWithPinResponseDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
@@ -146,7 +146,7 @@ public class CryptographicServiceIntegrationTest {
 		requestDto.setApplicationId(appid);
 		requestDto.setData(data);
 		requestDto.setReferenceId(refid);
-		requestDto.setTimeStamp(DateUtils.parseToLocalDateTime(timeStamp));
+		requestDto.setTimeStamp(DateUtils2.parseToLocalDateTime(timeStamp));
 		when(cryptomanagerUtil.isDataValid(Mockito.anyString())).thenReturn(true);
 		when(cryptomanagerUtil.generateRandomBytes(Mockito.anyInt())).thenReturn("RANDOMBYTES".getBytes());
 		when(cryptomanagerUtil.concatByteArrays(Mockito.any(), Mockito.any())).thenReturn("CONCATEDHEADER".getBytes());
@@ -183,7 +183,7 @@ public class CryptographicServiceIntegrationTest {
 		String appid = "REGISTRATION";
 		String data = "dXJ2aWwjS0VZX1NQTElUVEVSI3Vydmls";
 		String refid = "ref123";
-		LocalDateTime timeStamp = DateUtils.parseToLocalDateTime("2018-12-06T12:07:44.403Z");
+		LocalDateTime timeStamp = DateUtils2.parseToLocalDateTime("2018-12-06T12:07:44.403Z");
 		requestDto.setApplicationId(appid);
 		requestDto.setData(data);
 		requestDto.setReferenceId("ref123");

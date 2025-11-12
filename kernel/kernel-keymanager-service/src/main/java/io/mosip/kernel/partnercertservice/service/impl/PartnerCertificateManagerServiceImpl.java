@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import jakarta.annotation.PostConstruct;
 import javax.security.auth.x500.X500Principal;
 
@@ -48,7 +49,6 @@ import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
@@ -282,7 +282,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             responseDto.setStatus(PartnerCertManagerConstants.PARTIAL_SUCCESS_UPLOAD);
         else 
             responseDto.setStatus(PartnerCertManagerConstants.UPLOAD_FAILED);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -450,7 +450,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         X509Certificate rootCert = (X509Certificate) keymanagerUtil.convertToCertificate(
                                         keymanagerService.getCertificate(PartnerCertManagerConstants.ROOT_APP_ID, 
                                                         Optional.of(PartnerCertManagerConstants.EMPTY)).getCertificate());
-        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String timestamp = DateUtils2.getUTCCurrentDateTimeString();
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(masterSignKeyAppId,
                                                         Optional.of(PartnerCertManagerConstants.EMPTY), timestamp);
         X509Certificate pmsCert = certificateResponse.getCertificateEntry().getChain()[0];
@@ -471,7 +471,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         PartnerCertificateResponseDto responseDto = new PartnerCertificateResponseDto();
         responseDto.setCertificateId(certId);
         responseDto.setSignedCertificateData(p7bCertChain);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -661,7 +661,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         int noOfDays = PartnerCertManagerConstants.YEAR_DAYS * issuerCertDuration;
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT, "Cert Duration",
                 "Calculated Signed Certficiate Number of Days for expire: " + noOfDays);
-        LocalDateTime notBeforeDate = DateUtils.getUTCCurrentDateTime(); 
+        LocalDateTime notBeforeDate = DateUtils2.getUTCCurrentDateTime();
         LocalDateTime notAfterDate = notBeforeDate.plus(noOfDays, ChronoUnit.DAYS);
         CertificateParameters certParams = PartnerCertificateManagerUtil.getCertificateParameters(subjectPrincipal,
                 notBeforeDate, notAfterDate);
@@ -681,7 +681,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
         PartnerCertDownloadResponeDto responseDto = new PartnerCertDownloadResponeDto();
         responseDto.setCertificateData(partnerCertStore.getSignedCertData());
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -736,7 +736,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         PartnerSignedCertDownloadResponseDto responseDto = new PartnerSignedCertDownloadResponseDto();
         responseDto.setMosipSignedCertificateData(partnerCertStore.getSignedCertData());
         responseDto.setCaSignedCertificateData(partnerCertStore.getCertData());
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
                         "Mosip Signed Certificate Request. - Completed");
@@ -754,7 +754,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         CACertificateStore caCertificateStore = getCACertificate(caCertId);
         X509Certificate caCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(String.valueOf(caCertificateStore.getCertData()));
         String partnerDomain = caCertificateStore.getPartnerDomain();
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         List<? extends Certificate> certList = null;
         List<Certificate> chain = new ArrayList<>();
 
@@ -890,7 +890,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     private boolean isActiveCaCert(CACertificateStore certificate) {
-        LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timeStamp = DateUtils2.getUTCCurrentDateTime();
         return timeStamp.isEqual(certificate.getCertNotBefore()) || timeStamp.isEqual(certificate.getCertNotAfter())
                 || (timeStamp.isAfter(certificate.getCertNotBefore()) && timeStamp.isBefore(certificate.getCertNotAfter()));
     }

@@ -46,6 +46,7 @@ import javax.security.auth.x500.X500Principal;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
 import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
 import io.mosip.kernel.keymanagerservice.dto.*;
@@ -88,7 +89,6 @@ import io.mosip.kernel.core.keymanager.model.CertificateEntry;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -641,7 +641,7 @@ public class KeymanagerUtil {
 	}
 
 	public LocalDateTime convertToUTC(Date anyDate) {
-		LocalDateTime ldTime = DateUtils.parseDateToLocalDateTime(anyDate);
+		LocalDateTime ldTime = DateUtils2.parseDateToLocalDateTime(anyDate);
 		ZonedDateTime zonedtime = ldTime.atZone(ZoneId.systemDefault());
         ZonedDateTime converted = zonedtime.withZoneSameInstant(ZoneOffset.UTC);
         return converted.toLocalDateTime();
