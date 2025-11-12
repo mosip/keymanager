@@ -666,13 +666,13 @@ public class PartnerCertificateManagerServiceTest {
         Assert.assertEquals(PartnerCertManagerErrorConstants.ROOT_CA_NOT_FOUND.getErrorCode(), exception.getErrorCode());
         Assert.assertEquals("KER-PCM-005 --> Root CA Certificate not found.", exception.getMessage());
 
-        requestDto.setCertificateData("qwertyuiopasdf}ghjklzxcvbn{m/ajp|nkjxaxaaxansxba");
+        requestDto.setCertificateData("qwertyuiopasdfghjklzxcvbnajpnkjxaxaaxansxba");
         requestDto.setPartnerDomain("AUTH");
         exception = assertThrows(PartnerCertManagerException.class, () -> {
             partnerCertService.uploadCACertificate(requestDto);
         });
-        Assert.assertEquals(KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(), exception.getErrorCode());
-        Assert.assertEquals("KER-KMS-013 --> Certificate Parsing Error.", exception.getMessage());
+        Assert.assertEquals(PartnerCertManagerErrorConstants.INVALID_CERTIFICATE.getErrorCode(), exception.getErrorCode());
+        Assert.assertEquals("KER-PCM-001 --> Invalid Certificate uploaded.", exception.getMessage());
     }
 
     @Test
