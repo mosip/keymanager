@@ -196,5 +196,4 @@ public class CryptographicServiceIntegrationExceptionTest {
 				});
 		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMS-500"));
 	}
-
 }
