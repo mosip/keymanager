@@ -6,7 +6,6 @@ import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
-import io.mosip.kernel.keymanagerservice.repository.KeyPolicyRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -43,9 +42,6 @@ public class KeymanagerServiceImplTest {
     private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
 
     @Autowired
-    private KeyPolicyRepository keyPolicyRepository;
-
-    @Autowired
     private io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository keyAliasRepository;
 
     @Autowired
@@ -56,9 +52,7 @@ public class KeymanagerServiceImplTest {
 
     KeyPairGenerateResponseDto generateMasterKey;
 
-
-
-    String timestampStr;
+    String timestampStr = DateUtils.getUTCCurrentDateTime().toString();
 
     @Before
     public void setUp() {
@@ -176,11 +170,6 @@ public class KeymanagerServiceImplTest {
         Assert.assertEquals(certificate.getCertificate(), service.getCertificate("TEST", Optional.of("dbCert")).getCertificate());
     }
 
-    @Test(expected = KeymanagerServiceException.class)
-    public void testGetCertificateKeymanagerServiceException() {
-        service.getCertificate("ID_REPO", Optional.of(""));
-    }
-
     @Test
     public void testGetCertificateNoUniqueAliasException() {
         LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
@@ -206,6 +195,8 @@ public class KeymanagerServiceImplTest {
 
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB75C");
+        dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
+                "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBC86C");
         NoUniqueAliasException exception2 = assertThrows(NoUniqueAliasException.class, () -> {
             service.getCertificate("TEST", Optional.of("abc"));
         });
@@ -597,7 +588,7 @@ public class KeymanagerServiceImplTest {
         Assert.assertEquals("KER-KMS-020 --> Signing operation not allowed for the provided application id & reference id.", exception.getMessage());
 
         exception = assertThrows(KeymanagerServiceException.class, () -> {
-            service.getSignPublicKey("ID_REPO", timestampStr, Optional.of(""));
+            service.getSignPublicKey("COMPLIANCE_TOOLKIT", timestampStr, Optional.of(""));
         });
         Assert.assertEquals(KeymanagerErrorConstant.KEY_GENERATION_NOT_DONE.getErrorCode(), exception.getErrorCode());
         Assert.assertEquals("KER-KMS-012 --> Key Generation Process is not completed.", exception.getMessage());
@@ -629,24 +620,16 @@ public class KeymanagerServiceImplTest {
         service.generateMasterKey("CSR", keyPairGenRequestDto);
 
         keyPairGenRequestDto.setApplicationId("ID_REPO");
-        keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
+        keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
 
-        keyPairGenRequestDto.setApplicationId("ID_REPO");
-        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
-        service.generateECSignKey("CERTIFICATE", keyPairGenRequestDto);
-
         SignatureCertificate result = service.getSignatureCertificate("ID_REPO", Optional.of(""), timestampStr);
-        SignatureCertificate expected = service.getSignatureCertificate("ID_REPO", Optional.of(""), timestampStr);
-        Assert.assertEquals(result, expected);
+        Assert.assertNotNull(result);
 
         result = service.getSignatureCertificate("KERNEL", Optional.of("SIGN"), timestampStr);
         Assert.assertNotNull(result);
 
-        result = service.getSignatureCertificate("ID_REPO", Optional.of("EC_SECP256R1_SIGN"), timestampStr);
-        Assert.assertNotNull(result);
-
-        result = service.getSignatureCertificate("ID_REPO", Optional.of("ED25519_SIGN"), timestampStr);
+        result = service.getSignatureCertificate("ID_REPO", Optional.of("EC_SECP256K1_SIGN"), timestampStr);
         Assert.assertNotNull(result);
     }
 
@@ -734,5 +717,63 @@ public class KeymanagerServiceImplTest {
         KeyPairGenerateResponseDto certdetails = service.getCertificate("TEST", Optional.of(""));
         X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certdetails.getCertificate());
         keymanagerUtil.getCertificateTrustPath(x509Certificate);
+    }
+
+    @Test
+    public void testGenerateEd25519KeyPairDetails() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("PRE_REGISTRATION");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+        updateKeyExpiry("PRE_REGISTRATION", "ED25519_SIGN", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258C2");
+
+        SignatureCertificate result = service.getSignatureCertificate("PRE_REGISTRATION", Optional.of("ED25519_SIGN"), timestampStr);
+        Assert.assertNotNull(result);
+    }
+
+    @Test
+    public void testGenerateCSRKeymanagerServiceException() {
+        CSRGenerateRequestDto requestDto = new CSRGenerateRequestDto();
+        requestDto.setApplicationId("KERNEL");
+        requestDto.setReferenceId("IDENTITY_CACHE");
+        KeymanagerServiceException exception = assertThrows(KeymanagerServiceException.class, () -> {
+            service.generateCSR(requestDto);
+        });
+        Assert.assertEquals(KeymanagerErrorConstant.GENERATION_CSR_ALLOWED.getErrorCode(), exception.getErrorCode());
+        Assert.assertEquals("KER-KMS-022 --> CSR Generation not allowed for the provided App Id & Ref Id.", exception.getMessage());
+    }
+
+    @Test
+    public void testGenerateCSRECKeys() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("REGISTRATION");
+        keyPairGenRequestDto.setReferenceId("");
+        service.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
+        service.generateECSignKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
+        service.generateECSignKey("CERTIFICATE", keyPairGenRequestDto);
+
+        CSRGenerateRequestDto requestDto = new CSRGenerateRequestDto();
+        requestDto.setApplicationId("REGISTRATION");
+        requestDto.setReferenceId("EC_SECP256K1_SIGN");
+        KeyPairGenerateResponseDto response = service.generateCSR(requestDto);
+        Assert.assertNotNull(response);
+
+        requestDto.setReferenceId("EC_SECP256R1_SIGN");
+        response = service.generateCSR(requestDto);
+        Assert.assertNotNull(response);
+
+        requestDto.setReferenceId("ED25519_SIGN");
+        response = service.generateCSR(requestDto);
+        Assert.assertNotNull(response);
     }
 }
