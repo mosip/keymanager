@@ -1,7 +1,5 @@
 package io.mosip.kernel.keymanagerservice.util;
 
-import static java.util.Arrays.copyOfRange;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -99,7 +97,7 @@ import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 /**
  * Utility class for Keymanager
- * 
+ *
  * @author Dharmesh Khandelwal
  * @author Urvil Joshi
  * @since 1.0.0
@@ -166,21 +164,21 @@ public class KeymanagerUtil {
 
 	/**
 	 * Certificate Signing Algorithm
-	 * 
+	 *
 	 */
 	@Value("${mosip.kernel.certificate.sign.algorithm:SHA256withRSA}")
 	private String signAlgorithm;
 
 	/**
 	 * Certificate Signing Algorithm
-	 * 
+	 *
 	 */
 	@Value("${mosip.kernel.certificate.ec.sign.algorithm:SHA256WithECDSA}")
 	private String ecSignAlgorithm;
 
 	/**
 	 * Certificate Signing Algorithm
-	 * 
+	 *
 	 */
 	@Value("${mosip.kernel.certificate.ed.sign.algorithm:Ed25519}")
 	private String edSignAlgorithm;
@@ -245,7 +243,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to check valid timestamp
-	 * 
+	 *
 	 * @param timeStamp timeStamp
 	 * @param keyAlias  keyAlias
 	 * @return true if timestamp is valid, else false
@@ -258,7 +256,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to check if timestamp is overlapping
-	 * 
+	 *
 	 * @param timeStamp         timeStamp
 	 * @param policyExpiryTime  policyExpiryTime
 	 * @param keyGenerationTime keyGenerationTime
@@ -272,7 +270,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to check is reference id is valid
-	 * 
+	 *
 	 * @param referenceId referenceId
 	 * @return true if referenceId is valid, else false
 	 */
@@ -282,7 +280,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to set metadata
-	 * 
+	 *
 	 * @param <T>    is a type parameter
 	 * @param entity entity of T type
 	 * @return Entity with metadata
@@ -298,7 +296,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to encrypt key
-	 * 
+	 *
 	 * @param privateKey privateKey
 	 * @param masterKey  masterKey
 	 * @return encrypted key
@@ -312,7 +310,7 @@ public class KeymanagerUtil {
 
 	/**
 	 * Function to decrypt key
-	 * 
+	 *
 	 * @param key        key
 	 * @param privateKey privateKey
 	 * @return decrypted key
@@ -322,23 +320,32 @@ public class KeymanagerUtil {
 	}
 
 	public byte[] decryptKey(byte[] key, PrivateKey privateKey, PublicKey publicKey, String keystoreType) {
+        final int keySplitterLength = keySplitter.length();
+        final int keyDelimiterIndex = CryptoUtil.getSplitterIndex(key, 0, keySplitter);
+        if (keyDelimiterIndex < 0 || keyDelimiterIndex + keySplitterLength >= key.length) {
+            throw new IllegalArgumentException("Splitter not found or invalid key format");
+        }
 
-		int keyDemiliterIndex = 0;
-		final int cipherKeyandDataLength = key.length;
-		final int keySplitterLength = keySplitter.length();
-		keyDemiliterIndex = CryptoUtil.getSplitterIndex(key, keyDemiliterIndex, keySplitter);
-		byte[] encryptedKey = copyOfRange(key, 0, keyDemiliterIndex);
-		byte[] encryptedData = copyOfRange(key, keyDemiliterIndex + keySplitterLength, cipherKeyandDataLength);
-		byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
-		SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, 0, decryptedSymmetricKey.length,
-				symmetricAlgorithmName);
+        // Split encrypted key and encrypted data
+        byte[] encryptedKey = new byte[keyDelimiterIndex];
+        System.arraycopy(key, 0, encryptedKey, 0, keyDelimiterIndex);
+
+        int encryptedDataLen = key.length - (keyDelimiterIndex + keySplitterLength);
+        byte[] encryptedData = new byte[encryptedDataLen];
+        System.arraycopy(key, keyDelimiterIndex + keySplitterLength, encryptedData, 0, encryptedDataLen);
+
+        // Decrypt asymmetric key
+        byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
+        SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, symmetricAlgorithmName);
+
+        // Symmetric decryption (AAD = null)
 		return cryptoCore.symmetricDecrypt(symmetricKey, encryptedData, null);
 	}
 
 	/**
 	 * Parse a date string of pattern UTC_DATETIME_PATTERN into
 	 * {@link LocalDateTime}
-	 * 
+	 *
 	 * @param dateTime of type {@link String} of pattern UTC_DATETIME_PATTERN
 	 * @return a {@link LocalDateTime} of given pattern
 	 */
@@ -395,10 +402,10 @@ public class KeymanagerUtil {
 			PemReader pemReader = new PemReader(strReader);
 			PemObject pemObject = pemReader.readPemObject();
 			if (Objects.isNull(pemObject)) {
-				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE, 
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
 								KeymanagerConstant.CERTIFICATE_PARSE, "Error Parsing Certificate.");
 				throw new KeymanagerServiceException(io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
-								KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());				
+								KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
 			}
 			byte[] certBytes = pemObject.getContent();
 			CertificateFactory certFactory = CertificateFactory.getInstance(KeymanagerConstant.CERTIFICATE_TYPE);
@@ -420,7 +427,7 @@ public class KeymanagerUtil {
 	}
 
 	public String getPEMFormatedData(Object anyObject){
-		
+
 		StringWriter stringWriter = new StringWriter();
 		try (JcaPEMWriter pemWriter = new JcaPEMWriter(stringWriter)) {
 			pemWriter.writeObject(anyObject);
@@ -492,7 +499,7 @@ public class KeymanagerUtil {
         return IETFUtils.valueToString((rdns[0]).getFirst().getValue());
     }
 
-	public CertificateParameters getCertificateParameters(KeyPairGenerateRequestDto request, LocalDateTime notBefore, LocalDateTime notAfter, 
+	public CertificateParameters getCertificateParameters(KeyPairGenerateRequestDto request, LocalDateTime notBefore, LocalDateTime notAfter,
 				String appId) {
 
 		CertificateParameters certParams = new CertificateParameters();
@@ -579,14 +586,14 @@ public class KeymanagerUtil {
 		certParams.setNotAfter(notAfter);
 		return certParams;
 	}
-	
+
 	private String getParamValue(String value, String defaultValue){
 		if (Objects.nonNull(value) && !value.trim().isEmpty())
 			return value;
-			
+
 		return defaultValue;
 	}
-	
+
 	public String getCSR(PrivateKey privateKey, PublicKey publicKey, CertificateParameters certParams, String keyAlgorithm) {
 
 		try {
@@ -610,11 +617,11 @@ public class KeymanagerUtil {
 
 	private String getSignatureAlgorithm(String keyAlgorithm) {
 
-		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE)) 
+		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE))
 			return ecSignAlgorithm;
-		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) || 
-				 keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) || 
-				 keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE)) 
+		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) ||
+				 keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) ||
+				 keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE))
 			return edSignAlgorithm;
 
 		return signAlgorithm;
@@ -654,7 +661,7 @@ public class KeymanagerUtil {
 
 	public void checkAppIdAllowedForEd25519KeyGen(String applicationId) {
 		if (!allowedAppIds.contains(applicationId)) {
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorCode(), 
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorCode(),
 			KeymanagerErrorConstant.KEY_GEN_NOT_ALLOWED_FOR_APPID.getErrorMessage());
 		}
 	}
