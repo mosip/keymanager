@@ -7,7 +7,6 @@
 package io.mosip.kernel.cryptomanager.util;
 
 import java.io.IOException;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
@@ -249,11 +248,24 @@ public class CryptomanagerUtils {
 	}
 
 	public byte[] parseEncryptKeyHeader(byte[] encryptedKey){
-		byte[] versionHeaderBytes = Arrays.copyOfRange(encryptedKey, 0, CryptomanagerConstant.VERSION_RSA_2048.length);
-		if (!Arrays.equals(versionHeaderBytes, CryptomanagerConstant.VERSION_RSA_2048)) {
-			return new byte[0];
-		}
-		return versionHeaderBytes;
+        // Null or too-short input check
+        if (encryptedKey == null || encryptedKey.length < CryptomanagerConstant.VERSION_RSA_2048.length) {
+            return new byte[0]; // Return empty to indicate invalid or absent header
+        }
+
+        int headerLen = CryptomanagerConstant.VERSION_RSA_2048.length;
+
+        // Manual byte-by-byte comparison for performance and safety
+        for (int i = 0; i < headerLen; i++) {
+            if (encryptedKey[i] != CryptomanagerConstant.VERSION_RSA_2048[i]) {
+                return new byte[0]; // Header mismatch
+            }
+        }
+
+        // Efficient copy using System.arraycopy
+        byte[] versionHeader = new byte[headerLen];
+        System.arraycopy(encryptedKey, 0, versionHeader, 0, headerLen);
+        return versionHeader;
 	}
 
 	public boolean isDataValid(String anyData) {
