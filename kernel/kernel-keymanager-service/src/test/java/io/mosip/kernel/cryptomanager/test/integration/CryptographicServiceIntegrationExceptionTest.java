@@ -194,7 +194,7 @@ public class CryptographicServiceIntegrationExceptionTest {
 				result.getResponse().getContentAsString(),
 				new TypeReference<ResponseWrapper<CryptomanagerResponseDto>>() {
 				});
-		assertThat(responseWrapper.getErrors().get(0).getErrorCode(), is("KER-KMS-500"));
+		assertThat(responseWrapper.getErrors().getFirst().getErrorCode(), is("KER-KMS-500"));
 	}
 
 }
