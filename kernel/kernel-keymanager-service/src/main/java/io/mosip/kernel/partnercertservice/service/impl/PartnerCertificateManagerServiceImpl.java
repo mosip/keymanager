@@ -227,7 +227,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         // Defensive copy so later filtering doesn’t mutate shared set
                         inters = new HashSet<>(inters);
                         // Optional shrink: keep only currently valid intermediates
-                        final LocalDateTime now = DateUtils.getUTCCurrentDateTime();
+                        final LocalDateTime now = DateUtils2.getUTCCurrentDateTime();
                         inters.removeIf(ic -> {
                             LocalDateTime nb = ic.getNotBefore().toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDateTime();
                             LocalDateTime na = ic.getNotAfter().toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDateTime();
