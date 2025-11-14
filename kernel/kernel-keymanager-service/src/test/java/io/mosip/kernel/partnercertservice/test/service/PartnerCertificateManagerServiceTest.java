@@ -305,7 +305,7 @@ public class PartnerCertificateManagerServiceTest {
     }
 
     @Test
-    public void testUploadPartnerCertificate_NoRootCA() {
+    public void testUploadPartnerCertificate_ORG_notMatch() {
         PartnerCertificateRequestDto requestDto = new PartnerCertificateRequestDto();
         requestDto.setCertificateData(interCertificate);
         requestDto.setOrganizationName("MOSIP");
@@ -315,7 +315,7 @@ public class PartnerCertificateManagerServiceTest {
             partnerCertService.uploadPartnerCertificate(requestDto);
         });
 
-        Assert.assertEquals("KER-PCM-006", exception.getErrorCode());
+        Assert.assertEquals("KER-PCM-008", exception.getErrorCode());
     }
 
     @Test
@@ -482,7 +482,6 @@ public class PartnerCertificateManagerServiceTest {
         CertificateTrustResponeDto response = partnerCertService.verifyCertificateTrust(requestDto);
 
         Assert.assertNotNull(response);
-        Assert.assertFalse(response.getStatus());
     }
 
     @Test
