@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -43,7 +44,6 @@ import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
@@ -120,7 +120,7 @@ public class CryptographicServiceIntegrationExceptionTest {
 		requestDto.setApplicationId(appid);
 		requestDto.setData(data);
 		requestDto.setReferenceId(refid);
-		requestDto.setTimeStamp(DateUtils.parseToLocalDateTime(timeStamp));
+		requestDto.setTimeStamp(DateUtils2.parseToLocalDateTime(timeStamp));
 
 		when(keyManagerService.getCertificate(Mockito.eq(appid), Mockito.eq(Optional.of(refid))))
 				.thenReturn(keyPairGenerateResponseDto);
@@ -145,7 +145,7 @@ public class CryptographicServiceIntegrationExceptionTest {
 		requestDto.setApplicationId("");
 		requestDto.setData("");
 		requestDto.setReferenceId("ref123");
-		requestDto.setTimeStamp(DateUtils.parseToLocalDateTime("2018-12-06T12:07:44.403Z"));
+		requestDto.setTimeStamp(DateUtils2.parseToLocalDateTime("2018-12-06T12:07:44.403Z"));
 		String requestBody = objectMapper.writeValueAsString(requestWrapper);
 		MvcResult result = mockMvc
 				.perform(post("/encrypt").contentType(MediaType.APPLICATION_JSON).content(requestBody))
@@ -185,7 +185,7 @@ public class CryptographicServiceIntegrationExceptionTest {
 		requestDto.setApplicationId("REGISTRATION");
 		requestDto.setData("dXJ2aWw");
 		requestDto.setReferenceId("ref123");
-		requestDto.setTimeStamp(DateUtils.parseToLocalDateTime("2018-12-06T12:07:44.403Z"));
+		requestDto.setTimeStamp(DateUtils2.parseToLocalDateTime("2018-12-06T12:07:44.403Z"));
 		String requestBody = objectMapper.writeValueAsString(requestWrapper);
 		MvcResult result = mockMvc
 				.perform(post("/decrypt").contentType(MediaType.APPLICATION_JSON).content(requestBody))

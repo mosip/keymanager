@@ -22,6 +22,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -34,7 +35,6 @@ import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
@@ -129,7 +129,7 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         String certificateData = baseKeyMigrateRequest.getCertificateData();
         LocalDateTime notBefore = baseKeyMigrateRequest.getNotBefore();
         LocalDateTime notAfter = baseKeyMigrateRequest.getNotAfter(); 
-        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
 
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, KeyMigratorConstants.EMPTY, localDateTimeStamp);
 		List<KeyAlias> currentKeyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
@@ -247,7 +247,7 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         LOGGER.info(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.ZK_KEYS, 
                             KeyMigratorConstants.EMPTY, "Get Temporary Certificate for ZK keys migration.");
 
-        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
 
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(KeyMigratorConstants.ZK_TEMP_KEY_APP_ID, 
                         KeyMigratorConstants.ZK_TEMP_KEY_REF_ID, localDateTimeStamp);
@@ -308,7 +308,7 @@ public class KeyMigratorServiceImpl implements KeyMigratorService {
         LOGGER.info(KeyMigratorConstants.SESSIONID, KeyMigratorConstants.ZK_KEYS, 
                             KeyMigratorConstants.EMPTY, "ZK keys migration request.");
 
-        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
         Stream<ZKKeyDataDto> encryptedKeyList = migrateZKKeysRequestDto.getZkEncryptedDataList().stream();
         boolean purgeKeyFlag = migrateZKKeysRequestDto.getPurgeTempKeyFlag() == null ? false: migrateZKKeysRequestDto.getPurgeTempKeyFlag();
 

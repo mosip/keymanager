@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import jakarta.annotation.PostConstruct;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -43,7 +44,6 @@ import de.mkammerer.argon2.Argon2Factory.Argon2Types;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
 import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
@@ -468,7 +468,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 									includeCertificate, includeCertHash, certificateUrl);
 		JWTCipherResponseDto jwtCipherResponseDto = new JWTCipherResponseDto();
 		jwtCipherResponseDto.setData(jweEncryptedData);
-		jwtCipherResponseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		jwtCipherResponseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		return jwtCipherResponseDto;
 	}
 
@@ -560,7 +560,7 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 		JWTCipherResponseDto jwtCipherResponseDto = new JWTCipherResponseDto();
 		jwtCipherResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData.getBytes()));
-		jwtCipherResponseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		jwtCipherResponseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		return jwtCipherResponseDto;
 	}
 

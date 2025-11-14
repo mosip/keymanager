@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.crypto.SecretKey;
 
 import io.ipfs.multibase.Multibase;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -50,7 +51,6 @@ import io.mosip.kernel.core.pdfgenerator.model.Rectangle;
 import io.mosip.kernel.core.pdfgenerator.spi.PDFGenerator;
 import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.JsonUtils;
 import io.mosip.kernel.core.util.exception.JsonMappingException;
 import io.mosip.kernel.core.util.exception.JsonParseException;
@@ -208,18 +208,18 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		signatureRequestDto.setApplicationId(signApplicationid);
 		signatureRequestDto.setReferenceId(signRefid);
 		signatureRequestDto.setData(signRequestDto.getData());
-		final String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		signatureRequestDto.setTimeStamp(timestamp);
 		SignatureResponseDto signatureResponseDTO = sign(signatureRequestDto);
-		return new SignatureResponse(signatureResponseDTO.getData(), DateUtils.convertUTCToLocalDateTime(timestamp));
+		return new SignatureResponse(signatureResponseDTO.getData(), DateUtils2.convertUTCToLocalDateTime(timestamp));
 	}
 
 	private SignatureResponseDto sign(SignatureRequestDto signatureRequestDto) {
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(
 				signatureRequestDto.getApplicationId(), Optional.of(signatureRequestDto.getReferenceId()),
 				signatureRequestDto.getTimeStamp());
-        final java.util.Date tsDate = DateUtils.parseUTCToDate(signatureRequestDto.getTimeStamp());
-		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(), tsDate);
+		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
+				DateUtils2.parseUTCToDate(signatureRequestDto.getTimeStamp()));
 		String encryptedSignedData = null;
 		if (certificateResponse.getCertificateEntry() != null) {
 			encryptedSignedData = cryptoCore.sign(signatureRequestDto.getData().getBytes(),
@@ -232,7 +232,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 	public ValidatorResponseDto validate(TimestampRequestDto timestampRequestDto) {
 
 		PublicKeyResponse<String> publicKeyResponse = keymanagerService.getSignPublicKey(signApplicationid,
-				DateUtils.formatToISOString(timestampRequestDto.getTimestamp()), Optional.of(signRefid));
+				DateUtils2.formatToISOString(timestampRequestDto.getTimestamp()), Optional.of(signRefid));
 		boolean status;
 		try {
             final String algo  = asymmetricAlgorithmName;           // e.g., "RSA", "EC", "Ed25519"
@@ -350,7 +350,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}
 
-		final String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		String applicationId = jwtSignRequestDto.getApplicationId();
 		String referenceId = jwtSignRequestDto.getReferenceId();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -367,12 +367,12 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		final SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-				DateUtils.parseUTCToDate(timestamp));
-		final String signedData = sign(decodedDataToSign, certificateResponse, includePayload, includeCertificate,
+				DateUtils2.parseUTCToDate(timestamp));
+		String signedData = sign(decodedDataToSign, certificateResponse, includePayload, includeCertificate,
 				includeCertHash, certificateUrl, referenceId);
 		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
 		responseDto.setJwtSignedData(signedData);
-		responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Request - Completed");
 
@@ -719,7 +719,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			kidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
 		}
 
-		final String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		String applicationId = jwsSignRequestDto.getApplicationId();
 		String referenceId = jwsSignRequestDto.getReferenceId();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -739,7 +739,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 									Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-									DateUtils.parseUTCToDate(timestamp));
+									DateUtils2.parseUTCToDate(timestamp));
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 		String providerName = certificateResponse.getProviderName();
@@ -767,7 +767,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 														 
 		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
 		responseDto.setJwtSignedData(signedData.toString());
-		responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		if (referenceId.equals(KeyReferenceIdConsts.ED25519_SIGN.name())) {
 			LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"Found Ed25519 Key for Signature, clearing the Key from memory.");
@@ -813,7 +813,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					SignatureErrorCode.INVALID_INPUT.getErrorMessage());
 		}
 		byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
-		String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
 			applicationId = signApplicationid;
 			referenceId = signRefid;
@@ -824,7 +824,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-				DateUtils.parseUTCToDate(timestamp));
+				DateUtils2.parseUTCToDate(timestamp));
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		certificateResponse.getCertificateEntry().getChain();
 		String providerName = certificateResponse.getProviderName();
@@ -834,7 +834,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 		String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
 		SignResponseDto signedDataResponse = new SignResponseDto();
-		signedDataResponse.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		signedDataResponse.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
 		switch (encodingFromat) {
 			case SignatureConstant.BASE64URL:
@@ -874,7 +874,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
                     SignatureErrorCode.INVALID_INPUT.getErrorMessage());
         }
         byte[] dataToSign = CryptoUtil.decodeURLSafeBase64(reqDataToSign);
-        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String timestamp = DateUtils2.getUTCCurrentDateTimeString();
         if (!keymanagerUtil.isValidApplicationId(applicationId)) {
             applicationId = signApplicationid;
             referenceId = signRefid;
@@ -885,7 +885,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
                 Optional.of(referenceId), timestamp);
         keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-                DateUtils.parseUTCToDate(timestamp));
+                DateUtils2.parseUTCToDate(timestamp));
         PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
         certificateResponse.getCertificateEntry().getChain();
         String providerName = certificateResponse.getProviderName();
@@ -895,7 +895,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
         }
         String signature = signatureProvider.sign(privateKey, dataToSign, providerName);
         SignResponseDtoV2 responseDto = new SignResponseDtoV2();
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         String encodingFromat = (signatureReq.getResponseEncodingFormat() == null || signatureReq.getResponseEncodingFormat().isBlank()) ? SignatureConstant.BASE58BTC : signatureReq.getResponseEncodingFormat();
         switch (encodingFromat) {
             case SignatureConstant.BASE64URL:
@@ -987,7 +987,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					SignatureErrorCode.INVALID_JSON.getErrorMessage());
 		}
 
-		String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		String applicationId = jwtSignRequestDto.getApplicationId();
 		String referenceId = jwtSignRequestDto.getReferenceId();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -1006,13 +1006,13 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-				DateUtils.parseUTCToDate(timestamp));
+				DateUtils2.parseUTCToDate(timestamp));
 
 		String signedData = signV2(decodedDataToSign, certificateResponse, includePayload, includeCertificateChain,
 				includeCertHash, certificateUrl, referenceId, additionalHeaders);
 		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
 		responseDto.setJwtSignedData(signedData);
-		responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Request - Completed");
 
@@ -1137,7 +1137,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			kidPrefix = SignatureUtil.getIssuerFromPayload(new String(CryptoUtil.decodeURLSafeBase64(reqDataToSign))).concat(SignatureConstant.KEY_ID_SEPARATOR);
 		}
 
-		String timestamp = DateUtils.getUTCCurrentDateTimeString();
+		String timestamp = DateUtils2.getUTCCurrentDateTimeString();
 		String applicationId = jwsSignRequestDto.getApplicationId();
 		String referenceId = jwsSignRequestDto.getReferenceId();
 		if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -1157,7 +1157,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
-				DateUtils.parseUTCToDate(timestamp));
+				DateUtils2.parseUTCToDate(timestamp));
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 		String providerName = certificateResponse.getProviderName();
@@ -1187,7 +1187,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		JWTSignatureResponseDto responseDto = new JWTSignatureResponseDto();
 		responseDto.setJwtSignedData(signedData.toString());
-		responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+		responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
 		if (referenceId.equals(KeyReferenceIdConsts.ED25519_SIGN.name())) {
 			LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 					"Found Ed25519 Key for Signature, clearing the Key from memory.");

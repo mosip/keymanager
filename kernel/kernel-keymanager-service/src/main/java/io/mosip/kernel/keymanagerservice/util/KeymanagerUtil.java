@@ -46,6 +46,7 @@ import javax.security.auth.x500.X500Principal;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.kernel.core.keymanager.spi.KeyStore;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
 import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
 import io.mosip.kernel.keymanagerservice.dto.*;
@@ -88,7 +89,6 @@ import io.mosip.kernel.core.keymanager.model.CertificateEntry;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -323,15 +323,24 @@ public class KeymanagerUtil {
 
 	public byte[] decryptKey(byte[] key, PrivateKey privateKey, PublicKey publicKey, String keystoreType) {
 
-		int keyDemiliterIndex = 0;
-		final int cipherKeyandDataLength = key.length;
-		final int keySplitterLength = keySplitter.length();
-		keyDemiliterIndex = CryptoUtil.getSplitterIndex(key, keyDemiliterIndex, keySplitter);
-		byte[] encryptedKey = copyOfRange(key, 0, keyDemiliterIndex);
-		byte[] encryptedData = copyOfRange(key, keyDemiliterIndex + keySplitterLength, cipherKeyandDataLength);
-		byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
-		SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, 0, decryptedSymmetricKey.length,
-				symmetricAlgorithmName);
+        final int keySplitterLength = keySplitter.length();
+        final int keyDelimiterIndex = CryptoUtil.getSplitterIndex(key, 0, keySplitter);
+        if (keyDelimiterIndex < 0 || keyDelimiterIndex + keySplitterLength >= key.length) {
+            throw new IllegalArgumentException("Splitter not found or invalid key format");
+        }
+
+        // Split encrypted key and encrypted data
+        byte[] encryptedKey = new byte[keyDelimiterIndex];
+        System.arraycopy(key, 0, encryptedKey, 0, keyDelimiterIndex);
+
+        int encryptedDataLen = key.length - (keyDelimiterIndex + keySplitterLength);
+        byte[] encryptedData = new byte[encryptedDataLen];
+        System.arraycopy(key, keyDelimiterIndex + keySplitterLength, encryptedData, 0, encryptedDataLen);
+        // Decrypt asymmetric key
+        byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
+        SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, symmetricAlgorithmName);
+
+        // Symmetric decryption (AAD = null)
 		return cryptoCore.symmetricDecrypt(symmetricKey, encryptedData, null);
 	}
 
@@ -641,7 +650,7 @@ public class KeymanagerUtil {
 	}
 
 	public LocalDateTime convertToUTC(Date anyDate) {
-		LocalDateTime ldTime = DateUtils.parseDateToLocalDateTime(anyDate);
+		LocalDateTime ldTime = DateUtils2.parseDateToLocalDateTime(anyDate);
 		ZonedDateTime zonedtime = ldTime.atZone(ZoneId.systemDefault());
         ZonedDateTime converted = zonedtime.withZoneSameInstant(ZoneOffset.UTC);
         return converted.toLocalDateTime();

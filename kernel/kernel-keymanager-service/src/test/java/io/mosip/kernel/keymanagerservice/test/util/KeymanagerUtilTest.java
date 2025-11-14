@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.validator.ECKeyPairGenRequestValidator;
+import io.mosip.kernel.core.util.DateUtils2;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,7 +26,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
@@ -85,7 +85,7 @@ public class KeymanagerUtilTest {
 	public void isCertificateValidExceptionTest() {
 		CertificateEntry<X509Certificate, PrivateKey> certificateEntry = new CertificateEntry<X509Certificate, PrivateKey>(
 				chain, keyPair.getPrivate());
-		keymanagerUtil.isCertificateValid(certificateEntry, DateUtils.parseUTCToDate("2019-05-01T12:00:00.00Z"));
+		keymanagerUtil.isCertificateValid(certificateEntry, DateUtils2.parseUTCToDate("2019-05-01T12:00:00.00Z"));
 	}
 
 	@Test

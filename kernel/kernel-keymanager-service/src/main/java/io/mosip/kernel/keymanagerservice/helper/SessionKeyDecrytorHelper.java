@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.crypto.SecretKey;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,6 @@ import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -90,7 +90,7 @@ public class SessionKeyDecrytorHelper {
 	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;
 
     public SymmetricKeyResponseDto decryptSessionKey(SymmetricKeyRequestDto symmetricKeyRequestDto) {
-		LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+		LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
 		String applicationId = symmetricKeyRequestDto.getApplicationId();
 		String referenceId = symmetricKeyRequestDto.getReferenceId();
 		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.SYMMETRICKEYREQUEST,
@@ -126,11 +126,11 @@ public class SessionKeyDecrytorHelper {
 	 */
 	private SymmetricKeyResponseDto decryptSymmetricKeyWithKeyIdentifier(String applicationId, String referenceId, 
 							byte[] encryptedData, LocalDateTime localDateTimeStamp) {
-		
-		
-		byte[] certThumbprint = Arrays.copyOfRange(encryptedData, 0, CryptomanagerConstant.THUMBPRINT_LENGTH);
-		byte[] encryptedSymmetricKey = Arrays.copyOfRange(encryptedData, CryptomanagerConstant.THUMBPRINT_LENGTH, 
-									encryptedData.length);
+        byte[] certThumbprint = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH];
+        byte[] encryptedSymmetricKey = new byte[encryptedData.length - CryptomanagerConstant.THUMBPRINT_LENGTH];
+
+        System.arraycopy(encryptedData, 0, certThumbprint, 0, CryptomanagerConstant.THUMBPRINT_LENGTH);
+        System.arraycopy(encryptedData, CryptomanagerConstant.THUMBPRINT_LENGTH, encryptedSymmetricKey, 0, encryptedSymmetricKey.length);
 		String certThumbprintHex = Hex.toHexString(certThumbprint).toUpperCase();
 		/* io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore = cacheKeyStore.getOrDefault(certThumbprintHex, null);
 
@@ -161,7 +161,6 @@ public class SessionKeyDecrytorHelper {
 		byte[] decryptedSymmetricKey = decryptSessionKeyWithCertificateThumbprint(dbKeyStore, encryptedSymmetricKey, referenceId);
 		keyResponseDto.setSymmetricKey(CryptoUtil.encodeToURLSafeBase64(decryptedSymmetricKey));
 		return keyResponseDto;
-
 	}
 
 	private byte[] decryptSessionKeyWithCertificateThumbprint(io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore, 

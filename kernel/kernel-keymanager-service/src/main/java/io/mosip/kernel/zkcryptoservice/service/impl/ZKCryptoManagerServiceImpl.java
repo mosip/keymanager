@@ -32,6 +32,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import io.mosip.kernel.core.util.DateUtils2;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,6 @@ import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -366,7 +366,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.MASTER_KEY, 
 						ZKCryptoManagerConstants.RANDOM_KEY, "Retrieve Master Key Alias from DB.");
 
-		Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(keyAppId, keyRefId, DateUtils.getUTCCurrentDateTime());
+		Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(keyAppId, keyRefId, DateUtils2.getUTCCurrentDateTime());
 		
 		List<KeyAlias> currentKeyAliases = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
 
@@ -472,7 +472,7 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 						ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorMessage());
 		}
 		String[] encryptedKeyArr = encryptedKey.split(ZKCryptoManagerConstants.PERIOD);
-		LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+		LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
 		if (Objects.isNull(keyAliases)) {
 			Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(pubKeyApplicationId, pubKeyReferenceId, localDateTimeStamp);
 			keyAliases = keyAliasMap.get(KeymanagerConstant.KEYALIAS);
