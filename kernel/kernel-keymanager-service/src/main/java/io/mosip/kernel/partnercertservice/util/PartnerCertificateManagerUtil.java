@@ -19,6 +19,7 @@ import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.RDN;
@@ -35,7 +36,6 @@ import org.bouncycastle.cms.CMSTypedData;
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.entity.CACertificateStore;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.partnercertservice.constant.PartnerCertManagerConstants;
@@ -77,7 +77,7 @@ public class PartnerCertificateManagerUtil {
 
     public static boolean isMinValidityCertificate(X509Certificate x509Certificate, int minimumValidity) {
         try {
-            LocalDate timeStamp = DateUtils.getUTCCurrentDateTime().plusMonths(minimumValidity).toLocalDate();
+            LocalDate timeStamp = DateUtils2.getUTCCurrentDateTime().plusMonths(minimumValidity).toLocalDate();
             LocalDate expiredate = x509Certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return !expiredate.isBefore(timeStamp);
         } catch (Exception exp) {
@@ -89,7 +89,7 @@ public class PartnerCertificateManagerUtil {
 
     public static boolean isFutureDatedCertificate(X509Certificate x509Certificate) {
         try {
-            LocalDate timeStamp = DateUtils.getUTCCurrentDateTime().toLocalDate();
+            LocalDate timeStamp = DateUtils2.getUTCCurrentDateTime().toLocalDate();
             LocalDate createdDate = x509Certificate.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return !createdDate.isAfter(timeStamp);
         } catch (Exception exp) {
@@ -147,7 +147,7 @@ public class PartnerCertificateManagerUtil {
     public static boolean isCertificateDatesValid(X509Certificate x509Cert) {
         
         try {
-            Date currentDate = Date.from(DateUtils.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
+            Date currentDate = Date.from(DateUtils2.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
             x509Cert.checkValidity(currentDate);
             return true;
         } catch(CertificateExpiredException | CertificateNotYetValidException exp) {
@@ -173,7 +173,7 @@ public class PartnerCertificateManagerUtil {
         if (noOfDays < 0) {
             noOfDays = DEFAULT_ALLOWED_CERTIFICATE_DAYS;
         } 
-        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();//.plus(noOfDays, ChronoUnit.DAYS);
+        LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();//.plus(noOfDays, ChronoUnit.DAYS);
         LocalDateTime certNotAfter = x509Cert.getNotAfter().toInstant().atZone(ZoneId.of("UTC")).toLocalDateTime();
         long validDays = ChronoUnit.DAYS.between(localDateTimeStamp, certNotAfter);
         if ((validDays - noOfDays) >= 0)             
