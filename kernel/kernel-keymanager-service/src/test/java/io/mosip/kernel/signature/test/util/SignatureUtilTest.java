@@ -161,8 +161,19 @@ public class SignatureUtilTest {
 
     @Test
     public void testGetJWSHeaderV2WithNullHeaders() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("ROOT");
+        keyPairGenRequestDto.setReferenceId("");
+        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        keyPairGenRequestDto.setApplicationId("TEST");
+        keyPairGenRequestDto.setReferenceId("");
+        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+
+        KeyPairGenerateResponseDto certDeatils = keymanagerService.getCertificate("TEST", Optional.empty());
+        X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certDeatils.getCertificate());
         var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false,
-                null, null, testUniqueId, false, "", null);
+                null, x509Certificate, testUniqueId, false, "", null);
         Assert.assertNotNull(header);
     }
 }

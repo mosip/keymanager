@@ -27,6 +27,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import org.apache.commons.codec.DecoderException;
@@ -35,7 +36,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
@@ -94,7 +94,7 @@ public class SignatureUtil {
 	public static boolean isCertificateDatesValid(X509Certificate x509Cert) {
 
 		try {
-			Date currentDate = Date.from(DateUtils.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
+			Date currentDate = Date.from(DateUtils2.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
 			x509Cert.checkValidity(currentDate);
 			return true;
 		} catch (CertificateExpiredException | CertificateNotYetValidException exp) {

@@ -15,12 +15,12 @@ import javax.crypto.SecretKey;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.entity.DataEncryptKeystore;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
@@ -98,7 +98,7 @@ public class RandomKeysGenerator {
 
     public void generateRandomKeys(String appId, String referenceId) {
 
-        LocalDateTime localDateTimeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, referenceId, localDateTimeStamp);
         List<KeyAlias> currentKeyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
         String alias = null;
