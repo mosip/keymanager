@@ -162,8 +162,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Autowired
     private PartnerCertManagerDBHelper partnerCertManagerDBHelper;
 
-    // --- New fast-path caches ---
-    private Cache<String, List<Certificate>> certChainCache;     // per (domain:leafCertificateThumbprint)
+    private Cache<String, List<Certificate>> certChainCache;     
 
     @PostConstruct
     public void init() {
