@@ -162,8 +162,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Autowired
     private PartnerCertManagerDBHelper partnerCertManagerDBHelper;
 
-    // --- New fast-path caches ---
-    private Cache<String, List<? extends Certificate>> certChainCache;     // per (domain:leafCertificateThumbprint)
+    private Cache<String, List<Certificate>> certChainCache;     
 
     @PostConstruct
     public void init() {
@@ -186,7 +185,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                 })
                 .build();
 
-            certChainCache = new Cache2kBuilder<String, List<? extends Certificate>>() {}
+            certChainCache = new Cache2kBuilder<String, List<Certificate>>() {}
                     .name("certChainCache-" + this.hashCode())
                     .expireAfterWrite(certChainCacheExpireInMin, TimeUnit.MINUTES)
                     .entryCapacity(100)
