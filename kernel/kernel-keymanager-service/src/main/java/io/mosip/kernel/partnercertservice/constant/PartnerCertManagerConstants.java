@@ -102,4 +102,6 @@ public interface PartnerCertManagerConstants {
 	String GET_CA_CERT = "GetCACertificate";
 
 	String GET_CA_CERT_TRUST = "GetCACertificateWithTrustChain";
+
+    String SEPERATOR = ":";
 }
