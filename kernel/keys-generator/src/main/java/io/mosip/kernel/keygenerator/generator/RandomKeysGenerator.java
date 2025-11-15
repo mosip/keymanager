@@ -13,6 +13,8 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,6 +57,45 @@ public class RandomKeysGenerator {
     @Autowired
     DataEncryptKeystoreRepository dataEncryptKeystoreRepository;
 
+    private static ThreadLocal<SecureRandom> secureRandomThreadLocal = null;
+
+    private ThreadLocal<KeyGenerator> KEY_GENETRATOR;
+
+    private ThreadLocal<Cipher> CIPHER_AES_ECB_NO_PADDING;
+
+    @PostConstruct
+    public void init() {
+        secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
+
+        KEY_GENETRATOR = ThreadLocal.withInitial(() -> {
+            try {
+                return KeyGenerator.getInstance("AES");
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize KeyGenerator with AES", e);
+            }
+        });
+
+        CIPHER_AES_ECB_NO_PADDING = ThreadLocal.withInitial(() -> {
+            try {
+                return Cipher.getInstance(WRAPPING_TRANSFORMATION);
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize Cipher with AES/ECB/NoPadding", e);
+            }
+        });
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (secureRandomThreadLocal != null)
+            secureRandomThreadLocal.remove();
+
+        if (KEY_GENETRATOR != null)
+            KEY_GENETRATOR.remove();
+
+        if (CIPHER_AES_ECB_NO_PADDING != null)
+            CIPHER_AES_ECB_NO_PADDING.remove();
+    }
+
     public void generateRandomKeys(String appId, String referenceId) {
 
         LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
@@ -94,9 +135,9 @@ public class RandomKeysGenerator {
 		Long maxid = dataEncryptKeystoreRepository.findMaxId();
 		int startIndex = maxid == null ? 0 : maxid.intValue() + 1;
         
-        SecureRandom rand = new SecureRandom();
-		KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        Cipher cipher = Cipher.getInstance(WRAPPING_TRANSFORMATION); // NOSONAR using the key wrapping
+        SecureRandom rand = secureRandomThreadLocal.get();
+		KeyGenerator keyGenerator = KEY_GENETRATOR.get();
+        Cipher cipher = CIPHER_AES_ECB_NO_PADDING.get(); // NOSONAR using the key wrapping
         Key masterKey = keyStore.getSymmetricKey(cacheMasterKeyAlias);
 
 		for (int i = startIndex; i < noOfKeysToGenerate; i++) {
