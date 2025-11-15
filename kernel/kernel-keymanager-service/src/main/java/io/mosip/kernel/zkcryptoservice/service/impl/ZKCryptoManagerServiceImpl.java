@@ -30,6 +30,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import io.mosip.kernel.core.util.DateUtils2;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.InitializingBean;
@@ -136,6 +138,57 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
+    private ThreadLocal<Cipher> CIPHER_AES_ECB;
+
+    private ThreadLocal<Cipher> CIPHER_AES_GCM;
+
+    private ThreadLocal<MessageDigest> MESSAGE_DIGEST;
+
+    public static String AES_ECB_ALGO;
+    public static String AES_GCM_ALGO;
+
+    @PostConstruct
+    public void init() {
+        AES_ECB_ALGO = aesECBTransformation;
+        AES_GCM_ALGO = aesGCMTransformation;
+
+        CIPHER_AES_ECB = ThreadLocal.withInitial(() -> {
+            try {
+                return Cipher.getInstance(AES_ECB_ALGO);
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize aes-ecb Cipher", e);
+            }
+        });
+
+        CIPHER_AES_GCM = ThreadLocal.withInitial(() -> {
+            try {
+                return Cipher.getInstance(AES_GCM_ALGO);
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize aes-gcm Cipher", e);
+            }
+        });
+
+        MESSAGE_DIGEST = ThreadLocal.withInitial(() -> {
+            try {
+                return MessageDigest.getInstance(ZKCryptoManagerConstants.HASH_ALGO);
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to initialize MessageDigest", e);
+            }
+        });
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (CIPHER_AES_ECB != null)
+            CIPHER_AES_ECB.remove();
+
+        if (CIPHER_AES_GCM != null)
+            CIPHER_AES_GCM.remove();
+
+        if (MESSAGE_DIGEST != null)
+            MESSAGE_DIGEST.remove();
+    }
+
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		// temporary fix to resolve issue occurring for first time(softhsm)/third time(real hsm) symmetric key retrival from HSM.
@@ -189,33 +242,44 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.ZK_DECRYPT, 
 						ZKCryptoManagerConstants.EMPTY, "Zero Knowledge Decryption.");
 		String id = cryptoRequestDto.getId();
-		Stream<CryptoDataDto> cryptoDataList = cryptoRequestDto.getZkDataAttributes().stream();
+        List<CryptoDataDto> decryptedAttributes = new ArrayList<>();
 
-		List<CryptoDataDto> responseCryptoData = new ArrayList<>();
-		cryptoDataList.forEach(reqCryptoData -> {
-			String identifier = reqCryptoData.getIdentifier();
-			String dataToDecrypt = reqCryptoData.getValue();
+        for (CryptoDataDto reqData : cryptoRequestDto.getZkDataAttributes()) {
+            final String identifier = reqData.getIdentifier();
+            final byte[] decodedData = CryptoUtil.decodeURLSafeBase64(reqData.getValue());
 
-			byte[] decodedData = CryptoUtil.decodeURLSafeBase64(dataToDecrypt);
-			byte[] dbIndexBytes = Arrays.copyOfRange(decodedData, 0, ZKCryptoManagerConstants.INT_BYTES_LEN);
-			byte[] nonce = Arrays.copyOfRange(decodedData, ZKCryptoManagerConstants.INT_BYTES_LEN, 
-														   ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_LEN);
-			byte[] aad = Arrays.copyOfRange(decodedData, ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_LEN,
-								ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_PLUS_GCM_AAD_LEN);
-			byte[] encryptedData = Arrays.copyOfRange(decodedData, ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_PLUS_GCM_AAD_LEN,
-															decodedData.length);
-			
-			int randomKeyIndex = getIndexInt(dbIndexBytes);
-			String encryptedKeyData = dataEncryptKeystoreRepository.findKeyById(randomKeyIndex);
-			Key secretRandomKey = getDecryptedRandomKey(encryptedKeyData);
-			Key derivedKey = getDerivedKey(id, secretRandomKey);
-			byte[] decryptedData = doCipherOps(derivedKey, encryptedData, Cipher.DECRYPT_MODE, nonce, aad);
-			responseCryptoData.add(getResponseCryptoData(decryptedData, identifier));
-			keymanagerUtil.destoryKey((SecretKey) secretRandomKey);
-		});
-		ZKCryptoResponseDto cryptoResponseDto = new ZKCryptoResponseDto();
-		cryptoResponseDto.setZkDataAttributes(responseCryptoData);		
-		return cryptoResponseDto;
+            // Defensive length check
+            final int totalHeaderLength = ZKCryptoManagerConstants.GCM_NONCE_PLUS_INT_BYTES_PLUS_GCM_AAD_LEN;
+            if (decodedData.length <= totalHeaderLength) {
+                LOGGER.error("Invalid ZK encrypted payload length for attribute: {}", identifier);
+                throw new ZKCryptoException("ZK-DEC-001", "Invalid encrypted data format.");
+            }
+
+            // Byte extraction
+            byte[] indexBytes = new byte[ZKCryptoManagerConstants.INT_BYTES_LEN];
+            byte[] nonce = new byte[ZKCryptoManagerConstants.GCM_NONCE_LENGTH];
+            byte[] aad = new byte[ZKCryptoManagerConstants.GCM_AAD_LENGTH];
+            System.arraycopy(decodedData, 0, indexBytes, 0, indexBytes.length);
+            System.arraycopy(decodedData, indexBytes.length, nonce, 0, nonce.length);
+            System.arraycopy(decodedData, indexBytes.length + nonce.length, aad, 0, aad.length);
+
+            int keyIndex = getIndexInt(indexBytes);
+            String encryptedKeyData = dataEncryptKeystoreRepository.findKeyById(keyIndex);
+            Key secretRandomKey = getDecryptedRandomKey(encryptedKeyData);
+            Key derivedKey = getDerivedKey(id, secretRandomKey);
+
+            byte[] encryptedPayload = new byte[decodedData.length - totalHeaderLength];
+            System.arraycopy(decodedData, totalHeaderLength, encryptedPayload, 0, encryptedPayload.length);
+
+            byte[] decrypted = doCipherOps(derivedKey, encryptedPayload, Cipher.DECRYPT_MODE, nonce, aad);
+            decryptedAttributes.add(getResponseCryptoData(decrypted, identifier));
+
+            keymanagerUtil.destoryKey((SecretKey) secretRandomKey);
+        }
+
+        ZKCryptoResponseDto response = new ZKCryptoResponseDto();
+        response.setZkDataAttributes(decryptedAttributes);
+        return response;
 	}
 	
 	@SuppressWarnings("java:S2245") // added suppress for sonarcloud. random index to fetch the key from DB.
@@ -250,13 +314,12 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 
 	private byte[] doFinal(String secretData, int mode) {
 		try {
-			Cipher cipher = Cipher.getInstance(aesECBTransformation);
+			Cipher cipher = CIPHER_AES_ECB.get();
 
 			byte[] secretDataBytes = Base64.getDecoder().decode(secretData);
 			cipher.init(mode, getMasterKeyFromHSM());
 			return cipher.doFinal(secretDataBytes, 0, secretDataBytes.length);
-		} catch(NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
-			| IllegalBlockSizeException | BadPaddingException | IllegalArgumentException e) {
+		} catch(InvalidKeyException | IllegalBlockSizeException | BadPaddingException | IllegalArgumentException e) {
 			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.RANDOM_KEY, 
 						ZKCryptoManagerConstants.EMPTY,	"Error Cipher Operations of Random Key.");
 			throw new ZKKeyDerivationException(ZKCryptoErrorConstants.RANDOM_KEY_CIPHER_FAILED.getErrorCode(), 
@@ -269,16 +332,15 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.DERIVE_KEY, 
 						ZKCryptoManagerConstants.DERIVE_KEY, "Derive key with Random Key.");
 			byte[] idBytes = id.getBytes();
-			MessageDigest mDigest = MessageDigest.getInstance(ZKCryptoManagerConstants.HASH_ALGO);
+			MessageDigest mDigest = MESSAGE_DIGEST.get();
 			mDigest.update(idBytes, 0, idBytes.length);
 			byte[] hashBytes = mDigest.digest();
 			
-			Cipher cipher = Cipher.getInstance(aesECBTransformation);
+			Cipher cipher = CIPHER_AES_ECB.get();
 			cipher.init(Cipher.ENCRYPT_MODE, key);
 			byte[] encryptedData = cipher.doFinal(hashBytes, 0, hashBytes.length);
 			return new SecretKeySpec(encryptedData, 0, encryptedData.length, "AES");
-		} catch(NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException |
-							 IllegalBlockSizeException | BadPaddingException e) {
+		} catch(InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
 			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.DERIVE_KEY, 
 							ZKCryptoManagerConstants.EMPTY,	"Error Deriving Key with Random Key." + e.getMessage());
 			throw new ZKRandomKeyDecryptionException(ZKCryptoErrorConstants.KEY_DERIVATION_ERROR.getErrorCode(), 
@@ -324,13 +386,12 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		LOGGER.info(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.DATA_CIPHER, 
 						ZKCryptoManagerConstants.EMPTY, "Data Encryption/Decryption Process");
 		try {
-			Cipher cipher = Cipher.getInstance(aesGCMTransformation);
+			Cipher cipher = CIPHER_AES_GCM.get();
 			GCMParameterSpec gcmSpec = new GCMParameterSpec(ZKCryptoManagerConstants.GCM_TAG_LENGTH * 8, nonce);
 			cipher.init(mode, key, gcmSpec);
 			cipher.updateAAD(aad);
 			return cipher.doFinal(data, 0, data.length);
-		} catch(NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-			InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException ex) {
+		} catch(InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException ex) {
 			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.DATA_CIPHER, 
 					ZKCryptoManagerConstants.DATA_CIPHER, "Error Ciphering inputed data." + ex.getMessage());
 			throw new ZKCryptoException(ZKCryptoErrorConstants.DATA_CIPHER_OPS_ERROR.getErrorCode(),

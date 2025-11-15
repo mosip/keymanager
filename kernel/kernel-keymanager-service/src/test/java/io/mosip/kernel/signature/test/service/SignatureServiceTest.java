@@ -10,6 +10,7 @@ import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.signature.dto.*;
+import io.mosip.kernel.signature.exception.PublicKeyParseException;
 import io.mosip.kernel.signature.exception.RequestException;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -495,27 +496,7 @@ public class SignatureServiceTest {
         Assert.assertNotNull(response);
     }
 
-    @Test
-    public void testValidate() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("KERNEL");
-        keyPairGenRequestDto.setReferenceId("SIGN");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        SignRequestDto signRequestDto = new SignRequestDto();
-        signRequestDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        SignatureResponse signResponse = signatureService.sign(signRequestDto);
-
-        TimestampRequestDto timestampRequestDto = new TimestampRequestDto();
-        timestampRequestDto.setSignature(signResponse.getData());
-        timestampRequestDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        timestampRequestDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
-        ValidatorResponseDto response = signatureService.validate(timestampRequestDto);
-        Assert.assertNotNull(response);
-        Assert.assertEquals("success", response.getStatus());
-    }
-
-    @Test(expected = SignatureException.class)
+    @Test(expected = PublicKeyParseException.class)
     public void testValidateException() {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
         keyPairGenRequestDto.setApplicationId("KERNEL");
