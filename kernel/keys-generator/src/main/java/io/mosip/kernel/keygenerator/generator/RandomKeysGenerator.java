@@ -63,6 +63,7 @@ public class RandomKeysGenerator {
 
     private ThreadLocal<Cipher> CIPHER_AES_ECB_NO_PADDING;
 
+    @SuppressWarnings("java:S5542")
     @PostConstruct
     public void init() {
         secureRandomThreadLocal = ThreadLocal.withInitial(SecureRandom::new);
