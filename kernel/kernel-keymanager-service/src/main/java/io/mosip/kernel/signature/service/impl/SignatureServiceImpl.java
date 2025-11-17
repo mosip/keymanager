@@ -27,6 +27,7 @@ import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
+import jakarta.annotation.PreDestroy;
 import org.apache.commons.codec.binary.Base64;
 import org.jose4j.jca.ProviderContext;
 import org.jose4j.jwa.AlgorithmFactory;
@@ -147,7 +148,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 	private static Map<String, SignatureProvider> SIGNATURE_PROVIDER = new HashMap<>();
 
-	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory;
+//	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory;
 
 	static {
 		SIGNATURE_PROVIDER.put(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST, new PS256SIgnatureProviderImpl());
@@ -171,9 +172,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
     private final ConcurrentMap<String, X509Certificate> certCache = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> jwsHeaderCache = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Provider> providerCache = new ConcurrentHashMap<>();
-    private static final long TRUST_TTL_MS = 5 * 60 * 1000; // 5 minutes
-    private static final class BoolWithTs { final boolean v; final long ts; BoolWithTs(boolean v,long ts){this.v=v;this.ts=ts;} }
-    private final ConcurrentMap<String, BoolWithTs> trustCache = new ConcurrentHashMap<>();
 
     // Keep lightweight decoders & factories thread-local
     private static final ThreadLocal<java.security.KeyFactory> KF_RSA =
@@ -201,6 +199,20 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			jwsAlgorithmFactory.registerAlgorithm(new EcdsaSECP256K1UsingSha256());
 		}
 	}
+
+    @PreDestroy
+    public void destroy() {
+        KF_RSA.remove();
+        KF_EC.remove();
+        KF_ED.remove();
+        MD_SHA256.remove();
+        B64_DEC.remove();
+        B64_ENC.remove();
+        jwsHeaderCache.clear();
+        pubKeyCache.clear();
+        certCache.clear();
+        providerCache.clear();
+    }
 
 	@Override
 	public SignatureResponse sign(SignRequestDto signRequestDto) {
