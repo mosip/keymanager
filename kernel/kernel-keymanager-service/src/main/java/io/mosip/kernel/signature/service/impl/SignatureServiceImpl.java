@@ -1047,8 +1047,9 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					try {
 						jwSign.setHeader(entry.getKey(), entry.getValue());
 					} catch (Exception e) {
-						// Log the error but skip and continue processing
-						e.printStackTrace();
+                        // Log the error but skip and continue processing
+                        LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
+                                "error occur while adding additional header: " + entry.getKey() + " value: " + entry.getValue());
 					}
 				}
 			}
