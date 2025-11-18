@@ -51,8 +51,6 @@ public class ClientCryptoManagerServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        // Reset static state before each test
-        resetStaticFields();
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         keyPair = keyGen.generateKeyPair();
@@ -74,70 +72,6 @@ public class ClientCryptoManagerServiceTest {
                 .thenReturn("encrypted".getBytes());
         when(cryptoCore.symmetricDecrypt(any(SecretKey.class), any(byte[].class), any(byte[].class), any(byte[].class)))
                 .thenReturn(testData);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        resetStaticFields();
-        Mockito.reset(cryptoCore, environment, applicationContext, clientCryptoService);
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-        // Final cleanup of static state
-        resetAllStaticFields();
-    }
-
-    private void resetStaticFields() throws Exception {
-        try {
-            // Reset ClientCryptoFacade static fields
-            Field isTPMRequiredField = ClientCryptoFacade.class.getDeclaredField("isTPMRequired");
-            isTPMRequiredField.setAccessible(true);
-            isTPMRequiredField.set(null, false);
-            
-            // Reset any other static fields in ClientCryptoFacade
-            Field[] fields = ClientCryptoFacade.class.getDeclaredFields();
-            for (Field field : fields) {
-                if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-                    field.setAccessible(true);
-                    if (field.getType() == boolean.class) {
-                        field.set(null, false);
-                    } else if (!field.getType().isPrimitive()) {
-                        field.set(null, null);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore if fields don't exist
-        }
-    }
-
-    private static void resetAllStaticFields() throws Exception {
-        try {
-            // Reset all static fields in related classes
-            Class<?>[] classes = {
-                ClientCryptoFacade.class,
-                AndroidClientCryptoServiceImpl.class
-            };
-            
-            for (Class<?> clazz : classes) {
-                Field[] fields = clazz.getDeclaredFields();
-                for (Field field : fields) {
-                    if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-                        field.setAccessible(true);
-                        if (field.getType() == boolean.class) {
-                            field.set(null, false);
-                        } else if (field.getType() == int.class) {
-                            field.set(null, 0);
-                        } else if (!field.getType().isPrimitive()) {
-                            field.set(null, null);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore if fields don't exist
-        }
     }
 
     // AndroidClientCryptoServiceImpl Tests
