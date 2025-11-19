@@ -409,6 +409,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		JWTSignatureVerifyResponseDto responseDto = new JWTSignatureVerifyResponseDto();
@@ -526,17 +527,20 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		if (trustCertData == null) 
 			return SignatureConstant.TRUST_NOT_VERIFIED;
-		
+
 		CertificateTrustRequestDto trustRequestDto = new CertificateTrustRequestDto();
 		trustRequestDto.setCertificateData(trustCertData);
 		trustRequestDto.setPartnerDomain(domain);
 		CertificateTrustResponeDto responseDto = partnerCertManagerService.verifyCertificateTrust(trustRequestDto);
 		
 		if (responseDto.getStatus()){
+            LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                    "JWT Signature Verification Request - Trust Validation - Success.");
 			return SignatureConstant.TRUST_VALID;
 		}
+        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(keymanagerUtil.convertToCertificate(trustCertData));
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"JWT Signature Verification Request - Trust Validation - Completed.");
+				"JWT Signature Verification Request - Trust Validation - Failed. Certificate Thumbprint: " + certThumbprint);
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
 
@@ -841,7 +845,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		JsonWebSignature jwSign = new JsonWebSignature();
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
-		List<? extends Certificate> certificateChain = keymanagerUtil.getCertificateTrustPath(x509Certificate);
+		List<? extends Certificate> certificateChain = signatureUtil.getCertificateTrustChain(x509Certificate);
 		if (includeCertificate) {
 			X509Certificate[] certArray = certificateChain.stream()
 					.filter(cert -> cert instanceof X509Certificate)
@@ -1047,6 +1051,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+            reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		List<Certificate> certChain = certificateExistsInHeaderV2(jwtTokens[0]);
@@ -1100,8 +1105,6 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				.map(cert -> (X509Certificate) cert)
 				.toList();
 
-		X509Certificate rootCert = x509CertChain.getLast();
-
 		Set<X509Certificate> intermediateCerts = new HashSet<>();
 		intermediateCerts.addAll(x509CertChain.subList(0, x509CertChain.size() - 1));
 
@@ -1117,11 +1120,14 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		boolean isTrustValid = partnerCertManagerService.validateCertificatePathWithInterCertTrust(trustCertData, domain, intermediateCerts);
 		if (isTrustValid) {
+            LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                    "JWT Signature Verification Request - Trust Validation - Successful.");
 			return SignatureConstant.TRUST_VALID;
 		}
 
+        String certThumbprint = cryptomanagerUtil.getCertificateThumbprintInHex(trustCertData);
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"JWT Signature Verification Request - Trust Validation - Completed.");
+				"JWT Signature Verification Request - Trust Validation - Failed. Certificate Thumbprint: " + certThumbprint);
 		return SignatureConstant.TRUST_NOT_VALID;
 	}
 }
