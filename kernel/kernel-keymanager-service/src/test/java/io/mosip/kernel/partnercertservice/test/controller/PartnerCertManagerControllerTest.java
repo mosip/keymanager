@@ -528,7 +528,7 @@ public class PartnerCertManagerControllerTest {
         RequestWrapper<PartnerCertificateRequestDto> request = new RequestWrapper<>();
         PartnerCertificateRequestDto requestDto = new PartnerCertificateRequestDto();
         requestDto.setCertificateData(validPartnerCertData);
-        requestDto.setOrganizationName("Mosiip");
+        requestDto.setOrganizationName("Mosip");
         requestDto.setPartnerDomain("TEST");
         request.setRequest(requestDto);
 
