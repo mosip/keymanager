@@ -17,6 +17,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
+import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +40,7 @@ public class CryptoCoreTest {
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
 	@Autowired
-	private io.mosip.kernel.keymanagerservice.util.KeymanagerUtil keymanagerUtil;
+	private KeymanagerUtil keymanagerUtil;
 
 	private KeyPair rsaPair;
 

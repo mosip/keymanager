@@ -356,26 +356,6 @@ public class ClientCryptoManagerServiceTest {
         resetTpmStatics(tpmClass);
     }
 
-//    @Test
-//    public void testTpmValidateSignaturePropagatesError() throws Exception {
-//        Class<?> tpmClass = Class.forName("io.mosip.kernel.clientcrypto.service.impl.TPMClientCryptoServiceImpl");
-//        Tpm tpmMock = mock(Tpm.class);
-//        setStaticField(tpmClass, "tpm", tpmMock);
-//        setStaticField(tpmClass, "signingPrimaryResponse", buildSigningPrimaryResponse());
-//        setStaticField(tpmClass, "encPrimaryResponse", buildEncryptionPrimaryResponse());
-//
-//        ClientCryptoService tpmService = instantiateTpmService(tpmClass);
-//
-//        try {
-//            tpmService.validateSignature(new byte[0], sampleData);
-//            fail("Expected exception for invalid signature input");
-//        } catch (ClientCryptoException | IllegalArgumentException expected) {
-//            expected.addSuppressed(expected);
-//        }
-//
-//        resetTpmStatics(tpmClass);
-//    }
-
     @Test
     public void testTpmSignDataThrowsWhenSignedDataNull() throws Exception {
         Class<?> tpmClass = Class.forName("io.mosip.kernel.clientcrypto.service.impl.TPMClientCryptoServiceImpl");
@@ -398,23 +378,6 @@ public class ClientCryptoManagerServiceTest {
 
         resetTpmStatics(tpmClass);
     }
-
-//    @Test(expected = ClientCryptoException.class)
-//    public void testTpmAsymmetricEncryptReturnsCiphertext() throws Exception {
-//        Class<?> tpmClass = Class.forName("io.mosip.kernel.clientcrypto.service.impl.TPMClientCryptoServiceImpl");
-//        Tpm tpmMock = mock(Tpm.class);
-//        setStaticField(tpmClass, "tpm", tpmMock);
-//        setStaticField(tpmClass, "signingPrimaryResponse", buildSigningPrimaryResponse());
-//        setStaticField(tpmClass, "encPrimaryResponse", buildEncryptionPrimaryResponse());
-//
-//        ClientCryptoService tpmService = instantiateTpmService(tpmClass);
-//
-//        byte[] cipher = tpmService.asymmetricEncrypt("cover".getBytes(StandardCharsets.UTF_8));
-//        assertNotNull(cipher);
-//        assertTrue(cipher.length > 0);
-//
-//        resetTpmStatics(tpmClass);
-//    }
 
     @Test
     public void testTpmCloseSecurityInstanceInvokesClose() throws Exception {
@@ -509,26 +472,6 @@ public class ClientCryptoManagerServiceTest {
         assertArrayEquals(sampleData, result);
         verify(cryptoCore, times(2)).symmetricDecrypt(any(SecretKey.class), any(byte[].class), any(byte[].class), any(byte[].class));
     }
-
-//    @Test
-//    public void testTpmAsymmetricEncryptPropagatesError() throws Exception {
-//        Class<?> tpmClass = Class.forName("io.mosip.kernel.clientcrypto.service.impl.TPMClientCryptoServiceImpl");
-//        Tpm tpmMock = mock(Tpm.class);
-//        setStaticField(tpmClass, "tpm", tpmMock);
-//        setStaticField(tpmClass, "signingPrimaryResponse", buildSigningPrimaryResponse());
-//        setStaticField(tpmClass, "encPrimaryResponse", buildEncryptionPrimaryResponse());
-//
-//        ClientCryptoService tpmService = instantiateTpmService(tpmClass);
-//
-//        try {
-//            tpmService.asymmetricEncrypt(sampleData);
-//            fail("Expected ClientCryptoException for asymmetric encrypt with stubbed data");
-//        } catch (ClientCryptoException expected) {
-//            // expected
-//        }
-//
-//        resetTpmStatics(tpmClass);
-//    }
 
     private ClientCryptoService createLocalClientCryptoService() throws Exception {
         cleanKeysDirectory();
