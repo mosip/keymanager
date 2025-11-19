@@ -10,11 +10,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
+import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,7 +30,7 @@ import io.mosip.kernel.core.crypto.exception.InvalidKeyException;
 import io.mosip.kernel.core.crypto.exception.SignatureException;
 import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
 
-@SpringBootTest
+@SpringBootTest(classes = { KeymanagerTestBootApplication.class })
 @RunWith(SpringRunner.class)
 public class CryptoCoreTest {
 
@@ -35,6 +39,9 @@ public class CryptoCoreTest {
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
+	@Autowired
+	private KeymanagerUtil keymanagerUtil;
+
 	private KeyPair rsaPair;
 
 	private byte[] data;
@@ -42,6 +49,28 @@ public class CryptoCoreTest {
 	private byte[] keyBytes;
 
 	private final SecureRandom random = new SecureRandom();
+
+	private String certificate = "-----BEGIN CERTIFICATE-----\n" +
+			"MIIDbDCCAlSgAwIBAgIUTW8ScXGEgz/C0o7xnAsBmd3P8hswDQYJKoZIhvcNAQEL\n" +
+			"BQAwbzELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5nYWx1\n" +
+			"cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRowGAYDVQQD\n" +
+			"DBFQTVMtcm9vdC10ZXN0Y2FzZTAgFw0yNTEwMTMxMzQzMzZaGA8yMTI1MTAxMzEz\n" +
+			"NDMzNlowbzELMAkGA1UEBhMCSU4xCzAJBgNVBAgMAktBMRIwEAYDVQQHDAlCZW5n\n" +
+			"YWx1cnUxDjAMBgNVBAoMBU1vc2lwMRMwEQYDVQQLDApLZXltYW5hZ2VyMRowGAYD\n" +
+			"VQQDDBFQTVMtcm9vdC10ZXN0Y2FzZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\n" +
+			"AQoCggEBANZqa/+RIVKaoIiQ11pFXOCL1NgOd6F1a98KIWU3ZZ8Kh/CjPN5V5QN/\n" +
+			"pqLX5/4+Zw4tJJqsruQmCz76LCLFREuoWTByNtnKZDni1quNRkcz7uiKeOLFHzk4\n" +
+			"QODDF4BfefaQElOLSMdHueoKgWBor+/E9aK8+vvk3kPOtC67RmhWCJ5TAI19kCaY\n" +
+			"lBrneAx+JmQxJ8sAHszErHxjdlEIUNSoU4GbIrgw4C8dtdG6yVb3arM9+kCsa0hg\n" +
+			"JGYCW8igi8P0yyUoeGpi86ZiYjiIVGZS7dmZM/vGun+JjaHtTlBCvCsMxVstrhMZ\n" +
+			"AgVZouiaXgmbvubSXDuBBOL6pDRWFocCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA\n" +
+			"irKsATgEedB8IoD4WeGW7KRuPxT6iow4yQUf9kODEYzsNKRdvowUD97MnORaF1ns\n" +
+			"EtA+vTfutktHHMhnBNfuFyZFsZCqq3skbRGst9RjxokznljE/OZc0q+24Hm9dRfZ\n" +
+			"SMBYWPEnFQzpvPmOexLwRRwt6EGrZPWUh22NGYLbJR22CP5wTgsUKwA6MHcAVVTS\n" +
+			"5+WcxMD0OMoRX5LIlFLUSyyZb6POs/lsta7+fr2FU84FNLrooz0Q+8/QzTpW/XND\n" +
+			"N3yr7o9LBHFXwVB+Fb6ow4/r9hPuBFg58FM+wQt5AJ5cz/LeOKsVpDJ8Bvuodrxa\n" +
+			"vb31TtM0csPVLODrpnNZyA==\n" +
+			"-----END CERTIFICATE-----";
 
 	@Before
 	public void init() throws java.security.NoSuchAlgorithmException {
@@ -223,5 +252,30 @@ public class CryptoCoreTest {
 		KeyPair invalidKeyPair = generator.generateKeyPair();
 		byte[] encryptedData = cryptoCore.asymmetricEncrypt(rsaPair.getPublic(), data);
 		assertThat(cryptoCore.asymmetricDecrypt(invalidKeyPair.getPrivate(), rsaPair.getPublic(), encryptedData), isA(byte[].class));
+	}
+
+	@Test
+	public void signTest() {
+		X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certificate);
+		String result = cryptoCore.sign(data, rsaPair.getPrivate(), x509Certificate);
+		Assert.assertNotNull(result);
+	}
+
+	@Test
+	public void verifySignatureTest() {
+		X509Certificate x509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certificate);
+		String signature = cryptoCore.sign(data, rsaPair.getPrivate(), x509Certificate);
+		boolean result = cryptoCore.verifySignature(signature);
+		Assert.assertFalse(result);
+	}
+
+	@Test(expected = SignatureException.class)
+	public void verifySignatureException() {
+		cryptoCore.verifySignature("");
+	}
+
+	@Test(expected = SignatureException.class)
+	public void verifySignatureInvalidSign() {
+		cryptoCore.verifySignature("Invalid Signature");
 	}
 }
