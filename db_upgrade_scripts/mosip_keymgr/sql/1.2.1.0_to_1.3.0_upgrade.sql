@@ -1,3 +1,4 @@
+-- Below script required to upgrade from 1.3.0-B4 to 1.3.0
 \c mosip_keymgr
 
 ALTER TABLE IF EXISTS keymgr.ca_cert_store
