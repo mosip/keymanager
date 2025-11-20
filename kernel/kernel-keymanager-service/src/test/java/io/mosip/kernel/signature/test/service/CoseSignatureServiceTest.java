@@ -7,6 +7,7 @@ import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
+import io.mosip.kernel.signature.constant.SignatureErrorCode;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.exception.RequestException;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
@@ -538,5 +539,47 @@ public class CoseSignatureServiceTest {
         CoseSignResponseDto response = coseSignatureService.coseSign1(coseSignRequestDto);
         Assert.assertNotNull(response);
         Assert.assertNotNull(response.getSignedData());
+    }
+
+    @Test
+    public void testCwtVerifyChecksException() {
+        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
+        keyPairGenRequestDto.setApplicationId("ID_REPO");
+        keyPairGenRequestDto.setReferenceId("EC_SECP256K1_SIGN");
+        keymanagerService.generateECSignKey("CSR", keyPairGenRequestDto);
+
+        CWTSignRequestDto cwtSignRequestDto = new CWTSignRequestDto();
+        cwtSignRequestDto.setApplicationId("ID_REPO");
+        cwtSignRequestDto.setReferenceId("EC_SECP256K1_SIGN");
+        cwtSignRequestDto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
+        cwtSignRequestDto.setIssuer("keymgr");
+        cwtSignRequestDto.setSubject("signature");
+        CoseSignResponseDto signResponse = coseSignatureService.cwtSign(cwtSignRequestDto);
+
+        CWTVerifyRequestDto cwtVerifyRequestDto = new CWTVerifyRequestDto();
+        cwtVerifyRequestDto.setApplicationId("ID_REPO");
+        cwtVerifyRequestDto.setReferenceId("EC_SECP256K1_SIGN");
+        cwtVerifyRequestDto.setCoseSignedData(signResponse.getSignedData());
+        RequestException exception = assertThrows(RequestException.class, () -> {
+            coseSignatureService.cwtVerify(cwtVerifyRequestDto);
+        });
+        Assert.assertEquals(SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorCode(), exception.getErrorCode());
+
+        cwtSignRequestDto.setSubject(null);
+        signResponse = coseSignatureService.cwtSign(cwtSignRequestDto);
+        cwtVerifyRequestDto.setCoseSignedData(signResponse.getSignedData());
+        cwtVerifyRequestDto.setIssuer("keymgr");
+        exception = assertThrows(RequestException.class, () -> {
+            coseSignatureService.cwtVerify(cwtVerifyRequestDto);
+            });
+        Assert.assertEquals(SignatureErrorCode.CLAIM_NOT_FOUND.getErrorCode(), exception.getErrorCode());
+
+        cwtSignRequestDto.setSubject("sign");
+        signResponse = coseSignatureService.cwtSign(cwtSignRequestDto);
+        cwtVerifyRequestDto.setCoseSignedData(signResponse.getSignedData());
+        exception = assertThrows(RequestException.class, () -> {
+            coseSignatureService.cwtVerify(cwtVerifyRequestDto);
+        });
+        Assert.assertEquals(SignatureErrorCode.CLAIM_NOT_MATCHED.getErrorCode(), exception.getErrorCode());
     }
 }
