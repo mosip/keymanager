@@ -279,12 +279,12 @@ public class KeymanagerControllerTest {
     @Test
     public void testGetCertificateChainStatus() throws Exception {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("RESIDENT");
+        keyPairGenRequestDto.setApplicationId("TEST");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
         keyPairGenRequest.setRequest(keyPairGenRequestDto);
         mockMvc.perform(get("/getCertificateChain")
-                        .param("applicationId", "RESIDENT")
+                        .param("applicationId", "TEST")
                         .param("referenceId", ""))
                 .andExpect(status().isOk());
     }
