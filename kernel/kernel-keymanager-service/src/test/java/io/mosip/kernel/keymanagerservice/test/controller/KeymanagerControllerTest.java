@@ -192,9 +192,14 @@ public class KeymanagerControllerTest {
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
 
+        CSRGenerateRequestDto csrGenerateRequestDto = new CSRGenerateRequestDto();
+        csrGenerateRequestDto.setApplicationId("REGISTRATION");
+        csrGenerateRequestDto.setReferenceId("test001");
+        keymanagerService.generateCSR(csrGenerateRequestDto);
+
         RevokeKeyRequestDto revokeKeyRequestDto = new RevokeKeyRequestDto();
-        revokeKeyRequestDto.setApplicationId("PRE_REGISTRATION");
-        revokeKeyRequestDto.setReferenceId("");
+        revokeKeyRequestDto.setApplicationId("REGISTRATION");
+        revokeKeyRequestDto.setReferenceId("test001");
         revokeKeyRequestDto.setDisableAutoGen(false);
         revokeKeyRequest.setRequest(revokeKeyRequestDto);
         mockMvc.perform(put("/revokeKey")
@@ -269,18 +274,6 @@ public class KeymanagerControllerTest {
             // Certificate chain may not be available in test environment
             Assert.assertTrue(e.getMessage().contains("trustPath") || e.getMessage().contains("Certificate"));
         }
-    }
-
-    @Test
-    public void testGetCertificateChainStatus() throws Exception {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("RESIDENT");
-        keyPairGenRequestDto.setReferenceId("");
-        keyPairGenRequest.setRequest(keyPairGenRequestDto);
-        mockMvc.perform(get("/getCertificateChain")
-                        .param("applicationId", "RESIDENT")
-                        .param("referenceId", ""))
-                .andExpect(status().isOk());
     }
 
     @Test

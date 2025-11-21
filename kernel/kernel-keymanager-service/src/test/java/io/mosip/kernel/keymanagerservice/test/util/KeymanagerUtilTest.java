@@ -1,9 +1,14 @@
 package io.mosip.kernel.keymanagerservice.test.util;
 
 import static org.hamcrest.CoreMatchers.isA;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -13,7 +18,10 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 
+import io.mosip.kernel.core.util.CryptoUtil;
+import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
+import io.mosip.kernel.signature.util.SignatureUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -57,8 +65,10 @@ public class KeymanagerUtilTest {
 	private KeyPair keyPair;
 
 	private X509Certificate[] chain;
+    @Autowired
+    private SignatureUtil signatureUtil;
 
-	@Before
+    @Before
 	public void setupKey() throws NoSuchAlgorithmException {
 		BouncyCastleProvider provider = new BouncyCastleProvider();
         Security.addProvider(provider);
@@ -336,5 +346,28 @@ public class KeymanagerUtilTest {
         certParams.setState("ST");
         certParams.setCountry("IN");
         keymanagerUtil.getCSR(keyPair2.getPrivate(), keyPair.getPublic(), certParams, "RSA");
+    }
+
+    @Test
+    public void testPrivateKeyExtractor() throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        byte[] keyBytes = keyPair.getPrivate().getEncoded();
+        String b64String = CryptoUtil.encodeToURLSafeBase64(keyBytes);
+        keymanagerUtil.destoryKey(keyPair.getPrivate());
+
+        InputStream inputStream = new ByteArrayInputStream(b64String.getBytes("UTF-8"));
+        PrivateKey privateKey = keymanagerUtil.privateKeyExtractor(inputStream);
+        assertThat(privateKey, isA(PrivateKey.class));
+        assertEquals(privateKey.getAlgorithm(), "RSA");
+
+        b64String = "Invalid Base64 Key Bytes";
+        InputStream invalidInputStream = new ByteArrayInputStream(b64String.getBytes());
+        KeystoreProcessingException exception = assertThrows(KeystoreProcessingException.class, () -> {
+            keymanagerUtil.privateKeyExtractor(invalidInputStream);
+        });
+        assertThat(exception, isA(KeystoreProcessingException.class));
+        assertEquals(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(), exception.getErrorCode());
     }
 }
