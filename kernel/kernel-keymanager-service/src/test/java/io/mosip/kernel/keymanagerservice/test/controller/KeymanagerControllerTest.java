@@ -282,10 +282,14 @@ public class KeymanagerControllerTest {
         keyPairGenRequestDto.setApplicationId("TEST");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+        CSRGenerateRequestDto csrGenerateRequestDto = new CSRGenerateRequestDto();
+        csrGenerateRequestDto.setApplicationId("TEST");
+        csrGenerateRequestDto.setReferenceId("test001");
+        keymanagerService.generateCSR(csrGenerateRequestDto);
         keyPairGenRequest.setRequest(keyPairGenRequestDto);
         mockMvc.perform(get("/getCertificateChain")
                         .param("applicationId", "TEST")
-                        .param("referenceId", ""))
+                        .param("referenceId", "test001"))
                 .andExpect(status().isOk());
     }
 
