@@ -1,24 +1,39 @@
 package io.mosip.kernel.cryptomanager.test.service;
 
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicLong;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
+import org.cache2k.Cache;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2Factory;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
+import io.mosip.kernel.core.util.CryptoUtil;
+import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.controller.CryptomanagerController;
 import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashRequestDto;
 import io.mosip.kernel.cryptomanager.dto.Argon2GenerateHashResponseDto;
@@ -33,8 +48,17 @@ public class Argon2HashServiceTest {
     @Mock
     private CryptomanagerService cryptomanagerService;
 
+    @Mock
+    private Cache<String, Object> saltGenParamsCache;
+
+    @Mock
+    private CryptomanagerUtils cryptomanagerUtil;
+
     @InjectMocks
     private CryptomanagerController cryptomanagerController;
+
+    @InjectMocks
+    private CryptomanagerServiceImpl cryptomanagerServiceImpl;
 
     private Argon2GenerateHashRequestDto validRequest;
     private Argon2GenerateHashRequestDto requestWithSalt;
@@ -43,7 +67,7 @@ public class Argon2HashServiceTest {
     private String testSalt = "dGVzdFNhbHQ";
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         validRequest = new Argon2GenerateHashRequestDto();
         validRequest.setInputData(testInputData);
 
@@ -54,6 +78,19 @@ public class Argon2HashServiceTest {
         validResponse = new Argon2GenerateHashResponseDto();
         validResponse.setHashValue("mockHashValue");
         validResponse.setSalt("mockSalt");
+
+        // Initialize private fields in CryptomanagerServiceImpl for Argon2
+        Field iterationsField = CryptomanagerServiceImpl.class.getDeclaredField("argon2Iterations");
+        iterationsField.setAccessible(true);
+        iterationsField.set(cryptomanagerServiceImpl, 2);
+
+        Field memoryField = CryptomanagerServiceImpl.class.getDeclaredField("argon2Memory");
+        memoryField.setAccessible(true);
+        memoryField.set(cryptomanagerServiceImpl, 1024);
+
+        Field parallelismField = CryptomanagerServiceImpl.class.getDeclaredField("argon2Parallelism");
+        parallelismField.setAccessible(true);
+        parallelismField.set(cryptomanagerServiceImpl, 1);
     }
 
     @Test
@@ -123,189 +160,88 @@ public class Argon2HashServiceTest {
     }
 
     @Test
-    public void testGenerateArgon2Hash_Service_Success() {
-        when(cryptomanagerService.generateArgon2Hash(validRequest))
-                .thenReturn(validResponse);
+    public void testGenerateArgon2HashWithGeneratedSalt() {
+        Argon2GenerateHashRequestDto request = new Argon2GenerateHashRequestDto();
+        request.setInputData("testPassword");
+        request.setSalt(null);
 
-        Argon2GenerateHashResponseDto response = cryptomanagerService.generateArgon2Hash(validRequest);
-        
-        assertNotNull(response);
-        assertEquals("mockHashValue", response.getHashValue());
-        assertEquals("mockSalt", response.getSalt());
-        verify(cryptomanagerService).generateArgon2Hash(validRequest);
-    }
+        SecretKey mockAesKey = new SecretKeySpec(new byte[16], "AES");
+        AtomicLong mockCounter = new AtomicLong(12345L);
 
-    @Test
-    public void testGenerateArgon2Hash_Service_WithProvidedSalt() {
-        Argon2GenerateHashResponseDto responseWithSalt = new Argon2GenerateHashResponseDto();
-        responseWithSalt.setHashValue("hashWithProvidedSalt");
-        responseWithSalt.setSalt(testSalt);
+        byte[] dummyHash = "dummyHash".getBytes();
+        Argon2Advanced argon2AdvancedMock = mock(Argon2Advanced.class);
+        when(argon2AdvancedMock.rawHash(anyInt(), anyInt(), anyInt(), any(char[].class), any(byte[].class)))
+                .thenReturn(dummyHash);
 
-        when(cryptomanagerService.generateArgon2Hash(requestWithSalt))
-                .thenReturn(responseWithSalt);
+        try (MockedStatic<Argon2Factory> argon2Factory = mockStatic(Argon2Factory.class)) {
+            argon2Factory.when(() -> Argon2Factory.createAdvanced(any())).thenReturn(argon2AdvancedMock);
 
-        Argon2GenerateHashResponseDto response = cryptomanagerService.generateArgon2Hash(requestWithSalt);
+            when(saltGenParamsCache.get(CryptomanagerConstant.CACHE_AES_KEY)).thenReturn(mockAesKey);
+            when(saltGenParamsCache.get(CryptomanagerConstant.CACHE_INT_COUNTER)).thenReturn(mockCounter);
+            doNothing().when(cryptomanagerUtil).validateInputData(anyString());
+            when(cryptomanagerUtil.isDataValid(any())).thenReturn(false);
 
-        assertNotNull(response);
-        assertEquals("hashWithProvidedSalt", response.getHashValue());
-        assertEquals(testSalt, response.getSalt());
-        verify(cryptomanagerService).generateArgon2Hash(requestWithSalt);
-    }
+            Argon2GenerateHashResponseDto response = cryptomanagerServiceImpl.generateArgon2Hash(request);
 
-    @Test(expected = CryptoManagerSerivceException.class)
-    public void testGenerateArgon2Hash_Service_InvalidInput() {
-        Argon2GenerateHashRequestDto invalidRequest = new Argon2GenerateHashRequestDto();
-        invalidRequest.setInputData("");
-
-        when(cryptomanagerService.generateArgon2Hash(invalidRequest))
-                .thenThrow(new CryptoManagerSerivceException("KER-CRY-001", "Invalid input data"));
-
-        cryptomanagerService.generateArgon2Hash(invalidRequest);
-    }
-
-    @Test(expected = CryptoManagerSerivceException.class)
-    public void testGenerateArgon2Hash_Service_NullInput() {
-        Argon2GenerateHashRequestDto nullRequest = new Argon2GenerateHashRequestDto();
-        nullRequest.setInputData(null);
-
-        when(cryptomanagerService.generateArgon2Hash(nullRequest))
-                .thenThrow(new CryptoManagerSerivceException("KER-CRY-001", "Input data cannot be null"));
-
-        cryptomanagerService.generateArgon2Hash(nullRequest);
-    }
-
-    @Test
-    public void testGenerateArgon2Hash_Service_EmptyInput() {
-        Argon2GenerateHashRequestDto emptyRequest = new Argon2GenerateHashRequestDto();
-        emptyRequest.setInputData("");
-
-        when(cryptomanagerService.generateArgon2Hash(emptyRequest))
-                .thenThrow(new CryptoManagerSerivceException("KER-CRY-001", "Input data cannot be empty"));
-
-        try {
-            cryptomanagerService.generateArgon2Hash(emptyRequest);
-            fail("Expected exception was not thrown");
-        } catch (CryptoManagerSerivceException e) {
-            assertEquals("KER-CRY-001", e.getErrorCode());
+            assertNotNull(response.getHashValue());
+            assertNotNull(response.getSalt());
+            assertEquals(CryptoUtil.encodeToURLSafeBase64(dummyHash), response.getHashValue());
+            verify(cryptomanagerUtil).validateInputData("testPassword");
+            verify(saltGenParamsCache).put(eq(CryptomanagerConstant.CACHE_INT_COUNTER), any(AtomicLong.class));
         }
     }
 
-    // DTO Tests - 100% Coverage
     @Test
-    public void testArgon2RequestDto_SettersGetters() {
+    public void testGenerateArgon2HashWithProvidedSalt() {
+        String providedSalt = CryptoUtil.encodeToURLSafeBase64("testSalt".getBytes());
         Argon2GenerateHashRequestDto request = new Argon2GenerateHashRequestDto();
-        request.setInputData("testInput");
-        request.setSalt("testSalt");
+        request.setInputData("testPassword");
+        request.setSalt(providedSalt);
 
-        assertEquals("testInput", request.getInputData());
-        assertEquals("testSalt", request.getSalt());
-        assertNotNull(request.toString());
+        byte[] dummyHash = "dummyHash".getBytes();
+        Argon2Advanced argon2AdvancedMock = mock(Argon2Advanced.class);
+        when(argon2AdvancedMock.rawHash(anyInt(), anyInt(), anyInt(), any(char[].class), any(byte[].class)))
+                .thenReturn(dummyHash);
+
+        try (MockedStatic<Argon2Factory> argon2Factory = mockStatic(Argon2Factory.class)) {
+            argon2Factory.when(() -> Argon2Factory.createAdvanced(any())).thenReturn(argon2AdvancedMock);
+
+            doNothing().when(cryptomanagerUtil).validateInputData(anyString());
+            when(cryptomanagerUtil.isDataValid(providedSalt)).thenReturn(true);
+
+            Argon2GenerateHashResponseDto response = cryptomanagerServiceImpl.generateArgon2Hash(request);
+
+            assertNotNull(response.getHashValue());
+            assertEquals(providedSalt, response.getSalt());
+            assertEquals(CryptoUtil.encodeToURLSafeBase64(dummyHash), response.getHashValue());
+            verify(cryptomanagerUtil).validateInputData("testPassword");
+        }
     }
 
     @Test
-    public void testArgon2ResponseDto_SettersGetters() {
-        Argon2GenerateHashResponseDto response = new Argon2GenerateHashResponseDto();
-        response.setHashValue("testHash");
-        response.setSalt("testSalt");
-
-        assertEquals("testHash", response.getHashValue());
-        assertEquals("testSalt", response.getSalt());
-    }
-
-    @Test
-    public void testArgon2RequestDto_AllArgsConstructor() {
-        Argon2GenerateHashRequestDto request = new Argon2GenerateHashRequestDto(testInputData, testSalt);
-        assertEquals(testInputData, request.getInputData());
-        assertEquals(testSalt, request.getSalt());
-    }
-
-    @Test
-    public void testArgon2ResponseDto_AllArgsConstructor() {
-        Argon2GenerateHashResponseDto response = new Argon2GenerateHashResponseDto("hashValue", "saltValue");
-        assertEquals("hashValue", response.getHashValue());
-        assertEquals("saltValue", response.getSalt());
-    }
-
-    @Test
-    public void testArgon2RequestDto_NoArgsConstructor() {
+    public void testGenerateArgon2HashWithSaltGenerationFallback() {
         Argon2GenerateHashRequestDto request = new Argon2GenerateHashRequestDto();
-        assertNull(request.getInputData());
-        assertNull(request.getSalt());
-    }
+        request.setInputData("testPassword");
+        request.setSalt(null);
 
-    @Test
-    public void testArgon2ResponseDto_NoArgsConstructor() {
-        Argon2GenerateHashResponseDto response = new Argon2GenerateHashResponseDto();
-        assertNull(response.getHashValue());
-        assertNull(response.getSalt());
-    }
+        byte[] dummyHash = "dummyHash".getBytes();
+        Argon2Advanced argon2AdvancedMock = mock(Argon2Advanced.class);
+        when(argon2AdvancedMock.rawHash(anyInt(), anyInt(), anyInt(), any(char[].class), any(byte[].class)))
+                .thenReturn(dummyHash);
 
-    @Test
-    public void testArgon2RequestDto_Equals() {
-        Argon2GenerateHashRequestDto request1 = new Argon2GenerateHashRequestDto(testInputData, testSalt);
-        Argon2GenerateHashRequestDto request2 = new Argon2GenerateHashRequestDto(testInputData, testSalt);
-        
-        assertEquals(request1, request2);
-        assertEquals(request1.hashCode(), request2.hashCode());
-    }
+        try (MockedStatic<Argon2Factory> argon2Factory = mockStatic(Argon2Factory.class)) {
+            argon2Factory.when(() -> Argon2Factory.createAdvanced(any())).thenReturn(argon2AdvancedMock);
 
-    @Test
-    public void testArgon2ResponseDto_Equals() {
-        Argon2GenerateHashResponseDto response1 = new Argon2GenerateHashResponseDto("hash", "salt");
-        Argon2GenerateHashResponseDto response2 = new Argon2GenerateHashResponseDto("hash", "salt");
-        
-        assertEquals(response1, response2);
-        assertEquals(response1.hashCode(), response2.hashCode());
-    }
+            when(saltGenParamsCache.get(CryptomanagerConstant.CACHE_AES_KEY)).thenReturn(null);
+            doNothing().when(cryptomanagerUtil).validateInputData(anyString());
+            when(cryptomanagerUtil.isDataValid(any())).thenReturn(false);
 
-    // Private Method Tests using Reflection - Service Implementation Coverage
-    @Test
-    public void testGetLongBytes_PrivateMethod() throws Exception {
-        CryptomanagerServiceImpl realService = new CryptomanagerServiceImpl();
-        long testValue = 12345L;
+            Argon2GenerateHashResponseDto response = cryptomanagerServiceImpl.generateArgon2Hash(request);
 
-        Method getLongBytesMethod = CryptomanagerServiceImpl.class.getDeclaredMethod("getLongBytes", long.class);
-        getLongBytesMethod.setAccessible(true);
-
-        byte[] result = (byte[]) getLongBytesMethod.invoke(realService, testValue);
-        
-        assertNotNull(result);
-        assertEquals(8, result.length);
-    }
-
-    @Test
-    public void testGetSaltBytes_PrivateMethod_WithValidKey() throws Exception {
-        CryptomanagerServiceImpl realService = new CryptomanagerServiceImpl();
-        SecretKey testKey = KeyGenerator.getInstance("AES").generateKey();
-        byte[] testBytes = "testData".getBytes();
-
-        Method getSaltBytesMethod = CryptomanagerServiceImpl.class.getDeclaredMethod("getSaltBytes", byte[].class, SecretKey.class);
-        getSaltBytesMethod.setAccessible(true);
-
-        byte[] result = (byte[]) getSaltBytesMethod.invoke(realService, testBytes, testKey);
-        
-        assertNotNull(result);
-        assertTrue(result.length > 0);
-    }
-
-
-
-    // Real Service Implementation Test - Validation Coverage
-    @Test(expected = CryptoManagerSerivceException.class)
-    public void testGenerateArgon2Hash_RealService_ValidationError() throws Exception {
-        CryptomanagerServiceImpl realService = new CryptomanagerServiceImpl();
-        CryptomanagerUtils mockUtil = mock(CryptomanagerUtils.class);
-
-        Field utilField = CryptomanagerServiceImpl.class.getDeclaredField("cryptomanagerUtil");
-        utilField.setAccessible(true);
-        utilField.set(realService, mockUtil);
-
-        Argon2GenerateHashRequestDto invalidRequest = new Argon2GenerateHashRequestDto();
-        invalidRequest.setInputData("");
-
-        doThrow(new CryptoManagerSerivceException("KER-CRY-001", "Invalid input"))
-                .when(mockUtil).validateInputData("");
-
-        realService.generateArgon2Hash(invalidRequest);
+            assertNotNull(response.getHashValue());
+            assertNotNull(response.getSalt());
+            assertEquals(CryptoUtil.encodeToURLSafeBase64(dummyHash), response.getHashValue());
+            verify(cryptomanagerUtil).validateInputData("testPassword");
+        }
     }
 }
