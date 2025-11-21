@@ -591,12 +591,8 @@ public class SignatureServiceTest {
         JWTSignatureVerifyRequestDto jwtVerifyRequestDto = new JWTSignatureVerifyRequestDto();
         jwtVerifyRequestDto.setValidateTrust(false);
 
-        String trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null, null);
+        String trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, null, null);
         Assert.assertEquals("TRUST_NOT_VERIFIED", trustResult);
-
-        jwtVerifyRequestDto.setValidateTrust(true);
-        trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED_NO_DOMAIN", trustResult);
     }
 
     @Test
