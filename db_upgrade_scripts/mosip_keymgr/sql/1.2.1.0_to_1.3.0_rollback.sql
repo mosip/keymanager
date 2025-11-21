@@ -1,4 +1,4 @@
--- Below script required to upgrade from 1.3.0-B4 to 1.3.0
+-- Below script required to rollback from 1.3.0 to 1.3.0-B4
 \c mosip_keymgr
 
 COMMENT ON COLUMN keymgr.ca_cert_store.ca_cert_type
