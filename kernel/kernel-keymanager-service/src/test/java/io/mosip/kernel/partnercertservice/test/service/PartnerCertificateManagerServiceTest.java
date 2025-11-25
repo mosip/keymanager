@@ -305,7 +305,7 @@ public class PartnerCertificateManagerServiceTest {
     }
 
     @Test
-    public void testUploadPartnerCertificate_ORG_notMatch() {
+    public void testUploadPartnerCertificate_NoRootCA() {
         PartnerCertificateRequestDto requestDto = new PartnerCertificateRequestDto();
         requestDto.setCertificateData(interCertificate);
         requestDto.setOrganizationName("MOSIP");
@@ -315,7 +315,7 @@ public class PartnerCertificateManagerServiceTest {
             partnerCertService.uploadPartnerCertificate(requestDto);
         });
 
-        Assert.assertEquals("KER-PCM-008", exception.getErrorCode());
+        Assert.assertEquals("KER-PCM-006", exception.getErrorCode());
     }
 
     @Test
@@ -482,6 +482,7 @@ public class PartnerCertificateManagerServiceTest {
         CertificateTrustResponeDto response = partnerCertService.verifyCertificateTrust(requestDto);
 
         Assert.assertNotNull(response);
+        Assert.assertFalse(response.getStatus());
     }
 
     @Test
@@ -665,13 +666,13 @@ public class PartnerCertificateManagerServiceTest {
         Assert.assertEquals(PartnerCertManagerErrorConstants.ROOT_CA_NOT_FOUND.getErrorCode(), exception.getErrorCode());
         Assert.assertEquals("KER-PCM-005 --> Root CA Certificate not found.", exception.getMessage());
 
-        requestDto.setCertificateData("qwertyuiopasdfghjklzxcvbnajpnkjxaxaaxansxba");
+        requestDto.setCertificateData("qwertyuiopasdf}ghjklzxcvbn{m/ajp|nkjxaxaaxansxba");
         requestDto.setPartnerDomain("AUTH");
         exception = assertThrows(PartnerCertManagerException.class, () -> {
             partnerCertService.uploadCACertificate(requestDto);
         });
-        Assert.assertEquals(PartnerCertManagerErrorConstants.INVALID_CERTIFICATE.getErrorCode(), exception.getErrorCode());
-        Assert.assertEquals("KER-PCM-001 --> Invalid Certificate uploaded.", exception.getMessage());
+        Assert.assertEquals(KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(), exception.getErrorCode());
+        Assert.assertEquals("KER-KMS-013 --> Certificate Parsing Error.", exception.getMessage());
     }
 
     @Test
