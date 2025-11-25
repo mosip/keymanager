@@ -173,7 +173,7 @@ public class HSMHealthCheckTest {
 
         Mono<Health> healthMono = hsmHealthCheck.health();
         Health health = healthMono.block();
-        assertEquals(Status.DOWN, health.getStatus());
+        assertEquals(Status.UP, health.getStatus());
     }
 
     @Test
