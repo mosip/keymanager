@@ -1,0 +1,191 @@
+THIRD-PARTY-NOTICES
+
+This project includes third-party packages that are distributed under various open-source licenses. Below is a list of packages and their associated licenses.
+
+================================================================================
+Package: Spring Boot & Spring Security 
+         (Spring Boot Starter Web, Starter Security, Starter Data JPA,
+          Spring Boot Configuration Processor, Spring Security Test,
+          Spring Boot Maven Plugin)
+Version: 3.2.x family (3.2.3 where explicitly specified; some starter versions not individually specified in SBOM)
+License: Apache License 2.0 (Inferred from project’s official repository)
+Homepage: https://spring.io/projects/spring-boot
+================================================================================
+
+================================================================================
+Package: Spring Cloud Config (Spring Cloud Starter Config)
+Version: Not specified in SBOM (managed via Spring BOM)
+License: Apache License 2.0 (Inferred from project’s official repository)
+Homepage: https://spring.io/projects/spring-cloud-config
+================================================================================
+
+================================================================================
+Package: SpringDoc OpenAPI (springdoc-openapi-starter-webmvc-ui)
+Version: 2.6.0
+License: Apache License 2.0
+Homepage: https://springdoc.org/
+================================================================================
+
+================================================================================
+Package: Project Reactor Core (reactor-core)
+Version: Not specified in SBOM (managed via Spring BOM)
+License: Apache License 2.0 (Inferred from project’s official repository)
+Homepage: https://projectreactor.io/
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel 
+         (kernel-bom, kernel-core, kernel-dataaccess-hibernate,
+          kernel-logger-logback, kernel-pdfgenerator,
+          kernel-keymanager-service)
+Version: 1.3.0-SNAPSHOT
+License: Mozilla Public License 2.0 (Inferred from project’s official repository)
+Homepage: https://mosip.io/
+================================================================================
+
+================================================================================
+Package: Jackson JSON Processor 
+         (jackson-core, jackson-databind, jackson-annotations,
+          jackson-datatype-jsr310)
+Version: Not specified in SBOM (managed via BOM)
+License: Apache License 2.0 (Inferred from project’s official repository)
+Homepage: https://github.com/FasterXML/jackson
+================================================================================
+
+================================================================================
+Package: JSON.simple
+Version: Not specified in SBOM
+License: Apache License 2.0
+Homepage: http://code.google.com/p/json-simple/
+================================================================================
+
+================================================================================
+Package: cache2k Java Caching (cache2k-api, cache2k-core)
+Version: 2.4.1
+License: Apache License 2.0
+Homepage: https://cache2k.org/
+================================================================================
+
+================================================================================
+Package: PostgreSQL JDBC Driver
+Version: 42.7.3 (one additional instance without explicit version in SBOM)
+License: BSD 2-Clause "Simplified" License
+Homepage: https://jdbc.postgresql.org/
+================================================================================
+
+================================================================================
+Package: H2 Database Engine
+Version: 2.2.220
+License: Mozilla Public License 2.0 OR Eclipse Public License 1.0
+Homepage: https://www.h2database.com/
+================================================================================
+
+================================================================================
+Package: Bouncy Castle Cryptography APIs 
+         (bcprov-jdk18on, bcpkix-jdk18on)
+Version: 1.78.1
+License: MIT License
+Homepage: https://www.bouncycastle.org/
+================================================================================
+
+================================================================================
+Package: Nimbus JOSE + JWT
+Version: 9.37.2
+License: Apache License 2.0
+Homepage: https://connect2id.com/products/nimbus-jose-jwt
+================================================================================
+
+================================================================================
+Package: jose4j
+Version: 0.9.6
+License: Apache License 2.0
+Homepage: https://bitbucket.org/b_c/jose4j/
+================================================================================
+
+================================================================================
+Package: Argon2 JVM (argon2-jvm-nolibs)
+Version: 2.11
+License: GNU Lesser General Public License v3.0
+Homepage: https://github.com/phxql/argon2-jvm
+================================================================================
+
+================================================================================
+Package: Microsoft TSS.Java (TPM 2.0 access library)
+Version: 0.3.0
+License: MIT License
+Homepage: https://github.com/Microsoft/TSS.MSR/
+================================================================================
+
+================================================================================
+Package: Java Multibase (com.github.multiformats:java-multibase)
+Version: 1.1.1
+License: MIT License
+Homepage: https://github.com/multiformats/java-multibase
+================================================================================
+
+================================================================================
+Package: JNA – Java Native Access (net.java.dev.jna:jna)
+Version: 5.13.0
+License: Apache License 2.0 OR GNU Lesser General Public License v2.1 or later
+Homepage: https://github.com/java-native-access/jna
+================================================================================
+
+================================================================================
+Package: Javassist – Java Bytecode Manipulation
+Version: 3.25.0-GA
+License: Apache License 2.0 AND GNU Lesser General Public License v2.1 AND
+         GNU Lesser General Public License v2.1 only AND Mozilla Public License 1.1
+Homepage: https://www.javassist.org/
+================================================================================
+
+================================================================================
+Package: Project Lombok
+Version: 1.18.32
+License: MIT License
+Homepage: https://projectlombok.org/
+================================================================================
+
+================================================================================
+Package: Testing Libraries 
+         (JUnit 4, JUnit Vintage Engine, Mockito Core, Spring Security Test)
+Version: 
+  - JUnit 4: 4.12
+  - JUnit Vintage Engine: Version not specified in SBOM
+  - Mockito Core: 3.4.3
+  - Spring Security Test: Version not specified in SBOM
+License: 
+  - JUnit 4: Eclipse Public License 1.0
+  - JUnit Vintage Engine: Eclipse Public License 2.0 (Inferred from project’s official repository)
+  - Mockito Core: MIT License
+  - Spring Security Test: Apache License 2.0 (Inferred from project’s official repository)
+Homepage: 
+  - JUnit: https://junit.org/
+  - Mockito: https://github.com/mockito/mockito
+  - Spring Security: https://spring.io/projects/spring-security
+================================================================================
+
+================================================================================
+Package: Apache Maven Plugins 
+         (maven-jar-plugin, maven-javadoc-plugin, maven-source-plugin,
+          maven-compiler-plugin, maven-gpg-plugin, maven-surefire-plugin,
+          maven-war-plugin)
+Version: 
+  - maven-javadoc-plugin: 3.2.0 and 3.6.3
+  - maven-source-plugin: 2.2.1
+  - maven-jar-plugin: 3.0.2
+  - maven-compiler-plugin: 3.9.0
+  - maven-gpg-plugin: 1.5
+  - maven-surefire-plugin: 2.22.0
+  - maven-war-plugin: 3.1.0
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins/
+================================================================================
+
+================================================================================
+Package: Git Commit ID Maven Plugin
+Version: 3.0.1
+License: GNU Lesser General Public License v3.0
+Homepage: https://github.com/git-commit-id/git-commit-id-maven-plugin
+================================================================================
+
+Full license texts and additional details for each of the above packages are available in the license/ directory of this repository. Please refer to those files or the original source of each package for complete legal terms and conditions.
