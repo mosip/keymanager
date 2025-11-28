@@ -7,7 +7,7 @@ if [ $# -ge 1 ] ; then
 fi
 
 NS=key-migration-utility
-CHART_VERSION=1.3.0-beta.4
+CHART_VERSION=1.3.0-beta.5
 
 echo Creating $NS namespace
 kubectl create ns $NS
