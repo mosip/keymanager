@@ -144,23 +144,26 @@ public class SignatureControllerTest {
         key.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", key);
 
+        String pdfData = "JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKPD4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQo+PgplbmRvYmoKeHJlZgowIDQKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDQKL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjE3NAolJUVPRg==";
         RequestWrapper<PDFSignatureRequestDto> req = new RequestWrapper<>();
         PDFSignatureRequestDto dto = new PDFSignatureRequestDto();
         dto.setApplicationId("TEST");
         dto.setReferenceId("");
-        dto.setData("ZHVtbXkgcGRmIGNvbnRlbnQ=");
+        dto.setData(pdfData);
         dto.setTimeStamp(io.mosip.kernel.core.util.DateUtils.getUTCCurrentDateTimeString());
         dto.setPageNumber(1);
-        dto.setLowerLeftX(10);
-        dto.setLowerLeftY(10);
-        dto.setUpperRightX(100);
-        dto.setUpperRightY(100);
+        dto.setLowerLeftX(100);
+        dto.setLowerLeftY(100);
+        dto.setUpperRightX(200);
+        dto.setUpperRightY(150);
+        dto.setReason("Test");
+        dto.setPassword("1234");
         req.setRequest(dto);
 
         String content = mockMvc.perform(post("/pdf/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is2xxSuccessful())
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);

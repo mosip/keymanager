@@ -148,7 +148,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 	private static Map<String, SignatureProvider> SIGNATURE_PROVIDER = new HashMap<>();
 
-//	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory;
+//	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory; //no usage
 
 	static {
 		SIGNATURE_PROVIDER.put(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST, new PS256SIgnatureProviderImpl());
@@ -664,7 +664,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 	}
 
-	private String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify) {
+	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify) {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation.");
 		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
@@ -1274,37 +1274,37 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (jwtTokenHeadersMap.containsKey(SignatureConstant.JWT_HEADER_CERT_KEY)) {
 			LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 					"Certificate found in JWT Header.");
-			List<String> certList = (List<String>) jwtTokenHeadersMap.get(SignatureConstant.JWT_HEADER_CERT_KEY);
-			List<Certificate> certChain = new ArrayList<>();
-			for (String certData : certList) {
-				certChain.add(keymanagerUtil.convertToCertificate(Base64.decodeBase64(certData)));
-			}
-			return certChain;
-		}
-		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"Certificate not found in JWT Header.");
-		return null;
-	}
+            List<String> certList = (List<String>) jwtTokenHeadersMap.get(SignatureConstant.JWT_HEADER_CERT_KEY);
+            List<Certificate> certChain = new ArrayList<>();
+            for (String certData : certList) {
+                certChain.add(keymanagerUtil.convertToCertificate(Base64.decodeBase64(certData)));
+            }
+            return certChain;
+        }
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                "Certificate not found in JWT Header.");
+        return null;
+    }
 
-	private String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
-		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-				"JWT Signature Verification Request - Trust Validation.");
-		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
-		if (!validateTrust) {
-			return SignatureConstant.TRUST_NOT_VERIFIED;
-		}
+    public String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+                "JWT Signature Verification Request - Trust Validation.");
+        boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
+        if (!validateTrust) {
+            return SignatureConstant.TRUST_NOT_VERIFIED;
+        }
 
-		List<X509Certificate> x509CertChain = headerCertificateChain.stream()
-				.map(cert -> (X509Certificate) cert)
-				.toList();
+        List<X509Certificate> x509CertChain = headerCertificateChain.stream()
+                .map(cert -> (X509Certificate) cert)
+                .toList();
 
-		X509Certificate rootCert = x509CertChain.getLast();
+        X509Certificate rootCert = x509CertChain.getLast();
 
-		Set<X509Certificate> intermediateCerts = new HashSet<>();
-		intermediateCerts.addAll(x509CertChain.subList(0, x509CertChain.size() - 1));
+        Set<X509Certificate> intermediateCerts = new HashSet<>();
+        intermediateCerts.addAll(x509CertChain.subList(0, x509CertChain.size() - 1));
 
         String domain = jwtVerifyRequestDto.getDomain();
-		if(!SignatureUtil.isDataValid(domain))
+        if (!SignatureUtil.isDataValid(domain))
 			return SignatureConstant.TRUST_NOT_VERIFIED_NO_DOMAIN;
 
 		X509Certificate leafCert = x509CertChain.getFirst();
