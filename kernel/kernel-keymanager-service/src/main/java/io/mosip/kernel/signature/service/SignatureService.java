@@ -73,4 +73,5 @@ public interface SignatureService {
 	 * @return the JWTSignatureVerifyResponseDto
 	 */
 	public JWTSignatureVerifyResponseDto jwtVerifyV2(JWTSignatureVerifyRequestDto jwtSignatureVerifyRequestDto);
+
 }
