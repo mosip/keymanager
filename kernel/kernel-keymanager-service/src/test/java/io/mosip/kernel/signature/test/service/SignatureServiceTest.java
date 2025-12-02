@@ -1,6 +1,5 @@
 package io.mosip.kernel.signature.test.service;
 
-import io.mosip.kernel.core.crypto.exception.SignatureException;
 import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils2;
@@ -35,7 +34,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -543,24 +541,6 @@ public class SignatureServiceTest {
     }
 
     @Test
-    public void testValidateTrust() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("TEST");
-        keyPairGenRequestDto.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        JWTSignatureVerifyRequestDto jwtVerifyRequestDto = new JWTSignatureVerifyRequestDto();
-        jwtVerifyRequestDto.setValidateTrust(false);
-
-        String trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED", trustResult);
-
-        jwtVerifyRequestDto.setValidateTrust(true);
-        trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED_NO_DOMAIN", trustResult);
-    }
-
-    @Test
     public void testEcdsaSECP256K1Algorithm() {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
         keyPairGenRequestDto.setApplicationId("TEST");
@@ -650,30 +630,6 @@ public class SignatureServiceTest {
 
         SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get("EdDSA");
         signatureProvider.sign(keyPair.getPrivate(), null, "Invalid Provider");
-    }
-
-    @Test
-    public void testValidateTrustV2() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("TEST");
-        keyPairGenRequestDto.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        JWTSignatureVerifyRequestDto jwtVerifyRequestDto = new JWTSignatureVerifyRequestDto();
-        jwtVerifyRequestDto.setValidateTrust(false);
-
-        String trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, null, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED", trustResult);
-
-        jwtVerifyRequestDto.setValidateTrust(true);
-        String pemCertificate = keymanagerService.getCertificate("TEST", Optional.empty()).getCertificate();
-        List<Certificate> certificateList = new ArrayList<>(Collections.singleton(keymanagerUtil.convertToCertificate(pemCertificate)));
-        trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList, pemCertificate);
-        Assert.assertEquals("TRUST_NOT_VERIFIED_NO_DOMAIN", trustResult);
-
-        jwtVerifyRequestDto.setDomain("DEVICE");
-        trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList, pemCertificate);
-        Assert.assertEquals("TRUST_CERT_PATH_NOT_VALID", trustResult);
     }
 
     @Test

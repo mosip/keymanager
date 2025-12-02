@@ -148,7 +148,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 	private static Map<String, SignatureProvider> SIGNATURE_PROVIDER = new HashMap<>();
 
-//	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory; //no usage
+//	AlgorithmFactory<JsonWebSignatureAlgorithm> jwsAlgorithmFactory;
 
 	static {
 		SIGNATURE_PROVIDER.put(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST, new PS256SIgnatureProviderImpl());
@@ -664,7 +664,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 	}
 
-	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify) {
+	private String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify) {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation.");
 		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
@@ -1286,7 +1286,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
         return null;
     }
 
-    public String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
+    private String validateTrustV2(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, List<Certificate> headerCertificateChain, String reqCertData) {
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
                 "JWT Signature Verification Request - Trust Validation.");
         boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());
