@@ -133,7 +133,7 @@ Homepage: https://github.com/java-native-access/jna
 ================================================================================
 Package: Javassist – Java Bytecode Manipulation
 Version: 3.25.0-GA
-License: Apache License 2.0 AND GNU Lesser General Public License v2.1 OR
+License: Apache License 2.0 OR GNU Lesser General Public License v2.1 OR
           Mozilla Public License 1.1 (Triple license - user may choose any one)
 Homepage: https://www.javassist.org/
 ================================================================================
