@@ -188,4 +188,4 @@ We welcome contributions from everyone!
 
 If you have any questions or run into issues while trying out the application, feel free to post them in the [MOSIP Community](https://community.mosip.io/) — we’ll be happy to help you out.
 
-[Github Issues](https://github.com/mosip/keymanager/issues)
+[GitHub Issues](https://github.com/mosip/keymanager/issues)
