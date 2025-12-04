@@ -64,3 +64,10 @@ COMMENT ON COLUMN keymgr.ca_cert_store.del_dtimes IS 'Deleted DateTimestamp : Da
 -- ddl-end --
 COMMENT ON COLUMN keymgr.ca_cert_store.ca_cert_type IS 'CA Certificate Type : Indicates if the certificate is a ROOT or INTERMEDIATE CA certificate';
 -- ddl-end --
+
+--PERFORMANCE INDEXES--
+CREATE INDEX IF NOT EXISTS idx_ca_cert_store_cr_dtimes ON keymgr.ca_cert_store USING btree (cr_dtimes);
+CREATE INDEX IF NOT EXISTS idx_ca_cert_store_del_dtimes ON keymgr.ca_cert_store USING btree (del_dtimes);
+CREATE INDEX IF NOT EXISTS idx_ca_cert_store_upd_dtimes ON keymgr.ca_cert_store USING btree (upd_dtimes);
+CREATE INDEX IF NOT EXISTS idx_ca_cert_times ON keymgr.ca_cert_store USING btree (cr_dtimes, upd_dtimes, del_dtimes);
+--END PERFORMANCE INDEXES--
