@@ -8,3 +8,8 @@ COMMENT ON COLUMN keymgr.ca_cert_store.ca_cert_type
 ALTER TABLE IF EXISTS keymgr.ca_cert_store
     DROP COLUMN IF EXISTS ca_cert_type;
 
+-- ROLLBACK FOR PERFORMANCE OPTIMIZATION INDEXES
+DROP INDEX IF EXISTS keymgr.idx_ca_cert_store_cr_dtimes;
+DROP INDEX IF EXISTS keymgr.idx_ca_cert_store_del_dtimes;
+DROP INDEX IF EXISTS keymgr.idx_ca_cert_store_upd_dtimes;
+DROP INDEX IF EXISTS keymgr.idx_ca_cert_times;
