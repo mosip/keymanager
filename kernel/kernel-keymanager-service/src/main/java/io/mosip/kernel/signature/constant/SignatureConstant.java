@@ -134,4 +134,6 @@ public class SignatureConstant {
     public static final int CERTIFICATE_URL_TAG = 35;
 
     public static final int CLAIM169_TAG = 169;
+
+    public static final String RANDOM_UUID = "UUID";
 }

@@ -125,6 +125,8 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Value("${mosip.kernel.partner.cacertificate.upload.minimumvalidity.month:12}")
     private int minValidity;
 
+    @Value("${mosip.kernel.partner.certificate.allowed.sign.algorithms:SHA256withRSA}")
+    private List<String> allowedSignAlgorithms;
 
     /**
      * Utility to generate Metadata
@@ -638,7 +640,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         }
 
         String signatureAlgorithm = reqX509Cert.getSigAlgName();
-        if (!signatureAlgorithm.toUpperCase().startsWith(PartnerCertManagerConstants.HASH_SHA2)) {
+        if (allowedSignAlgorithms.stream().noneMatch(signatureAlgorithm::equalsIgnoreCase)) {
             LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT,
                     PartnerCertManagerConstants.EMPTY, "Signature Algorithm not supported.");
             throw new PartnerCertManagerException(
