@@ -683,6 +683,7 @@ public class SignatureServiceTest {
         jwsSignRequestDtoV2.setIncludePayload(false);
         jwsSignRequestDtoV2.setIncludeCertificateChain(false);
         jwsSignRequestDtoV2.setB64JWSHeaderParam(true);
+        jwsSignRequestDtoV2.setIncludeCertHash(true);
         jwsSignRequestDtoV2.setCertificateUrl("https:://test/certificate.com");
         response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
         Assert.assertNotNull(response);
@@ -697,6 +698,14 @@ public class SignatureServiceTest {
 
         jwsSignRequestDtoV2.setApplicationId("TEST");
         jwsSignRequestDtoV2.setReferenceId("ED25519_SIGN");
+        response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
+        Assert.assertNotNull(response);
+
+        addtionalHeader.put("typ", "jws");
+        addtionalHeader.put("jku", "https://test.com/jwks.json");
+        addtionalHeader.put("cty", "application/json");
+        addtionalHeader.put("crit", "alg, x5c");
+        jwsSignRequestDtoV2.setAdditionalHeaders(addtionalHeader);
         response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
         Assert.assertNotNull(response);
     }

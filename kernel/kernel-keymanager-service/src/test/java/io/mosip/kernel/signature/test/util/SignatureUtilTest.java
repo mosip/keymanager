@@ -37,6 +37,26 @@ public class SignatureUtilTest {
 
     private String testUniqueId = "1234567890ABCDEF";
 
+    private String expiredCertificate = """
+            -----BEGIN CERTIFICATE-----
+            MIICtjCCAZ6gAwIBAgIUZm9Jj2wIadCiDIB2TW4Bmv4KpZgwDQYJKoZIhvcNAQEL
+            BQAwFTETMBEGA1UEAwwKY2EtZXhwaXJlZDAeFw0yMjEyMDgxMjU4MjFaFw0yNDEy
+            MDgxMjU4MjFaMBUxEzARBgNVBAMMCmNhLWV4cGlyZWQwggEiMA0GCSqGSIb3DQEB
+            AQUAA4IBDwAwggEKAoIBAQCs9s18I+s77QlzfWN0+RRhyQ29orYBSbHBp8dRyz1x
+            Tl9z699Bj/uzwIHPt18Qc0+9eFhtGzhPquCAsJTUeLkR1jGzvVVuAyhO1EeOvxeI
+            BVT45vBG+Qtm7cqMSkyE//eint3BhKyp2ySK4MUGPLSUkmNQ6GGuIaRyV2efwsZe
+            2EVJsK4JkT5gzhlwW++7R8Aei1+UDdCADqJorDsPQTam8VVFZKlqm6U4SyPnicgh
+            /Q4ODHWeoM5LjoLYdGPp7EluGHY+4Zoyay7frMBM8zCWf+qJUwXS/EtBRNMI9Pzy
+            CJHK5FWQ/BwDpFN2HbHolgH+busVr13vTiMx8O6zuMxVAgMBAAEwDQYJKoZIhvcN
+            AQELBQADggEBAKQv7+m1lfNwkeocMKCvxB1dppM+80aEle12YuWi7WkfZ1TJGwXo
+            RqbYdRa6szURARUNolFvRlbQxEJzkXtgElEw7/BFHWejFGMU6MT+191exQQWpXsf
+            kAjUhSlPLKD45aN6OguL//XF673Ripi2d3Nz+0PjFGjvth+oH7HyE2/6/8GoNvfz
+            +GI0+J35nBEt/2O36FIcxTjVq7GqJudVEE1w4j2o7iW9tBRlPeLZMvhsIjiCCiBK
+            dIGptqfav9V3Hqai+p0m8BxEUMINCgciPRCzdSybSnFLrkZCSKmhK18B+z/1xt5b
+            1QWPHILmhDQuLCfY/f6Ztvs+0PBC2ADGlRo=
+            -----END CERTIFICATE-----
+            """;
+
     @Before
     public void setUp() {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
@@ -171,5 +191,11 @@ public class SignatureUtilTest {
         var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false,
                 "https://test.com/cert", x509Certificate, testUniqueId, false, "", null);
         Assert.assertNotNull(header);
+    }
+
+    @Test
+    public void testIsCertificateDatesValidFalse() {
+        X509Certificate expiredCert = (X509Certificate) keymanagerUtil.convertToCertificate(expiredCertificate);
+        Assert.assertFalse(SignatureUtil.isCertificateDatesValid(expiredCert));
     }
 }
