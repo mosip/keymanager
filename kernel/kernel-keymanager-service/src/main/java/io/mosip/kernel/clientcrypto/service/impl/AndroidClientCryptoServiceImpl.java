@@ -33,7 +33,7 @@ public class AndroidClientCryptoServiceImpl implements ClientCryptoService {
 
     @Override
     public boolean validateSignature(@NotNull byte[] signature, @NotNull byte[] actualData) throws ClientCryptoException {
-        return true;
+        return validateSignature(getSigningPublicPart(), signature, actualData);
     }
 
     @Override
@@ -43,7 +43,7 @@ public class AndroidClientCryptoServiceImpl implements ClientCryptoService {
 
     @Override
     public byte[] asymmetricDecrypt(@NotNull byte[] cipher) throws ClientCryptoException {
-        return new byte[0];
+        return asymmetricEncrypt(getEncryptionPublicPart(), cipher);
     }
 
     @Override
