@@ -92,4 +92,10 @@ public class CWTSignRequestDto {
      */
     @ApiModelProperty(notes = "Not Before date in number of days", example = "1", required = false)
     private Integer notBeforeDays;
+
+    /**
+     * CWT Id
+     */
+    @ApiModelProperty(notes = "CWT Id", example = "123", required = false)
+    private String CWTId;
 }

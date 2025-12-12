@@ -80,11 +80,6 @@ public interface PartnerCertManagerConstants {
 	 */
 	int RSA_MIN_KEY_SIZE = 2048;
 
-	/**
-	 * The constant HASH_SHA2
-	 */
-	String HASH_SHA2 = "SHA2";
-
 	int YEAR_DAYS = 365;
 
     String GET_PARTNER_CERT = "GetPartnerCertificate";
