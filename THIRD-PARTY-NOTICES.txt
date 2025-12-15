@@ -126,15 +126,21 @@ Homepage: https://github.com/multiformats/java-multibase
 ================================================================================
 Package: JNA – Java Native Access (net.java.dev.jna:jna)
 Version: 5.13.0
-License: Apache License 2.0 OR GNU Lesser General Public License v2.1 or later
+License: 
+  - Apache License 2.0
+  - GNU Lesser General Public License v2.1 or later (LGPL-2.1+)
+  (Dual-licensed; user may choose either license)
 Homepage: https://github.com/java-native-access/jna
 ================================================================================
 
 ================================================================================
 Package: Javassist – Java Bytecode Manipulation
 Version: 3.25.0-GA
-License: Apache License 2.0 OR GNU Lesser General Public License v2.1 OR
-          Mozilla Public License 1.1 (Triple license - user may choose any one)
+License:
+  - Apache License 2.0
+  - GNU Lesser General Public License v2.1
+  - Mozilla Public License 1.1
+  (Triple-licensed; user may choose any one license)
 Homepage: https://www.javassist.org/
 ================================================================================
 
