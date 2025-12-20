@@ -5,7 +5,7 @@
 
 	<groupId>io.mosip.kernel</groupId>
 	<artifactId>keys-generator</artifactId>
-	<version>1.3.0-SNAPSHOT</version>
+	<version>1.3.0</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -22,9 +22,9 @@
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
-		<kernel.bom.version>1.3.0-SNAPSHOT</kernel.bom.version>
-		<kernel.core.version>1.3.0-SNAPSHOT</kernel.core.version>
-		<kernel.keymanager.service.version>1.3.0-SNAPSHOT</kernel.keymanager.service.version>
+		<kernel.bom.version>1.3.0</kernel.bom.version>
+		<kernel.core.version>1.3.0</kernel.core.version>
+		<kernel.keymanager.service.version>1.3.0</kernel.keymanager.service.version>
 
 		<spring.boot.maven.plugin>3.2.3</spring.boot.maven.plugin>
 		<jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
