@@ -1,0 +1,55 @@
+================================================================================
+COPYRIGHT NOTICES
+================================================================================
+Project Lombok (org.projectlombok:lombok)
+Version: 1.18.32
+Copyright (C) 2009-2021 The Project Lombok Authors.
+License: MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+================================================================================
+JUnit 4 (junit:junit)
+Version: 4.12
+Copyright © 2002-2025 JUnit Contributors and Eclipse Foundation
+License: Eclipse Public License 1.0 (EPL-1.0)
+
+THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECLIPSE PUBLIC
+LICENSE ("AGREEMENT"). ANY USE, REPRODUCTION OR DISTRIBUTION OF THE PROGRAM
+CONSTITUTES RECIPIENT'S ACCEPTANCE OF THIS AGREEMENT.
+
+Contributors may not remove or alter any copyright notices contained within
+the Program. Include a copy of the EPL-1.0 license with distribution.
+
+Full license text: https://www.eclipse.org/legal/epl-v10.html
+
+================================================================================
+SonarQube Scanner for Maven (org.sonarsource.scanner.maven:sonar-maven-plugin)
+Version: 3.7.0.1746
+Copyright (C) 2011-2025 SonarSource SA
+License: GNU Lesser General Public License v3.0 (LGPL-3.0)
+
+This library is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option) any
+later version.
+
+Full license text: https://www.gnu.org/licenses/lgpl-3.0.html
+
+================================================================================
