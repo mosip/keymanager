@@ -5,7 +5,7 @@
 
 	<groupId>io.mosip.kernel</groupId>
 	<artifactId>keys-migrator</artifactId>
-	<version>1.2.1-SNAPSHOT</version>
+	<version>1.4.x-SNAPSHOT</version>
 	<url>https://github.com/mosip/keymanager</url>
 
 	
@@ -25,7 +25,7 @@
 
 		<!-- Kernel -->
 		<kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
-		<kernel.keymanager.service.version>1.2.1-SNAPSHOT</kernel.keymanager.service.version>
+		<kernel.keymanager.service.version>1.4.x-SNAPSHOT</kernel.keymanager.service.version>
 		<kernel.bom.version>1.2.1-SNAPSHOT</kernel.bom.version>
 
 		<spring.boot.maven.plugin>3.2.3</spring.boot.maven.plugin>
