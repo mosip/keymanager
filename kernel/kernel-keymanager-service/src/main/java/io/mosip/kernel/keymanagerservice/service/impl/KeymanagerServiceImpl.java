@@ -930,13 +930,17 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			PrivateKey signPrivateKey = signKeyEntry.getPrivateKey();
 			X509Certificate x509Cert = (X509Certificate) signKeyEntry.getCertificate();
 			return new Object[] {signPrivateKey, x509Cert};
-		} 
-		PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyFromDBStore.get().getMasterAlias());
-		PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
-		PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
+		}
 		try {
+            PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyFromDBStore.get().getMasterAlias());
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+                    "Key in DBStore does not exist for this alias. So fetching the certificate from HSM." + masterKeyEntry);
+            PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
+            PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(keyFromDBStore.get().getPrivateKey()), 
 													masterPrivateKey, masterPublicKey, keyStore.getKeystoreProviderName());
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+                    "Key in DBStore does not exist for this alias. So fetching the certificate from HSM. Byte Length: " + decryptedPrivateKey.length);
 			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(keyFromDBStore.get().getCertificateData());
 			String keyAlgorithm = x509Cert.getPublicKey().getAlgorithm();
 			PrivateKey signPrivateKey = null;
@@ -953,7 +957,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 				| NullMethodException | InvalidKeySpecException | NoSuchAlgorithmException e) {
 			throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
 					KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorMessage() + e.getMessage(), e);
-		}  catch (Throwable e) {
+		} catch (Throwable e) {
             LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
                     "Invalid Certificate Data provided to upload the certificate.", e);
             throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
