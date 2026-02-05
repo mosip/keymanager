@@ -953,7 +953,12 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 				| NullMethodException | InvalidKeySpecException | NoSuchAlgorithmException e) {
 			throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
 					KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorMessage() + e.getMessage(), e);
-		}
+		}  catch (Throwable e) {
+            LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
+                    "Invalid Certificate Data provided to upload the certificate.", e);
+            throw new CryptoException(KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorCode(),
+                    KeymanagerErrorConstant.CRYPTO_EXCEPTION.getErrorMessage() + e.getMessage(), e);
+        }
 	}
 
 	@Override
