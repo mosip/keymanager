@@ -41,6 +41,7 @@ import io.mosip.kernel.keymanagerservice.dto.UploadCertificateResponseDto;
 import io.mosip.kernel.keymanagerservice.dto.CertificateChainResponseDto;
 import io.mosip.kernel.keymanagerservice.helper.SubjectAlternativeNamesHelper;
 import io.mosip.kernel.partnercertservice.util.PartnerCertificateManagerUtil;
+import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -478,7 +479,9 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 		}
 		List<KeyAlias> keyAlias = keyAliasMap.get(KeymanagerConstant.KEYALIAS);
 		currentKeyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
-		
+
+        LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                "current Key Alias: " + currentKeyAlias.toString() + "applicatio Id: " + applicationId + "and reference Id:" + refId);
 		if (currentKeyAlias.size() > 1) {
 			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CURRENTKEYALIAS,
 					String.valueOf(currentKeyAlias.size()), "CurrentKeyAlias size more than one. Throwing exception");
@@ -493,10 +496,18 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			// @TODO Not Sure why always check the existing HSM only. We need to get more details from team. 
 			// Expecting the signature key to be always in HSM.
 			if (!refId.equals("ED25519_SIGN")){
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                        "Get the certificate Entry for alias: " + alias);
 				certificateEntry = getCertificateEntry(alias, isPrivateRequired);
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                        "Found Certificate Entry");
 			} else {
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                        "Getting Keystore from db store for alias: " + alias);
 				Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore = dbHelper.getKeyStoreFromDB(alias);
 				Object[] keyDetailsArr = getKeyDetails(keyFromDBStore, alias);
+                LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                        "Found Certificate Entry");
 				certificateEntry = new CertificateEntry<X509Certificate, PrivateKey>(new X509Certificate[] 
 										{(X509Certificate) keyDetailsArr[1]}, (PrivateKey) keyDetailsArr[0]);
 			}
@@ -932,18 +943,26 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			return new Object[] {signPrivateKey, x509Cert};
 		}
 		try {
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                    "Getting Master Key entry from keystore. for master key alias: " + keyFromDBStore.get().getMasterAlias());
             PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyFromDBStore.get().getMasterAlias());
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
-                    "Key in DBStore does not exist for this alias. So fetching the certificate from HSM." + masterKeyEntry);
+                    "master key entry found." + masterKeyEntry);
             PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
             PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                    "Decrypt the encrypted private key using HSM master key");
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(keyFromDBStore.get().getPrivateKey()), 
 													masterPrivateKey, masterPublicKey, keyStore.getKeystoreProviderName());
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
-                    "Key in DBStore does not exist for this alias. So fetching the certificate from HSM. Byte Length: " + decryptedPrivateKey.length);
+                    "Decrypted Private Key byte length: " + decryptedPrivateKey.length);
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+                    "constructing the certificate from db certificate data.");
 			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(keyFromDBStore.get().getCertificateData());
 			String keyAlgorithm = x509Cert.getPublicKey().getAlgorithm();
 			PrivateKey signPrivateKey = null;
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+            "Building Private Key Using PKCS8EncodedKeySpec");
 			if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) || 
 					keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) || 
 					keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE)) {
