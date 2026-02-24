@@ -226,7 +226,13 @@ public class SignatureUtil {
 
 	public static String getIssuerFromPayload(String jsonPayload) {
 		try {
-			JsonNode jsonNode = mapper.readTree(jsonPayload);
+			if (!isDataValid(jsonPayload)) {
+				LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+						"Invalid JSON Payload Data Provided. Payload: " + jsonPayload);
+				return SignatureConstant.BLANK;
+			}
+
+			JsonNode jsonNode = mapper.readTree(new String(CryptoUtil.decodeURLSafeBase64(jsonPayload)));
 
 			if (jsonNode.has(SignatureConstant.ISSUER)) {
 				return jsonNode.get(SignatureConstant.ISSUER).asText();
