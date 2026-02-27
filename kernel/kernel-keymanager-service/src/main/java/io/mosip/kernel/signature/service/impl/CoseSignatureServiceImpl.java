@@ -385,8 +385,9 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 (requestDto.getUnprotectedHeader() != null && requestDto.getUnprotectedHeader().containsKey(SignatureConstant.COSE_HEADER_KID))) {
             String kidPrefix = kidPrepend;
             if (kidPrepend.equalsIgnoreCase(SignatureConstant.KEY_ID_PREFIX)) {
-                String payload = Objects.isNull(requestDto.getPayload()) ? "" : requestDto.getPayload();
-                kidPrefix = SignatureUtil.getIssuerFromPayload(payload);
+                String payload = Objects.isNull(requestDto.getPayload()) ? SignatureConstant.BLANK : requestDto.getPayload();
+                String jsonData = SignatureUtil.isDataValid(payload) ? (new String(CryptoUtil.decodeURLSafeBase64(payload))) : SignatureConstant.BLANK;
+                kidPrefix = SignatureUtil.getIssuerFromPayload(jsonData);
                 if (kidPrefix.isEmpty())
                     kidPrefix = SignatureConstant.BLANK;
                 else

@@ -232,7 +232,7 @@ public class SignatureUtil {
 				return SignatureConstant.BLANK;
 			}
 
-			JsonNode jsonNode = mapper.readTree(new String(CryptoUtil.decodeURLSafeBase64(jsonPayload)));
+			JsonNode jsonNode = mapper.readTree(jsonPayload);
 
 			if (jsonNode.has(SignatureConstant.ISSUER)) {
 				return jsonNode.get(SignatureConstant.ISSUER).asText();

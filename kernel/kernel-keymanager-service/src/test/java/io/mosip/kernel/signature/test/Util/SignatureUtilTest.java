@@ -154,16 +154,14 @@ public class SignatureUtilTest {
 
     @Test
     public void testGetIssuerFromPayload() {
-        // getIssuerFromPayload expects URL-safe Base64 encoded JSON payload
-        String payload = CryptoUtil.encodeToURLSafeBase64("{\"iss\":\"test-issuer\",\"data\":\"value\"}".getBytes());
+        String payload = "{\"iss\":\"test-issuer\",\"data\":\"value\"}";
         String issuer = SignatureUtil.getIssuerFromPayload(payload);
         Assert.assertEquals("test-issuer", issuer);
 
-        String noIssuer = SignatureUtil.getIssuerFromPayload(CryptoUtil.encodeToURLSafeBase64("{\"data\":\"value\"}".getBytes()));
+        String noIssuer = SignatureUtil.getIssuerFromPayload("{\"data\":\"value\"}");
         Assert.assertEquals("", noIssuer);
 
-        // Test with invalid base64-encoded JSON (malformed JSON after decoding)
-        String invalidJson = SignatureUtil.getIssuerFromPayload(CryptoUtil.encodeToURLSafeBase64("invalid json".getBytes()));
+        String invalidJson = SignatureUtil.getIssuerFromPayload("invalid json");
         Assert.assertEquals("", invalidJson);
     }
 
