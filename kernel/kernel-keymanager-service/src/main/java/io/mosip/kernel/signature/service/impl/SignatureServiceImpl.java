@@ -9,13 +9,7 @@ import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.*;
 
 import javax.crypto.SecretKey;
 
@@ -26,6 +20,7 @@ import io.mosip.kernel.signature.constant.SignatureProviderEnum;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
 import org.apache.commons.codec.binary.Base64;
+import org.hibernate.sql.ast.tree.expression.Collation;
 import org.jose4j.jca.ProviderContext;
 import org.jose4j.jwa.AlgorithmFactory;
 import org.jose4j.jwa.AlgorithmFactoryFactory;
@@ -119,6 +114,9 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 	@Value("${mosip.kernel.keymanager.signature.kid.prepend:}")
 	private String kidPrepend;
+
+    @Value("${mosip.sign-certificate-refid:SIGN}")
+    private String certificateSignRefID;
 
 	/**
 	 * Utility to generate Metadata
@@ -328,8 +326,10 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		if (includeKeyId && Objects.nonNull(keyId))
 			jwSign.setKeyIdHeaderValue(kidPrefix.concat(keyId));
 
+        String algoString = (referenceId.equals(KeymanagerConstant.EMPTY) || referenceId.equals(certificateSignRefID)) ?
+                SignatureUtil.getJwtSignAlgorithm(x509Certificate) : SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId);
+
 		jwSign.setPayload(dataToSign);
-		String algoString = SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId);
 		if (!KeyReferenceIdConsts.ED25519_SIGN.name().equals(referenceId)) {
 			ProviderContext provContext = new ProviderContext();
 			provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
@@ -578,18 +578,21 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String certificateUrl = SignatureUtil.isDataValid(
 								jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
 		boolean b64JWSHeaderParam = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getB64JWSHeaderParam());
-		String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank()) ?
-				SignatureUtil.getSignAlgorithm(referenceId) : jwsSignRequestDto.getSignAlgorithm();
-		
+
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 									Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
 									DateUtils.parseUTCToDate(timestamp));
+        // Use request's sign algorithm; otherwise derive from the private key
+        String signatureAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank())
+                ? SignatureUtil.getJwtSignAlgorithm(certificateResponse.getCertificateEntry().getChain()[0])
+                : jwsSignRequestDto.getSignAlgorithm();
+
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 		String providerName = certificateResponse.getProviderName();
 		String uniqueIdentifier = certificateResponse.getUniqueIdentifier();
-		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signAlgorithm, b64JWSHeaderParam, includeCertificate, 
+		JWSHeader jwsHeader = SignatureUtil.getJWSHeader(signatureAlgorithm, b64JWSHeaderParam, includeCertificate,
 					includeCertHash, certificateUrl, x509Certificate, uniqueIdentifier, includeKeyId, kidPrefix);
 		
 		if (b64JWSHeaderParam) {
@@ -597,7 +600,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 		byte[] jwsSignData = SignatureUtil.buildSignData(jwsHeader, dataToSign);
 		
-		SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(signAlgorithm);
+		SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(signatureAlgorithm);
 		if (Objects.isNull(signatureProvider)) {
 			signatureProvider = SignatureProviderEnum.getSignatureProvider(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
 		}
@@ -663,13 +666,14 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 			applicationId = signApplicationid;
 			referenceId = signRefid;
 		}
-		String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-				signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
 				DateUtils.parseUTCToDate(timestamp));
+        // Use request's sign algorithm; otherwise derive from the private key
+        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm())
+                ? signatureReq.getSignAlgorithm() : certificateResponse.getCertificateEntry().getPrivateKey().getAlgorithm();
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		certificateResponse.getCertificateEntry().getChain();
 		String providerName = certificateResponse.getProviderName();
@@ -724,17 +728,20 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
             applicationId = signApplicationid;
             referenceId = signRefid;
         }
-        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
-                signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
+//        String signAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm()) ?
+//                signatureReq.getSignAlgorithm() : SignatureConstant.JWS_PS256_SIGN_ALGO_CONST;
 
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
                 Optional.of(referenceId), timestamp);
         keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
                 DateUtils.parseUTCToDate(timestamp));
+        String signatureAlgorithm = SignatureUtil.isDataValid(signatureReq.getSignAlgorithm())
+                ? signatureReq.getSignAlgorithm()
+                : certificateResponse.getCertificateEntry().getPrivateKey().getAlgorithm();
         PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
         certificateResponse.getCertificateEntry().getChain();
         String providerName = certificateResponse.getProviderName();
-        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(signAlgorithm);
+        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(signatureAlgorithm);
         if (Objects.isNull(signatureProvider)) {
             signatureProvider = SignatureProviderEnum.getSignatureProvider(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
         }
@@ -755,7 +762,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
                         KeymanagerErrorConstant.INVALID_FORMAT_ERROR.getErrorMessage());
         }
         responseDto.setCertificate(keymanagerUtil.getPEMFormatedData(certificateResponse.getCertificateEntry().getChain()[0]));
-        responseDto.setSignatureAlgorithm(signAlgorithm);
+        responseDto.setSignatureAlgorithm(signatureAlgorithm);
         responseDto.setKeyId(SignatureUtil.convertHexToBase64(certificateResponse.getUniqueIdentifier()));
         return responseDto;
     }
@@ -875,7 +882,9 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		}
 
 		jwSign.setPayload(dataToSign);
-		String algoString = SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId);
+        String algoString = (referenceId.equals(KeymanagerConstant.EMPTY) || referenceId.equals(certificateSignRefID))
+                ? SignatureUtil.getJwtSignAlgorithm(x509Certificate)
+                : SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId);
 		if (!KeyReferenceIdConsts.ED25519_SIGN.name().equals(referenceId)) {
 			ProviderContext provContext = new ProviderContext();
 			provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
@@ -955,13 +964,16 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		String certificateUrl = SignatureUtil.isDataValid(
 				jwsSignRequestDto.getCertificateUrl()) ? jwsSignRequestDto.getCertificateUrl(): null;
 		boolean b64JWSHeaderParam = SignatureUtil.isIncludeAttrsValid(jwsSignRequestDto.getB64JWSHeaderParam());
-		String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank()) ?
-				SignatureUtil.getSignAlgorithm(referenceId) : jwsSignRequestDto.getSignAlgorithm();
+//		String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank()) ?
+//				SignatureUtil.getSignAlgorithm(referenceId) : jwsSignRequestDto.getSignAlgorithm();
 
 		SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(applicationId,
 				Optional.of(referenceId), timestamp);
 		keymanagerUtil.isCertificateValid(certificateResponse.getCertificateEntry(),
 				DateUtils.parseUTCToDate(timestamp));
+        String signAlgorithm = (jwsSignRequestDto.getSignAlgorithm() == null || jwsSignRequestDto.getSignAlgorithm().isBlank())
+                ? SignatureUtil.getJwtSignAlgorithm(certificateResponse.getCertificateEntry().getChain()[0])
+                : jwsSignRequestDto.getSignAlgorithm();
 		PrivateKey privateKey = certificateResponse.getCertificateEntry().getPrivateKey();
 		X509Certificate x509Certificate = certificateResponse.getCertificateEntry().getChain()[0];
 		String providerName = certificateResponse.getProviderName();
@@ -1031,15 +1043,17 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 
 		boolean signatureValid = false;
 		Certificate certToVerify = certificateExistsInHeader(jwtTokens[0]);
+		Certificate reqCertToVerify = null;
 		if (Objects.nonNull(certToVerify)){
 			signatureValid = verifySignature(jwtTokens, encodedActualData, certToVerify);
 		} else {
-			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
+			reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
             reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
 		List<Certificate> certChain = certificateExistsInHeaderV2(jwtTokens[0]);
+		certChain = certChain == null ? Collections.singletonList(reqCertToVerify) : certChain;
 
 		JWTSignatureVerifyResponseDto responseDto = new JWTSignatureVerifyResponseDto();
 		responseDto.setSignatureValid(signatureValid);

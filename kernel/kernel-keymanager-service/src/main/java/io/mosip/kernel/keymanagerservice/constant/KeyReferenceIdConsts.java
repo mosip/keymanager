@@ -4,5 +4,6 @@ public enum KeyReferenceIdConsts {
     
     EC_SECP256K1_SIGN,
     EC_SECP256R1_SIGN,
-    ED25519_SIGN
+    ED25519_SIGN,
+    RSA_2048_SIGN
 }

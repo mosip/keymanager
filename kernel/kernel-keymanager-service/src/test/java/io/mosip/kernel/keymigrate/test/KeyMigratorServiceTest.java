@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -102,6 +103,8 @@ public class KeyMigratorServiceTest {
         ReflectionTestUtils.setField(keyMigratorService, "masterKeyAppId", "KERNEL");
         ReflectionTestUtils.setField(keyMigratorService, "masterKeyRefId", "IDENTITY_CACHE");
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "AES/ECB/NoPadding");
+        ReflectionTestUtils.setField(keyMigratorService, "keyAlgorithm", "RSA");
+        ReflectionTestUtils.setField(keyMigratorService, "ecCurveName", "SECP256R1");
 
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048);
@@ -246,8 +249,8 @@ public class KeyMigratorServiceTest {
     @Test
     public void testGetZKTempCertificateNewKey() {
         Map<String, List<KeyAlias>> keyAliasMap = new HashMap<>();
-        keyAliasMap.put("keyAlias", Collections.emptyList());
-        keyAliasMap.put("currentKeyAlias", Collections.emptyList());
+        keyAliasMap.put(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.KEYALIAS, Collections.emptyList());
+        keyAliasMap.put(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.CURRENTKEYALIAS, Collections.emptyList());
 
         when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(keyAliasMap);
         when(keyStore.getCertificate(anyString())).thenReturn(mockCertificate);
@@ -256,13 +259,14 @@ public class KeyMigratorServiceTest {
         when(keymanagerUtil.getUniqueIdentifier(anyString())).thenReturn("unique-id");
         when(keymanagerUtil.getCertificateParameters(anyString(), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(mockCertificateParameters);
+        doNothing().when(keyStore).generateAndStoreAsymmetricKey(anyString(), isNull(), any());
 
         ZKKeyMigrateCertficateResponseDto response = keyMigratorService.getZKTempCertificate();
 
         assertNotNull(response);
         assertNotNull(response.getCertificate());
         assertNotNull(response.getTimestamp());
-        verify(keyStore, times(1)).generateAndStoreAsymmetricKey(anyString(), any(), any());
+        verify(keyStore, times(1)).generateAndStoreAsymmetricKey(anyString(), isNull(), any());
         verify(dbHelper, times(1)).storeKeyInAlias(anyString(), any(LocalDateTime.class), anyString(),
                 anyString(), any(LocalDateTime.class), anyString(), anyString());
     }
@@ -292,8 +296,8 @@ public class KeyMigratorServiceTest {
         Map<String, List<KeyAlias>> keyAliasMap = new HashMap<>();
         KeyAlias expiredKeyAlias = new KeyAlias();
         expiredKeyAlias.setAlias("expired-alias");
-        keyAliasMap.put("keyAlias", Collections.singletonList(expiredKeyAlias));
-        keyAliasMap.put("currentKeyAlias", Collections.emptyList());
+        keyAliasMap.put(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.KEYALIAS, Collections.singletonList(expiredKeyAlias));
+        keyAliasMap.put(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.CURRENTKEYALIAS, Collections.emptyList());
 
         when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class))).thenReturn(keyAliasMap);
         when(keyStore.getCertificate(anyString())).thenReturn(mockCertificate);
@@ -302,12 +306,14 @@ public class KeyMigratorServiceTest {
         when(keymanagerUtil.getUniqueIdentifier(anyString())).thenReturn("unique-id");
         when(keymanagerUtil.getCertificateParameters(anyString(), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(mockCertificateParameters);
+        doNothing().when(keyStore).deleteKey(anyString());
+        doNothing().when(keyStore).generateAndStoreAsymmetricKey(anyString(), isNull(), any());
 
         ZKKeyMigrateCertficateResponseDto response = keyMigratorService.getZKTempCertificate();
 
         assertNotNull(response);
         verify(keyStore, times(1)).deleteKey("expired-alias");
-        verify(keyStore, times(1)).generateAndStoreAsymmetricKey(anyString(), any(), any());
+        verify(keyStore, times(1)).generateAndStoreAsymmetricKey(anyString(), isNull(), any());
         verify(dbHelper, times(1)).storeKeyInAlias(anyString(), any(LocalDateTime.class), anyString(),
                 anyString(), any(LocalDateTime.class), isNull(), isNull());
     }

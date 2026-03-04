@@ -12,7 +12,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
+import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 
 @RunWith(SpringRunner.class)
@@ -29,7 +29,7 @@ public class CertificateUtilityExceptionTest {
 		random = new SecureRandom();
 	}
 
-	@Test(expected = KeystoreProcessingException.class)
+	@Test(expected = KeymanagerServiceException.class)
 	public void testGenerateX509CertificateException() throws Exception {
 		keyGenerator = KeyPairGenerator.getInstance("ELGAMAL", provider);
 		keyGenerator.initialize(2048, random);

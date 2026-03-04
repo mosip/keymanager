@@ -49,7 +49,6 @@ import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.KeyGenerator;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
-import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyResponseDto;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
@@ -188,12 +187,13 @@ public class CryptographicServiceIntegrationTest {
 		requestDto.setData(data);
 		requestDto.setReferenceId("ref123");
 		requestDto.setTimeStamp(timeStamp);
-		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(appid, timeStamp, refid, data, true);
 		when(keyManagerService.decryptSymmetricKey(Mockito.any())).thenReturn(symmetricKeyResponseDto);
 		when(cryptomanagerUtil.parseEncryptKeyHeader(Mockito.any())).thenReturn("".getBytes());
 		when(cryptomanagerUtil.decodeBase64Data(data))
 				.thenReturn("MOCKENCRYPTEDKEY#KEY_SPLITTER#MOCKENCRYPTEDDATA".getBytes());
 		when(cryptomanagerUtil.hasKeyAccess(Mockito.anyString())).thenReturn(true);
+		when(cryptomanagerUtil.getAlgorithmNameFromHeader(Mockito.any())).thenReturn("RSA");
+		when(cryptomanagerUtil.getDecryptedSymmetricKey(Mockito.any())).thenReturn(generator.getSymmetricKey());
 		String requestBody = objectMapper.writeValueAsString(requestWrapper);
 		MvcResult result = mockMvc
 				.perform(post("/decrypt").contentType(MediaType.APPLICATION_JSON).content(requestBody))

@@ -378,7 +378,7 @@ public class SessionKeyDecrytorHelper {
 			try {
 				byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.get().getPrivateKey()), 
 													masterPrivateKey, masterPublicKey);
-				KeyFactory keyFactory = KeyFactory.getInstance(KeymanagerConstant.RSA);
+				KeyFactory keyFactory = KeyFactory.getInstance(masterPrivateKey.getAlgorithm());
 				PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
 				Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.get().getCertificateData());
 				return new Object[] {privateKey, certificate};

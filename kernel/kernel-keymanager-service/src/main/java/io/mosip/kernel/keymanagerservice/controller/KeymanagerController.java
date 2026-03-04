@@ -306,4 +306,60 @@ public class KeymanagerController {
 		response.setResponse(keymanagerService.getCertificateChain(applicationId, referenceId));
 		return response;
 	}
+
+    /**
+     * Request to generate component Signature RSA Key pair & Certificate for the Provided APP ID & REF ID.
+     * Supported KeySize 2048.
+     *
+     * @param objectType 			   response Object Type. Support types are Certificate/CSR.
+     * @param rsaKeyPairGenRequestDto     {@link KeyPairGenerateRequestDto} request
+     * @return {@link KeyPairGenerateResponseDto} instance
+     */
+    @Operation(summary = "Request to generate component Signature RSA Key pair & Certificate for the Provided APP ID & REF ID.",
+            description = "Request to generate component Signature RSA Key pair & Certificate for the Provided APP ID & REF ID. " +
+                    "Supported Key Size 2048",
+            tags = { "keymanager" })
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+    @PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getGetgetcertificate())")
+    @ResponseFilter
+    @PostMapping(value = "/generateRSASignKey/{objectType}")
+    public ResponseWrapper<KeyPairGenerateResponseDto> generateRSASignKey(
+            @ApiParam("Response Type CERTIFICATE/CSR") @PathVariable("objectType") String objectType,
+            @RequestBody @Valid RequestWrapper<KeyPairGenerateRequestDto> rsaKeyPairGenRequestDto) {
+
+        ResponseWrapper<KeyPairGenerateResponseDto> response = new ResponseWrapper<>();
+        response.setResponse(keymanagerService.generateRSASignKey(objectType, rsaKeyPairGenRequestDto.getRequest()));
+        return response;
+    }
+
+    /**
+     * Request to get Certificate for the Provided APP ID & REF ID Based On Version.
+     *
+     * @param applicationId Application id of the application requesting Certificate
+     * @param referenceId   Reference id of the application requesting Certificate. Blank in case of Master Key.
+     * @return {@link KeyPairGenerateResponseDto} instance
+     */
+    @Operation(summary = "Request to get Certificate for the Provided APP ID & REF ID", description = "Request to get Certificate for the Provided APP ID & REF ID Based On Version", tags = { "keymanager" })
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success or you may find errors in error array in response"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+    //@PreAuthorize("hasAnyRole('ZONAL_ADMIN','GLOBAL_ADMIN','INDIVIDUAL','REGISTRATION_PROCESSOR','REGISTRATION_ADMIN','REGISTRATION_SUPERVISOR','REGISTRATION_OFFICER','ID_AUTHENTICATION','TEST','PRE_REGISTRATION_ADMIN','RESIDENT')")
+    @PreAuthorize("hasAnyRole(@KeyManagerAuthRoles.getGetgetcertificate())")
+    @ResponseFilter
+    @GetMapping(value = "/getCertificateV2")
+    public ResponseWrapper<KeyPairGenerateResponseDto> getCertificateV2(
+            @ApiParam("Id of application") @RequestParam("applicationId") String applicationId,
+            @ApiParam("Refrence Id as metadata") @RequestParam("referenceId") Optional<String> referenceId,
+            @ApiParam("Algorithm Supported for Encryption") @RequestParam("version") Optional<String> version) {
+
+        ResponseWrapper<KeyPairGenerateResponseDto> response = new ResponseWrapper<>();
+        response.setResponse(keymanagerService.getCertificateV2(applicationId, referenceId, version));
+        return response;
+    }
 }

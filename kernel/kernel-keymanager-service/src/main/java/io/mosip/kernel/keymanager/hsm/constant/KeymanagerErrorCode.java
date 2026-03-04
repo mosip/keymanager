@@ -26,7 +26,9 @@ public enum KeymanagerErrorCode {
 	
 	OFFLINE_KEYSTORE_ACCESS_ERROR("KER-KMA-009", "Keystore instantiated as offline, performing operation not allowed."),
 
-	ALGORITHM_NOT_SUPPORTED("KER-KMA-010", "Algorithm is not supported for the provider through SunPKCS11.");
+	ALGORITHM_NOT_SUPPORTED("KER-KMA-010", "Algorithm is not supported for the provider through SunPKCS11."),
+
+	CERTIFICATE_SIGN_NOT_SUPPORT("KER-KMA-011", "Algorithm is not supported for the Signature."),;
 
 	/**
 	 * The error code

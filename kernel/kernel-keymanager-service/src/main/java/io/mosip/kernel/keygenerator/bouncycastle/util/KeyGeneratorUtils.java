@@ -7,10 +7,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.spec.ECGenParameterSpec;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.*;
 
 import javax.crypto.KeyGenerator;
 
@@ -137,4 +134,31 @@ public class KeyGeneratorUtils {
 		Security.addProvider(provider);
 		return provider;
 	}
+
+    public static KeyPairGenerator getECKeyPairGenerator(String algorithmName, String eccCurve, SecureRandom secureRandom) {
+        KeyPairGenerator generator = null;
+        try {
+            generator = KeyPairGenerator.getInstance(algorithmName, provider);
+            generator.initialize(new ECGenParameterSpec(eccCurve), secureRandom);
+            return generator;
+        } catch (java.security.NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
+            throw new NoSuchAlgorithmException(
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        }
+    }
+
+    public static KeyPairGenerator getX25519KeyPairGenerator(SecureRandom secureRandom) {
+        KeyPairGenerator generator = null;
+        try {
+            generator = KeyPairGenerator.getInstance(KeymanagerConstant.X25519_KEY_TYPE, provider);
+            NamedParameterSpec namedParameterSpec = new NamedParameterSpec(KeymanagerConstant.X25519_KEY_TYPE);
+            generator.initialize(namedParameterSpec, secureRandom);
+            return generator;
+        } catch (java.security.NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
+            throw new NoSuchAlgorithmException(
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 }

@@ -118,6 +118,12 @@ public class KeyStoreImpl implements ECKeyStore, InitializingBean {
 	private String asymmetricECKeyAlgorithm;
 
 	/**
+	 * Ed25519 Asymmetric key algorithm Name
+	 */
+	@Value("${mosip.kernel.keygenerator.asymmetric.ed.algorithm-name:Ed25519}")
+	private String asymmetricEdKeyAlgorithm;
+
+	/**
 	 * JCE Implementation Clazz Name and other required information.
 	 * 
 	 */
@@ -175,6 +181,7 @@ public class KeyStoreImpl implements ECKeyStore, InitializingBean {
 		keystoreParams.put(KeymanagerConstant.CERT_SIGN_ALGORITHM, signAlgorithm);
 		keystoreParams.put(KeymanagerConstant.FLAG_KEY_REF_CACHE, Boolean.toString(enableKeyReferenceCache));
 		keystoreParams.put(KeymanagerConstant.ASYM_KEY_EC_ALGORITHM, asymmetricECKeyAlgorithm);
+		keystoreParams.put(KeymanagerConstant.ASYM_KEY_ED_ALGORITHM, asymmetricEdKeyAlgorithm);
 	}
 
 	private void addPKCSParams() {

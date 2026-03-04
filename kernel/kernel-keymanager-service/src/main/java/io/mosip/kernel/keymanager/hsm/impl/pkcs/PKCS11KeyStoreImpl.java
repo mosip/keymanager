@@ -540,7 +540,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 
 	private KeyPair generateRSAKeyPair() {
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricKeyAlgorithm, provider);
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(KeymanagerConstant.RSA_KEY_TYPE, provider);
 			generator.initialize(asymmetricKeyLength, secureRandom);
 			return generator.generateKeyPair();
 		} catch (java.security.NoSuchAlgorithmException e) {

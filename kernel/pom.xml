@@ -36,6 +36,7 @@
 		<module>kernel-keymanager-service</module>
 		<module>keys-generator</module>
 		<module>keys-migrator</module>
+		<module>keys-algorithm-migrator</module>
 	</modules>
 
 	<repositories>

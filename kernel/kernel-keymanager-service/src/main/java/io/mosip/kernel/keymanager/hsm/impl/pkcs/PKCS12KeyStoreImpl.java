@@ -8,24 +8,11 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.Key;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.KeyStore;
+import java.security.*;
 import java.security.KeyStore.PasswordProtection;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.KeyStore.ProtectionParameter;
 import java.security.KeyStore.SecretKeyEntry;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.Provider;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.Security;
-import java.security.UnrecoverableEntryException;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -146,6 +133,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
         this.signAlgorithm  = params.get(KeymanagerConstant.CERT_SIGN_ALGORITHM);
         this.enableKeyReferenceCache = Boolean.parseBoolean(params.get(KeymanagerConstant.FLAG_KEY_REF_CACHE));
 		this.asymmetricECKeyAlgorithm = params.get(KeymanagerConstant.ASYM_KEY_EC_ALGORITHM);
+        this.asymmetricEdKeyAlgorithm = params.get(KeymanagerConstant.ASYM_KEY_ED_ALGORITHM);
 		this.secureRandom = new SecureRandom();
 		initKeystore();
 		initKeyReferenceCache();
@@ -270,7 +258,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
 		}
-	}
+    }
 
 	/*
 	 * (non-Javadoc)
@@ -464,11 +452,29 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 			keyPair = generateKeyPair(keyType);
 			signPrivateKey = keyPair.getPrivate();
 		}
-		X509Certificate x509Cert = CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(), certParams, 
-									signerPrincipal, signAlgorithm, provider.getName());
-		X509Certificate[] chain = new X509Certificate[] {x509Cert};
+
+		X509Certificate x509Cert;
+		if (keyPair.getPrivate().getAlgorithm().equalsIgnoreCase(KeymanagerConstant.ED25519_KEY_TYPE) ||
+				keyPair.getPrivate().getAlgorithm().equalsIgnoreCase(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.EDDSA_KEY_TYPE) ||
+				keyPair.getPrivate().getAlgorithm().equalsIgnoreCase(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.X25519_KEY_TYPE) ||
+				keyPair.getPrivate().getAlgorithm().equalsIgnoreCase(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.XDH_ALGORITHM)) {
+			KeyPairGenerator kpg;
+			try {
+				kpg = KeyPairGenerator.getInstance(KeymanagerConstant.ED25519_KEY_TYPE);
+			} catch (NoSuchAlgorithmException e) {
+				throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
+						KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
+			}
+			Provider sunECProvider = kpg.getProvider();
+			x509Cert = CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(), certParams,
+					signerPrincipal, signAlgorithm, sunECProvider.getName());
+		} else {
+			x509Cert = CertificateUtility.generateX509Certificate(signPrivateKey, keyPair.getPublic(), certParams,
+					signerPrincipal, signAlgorithm, provider.getName());
+		}
+		X509Certificate[] chain = new X509Certificate[]{x509Cert};
 		storeCertificate(alias, chain, keyPair.getPrivate());
-    }
+	}
 
 	private KeyPair generateKeyPair(String keyType) {
 		List<String> ecCurvesList = Stream.of(ECCurves.values()).filter(value -> !value.name().equals(ECCurves.ED25519.name()))
@@ -480,6 +486,8 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 			return generateECKeyPair(keyType);
 		else if (KeymanagerConstant.ED25519_KEY_TYPE.equals(keyType))
 			return generateEd25519KeyPair();
+        else if (io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.X25519_KEY_TYPE.equals(keyType))
+            return generateX25519KeyPair();
 			
 		throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
 					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
@@ -488,7 +496,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 
 	private KeyPair generateRSAKeyPair() {
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricKeyAlgorithm, provider);
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(KeymanagerConstant.RSA_KEY_TYPE, provider);
 			generator.initialize(asymmetricKeyLength, secureRandom);
 			return generator.generateKeyPair();
 		} catch (java.security.NoSuchAlgorithmException e) {
@@ -512,7 +520,7 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 
 	private KeyPair generateEd25519KeyPair() {
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricEdKeyAlgorithm, provider);
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricEdKeyAlgorithm);
 			return generator.generateKeyPair();
 		} catch (java.security.NoSuchAlgorithmException e) {
 			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
@@ -627,5 +635,16 @@ public class PKCS12KeyStoreImpl implements ECKeyStore {
 	public void generateAndStoreEDAsymmetricKey(String alias, String signKeyAlias, CertificateParameters certParams) {
 		generateAndStoreAsymmetricKey(alias, signKeyAlias, certParams, KeymanagerConstant.ED25519_KEY_TYPE);
 	} */
+
+    private KeyPair generateX25519KeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.X25519_KEY_TYPE);
+            return generator.generateKeyPair();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+                    KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
+        }
+    }
 	
 }
