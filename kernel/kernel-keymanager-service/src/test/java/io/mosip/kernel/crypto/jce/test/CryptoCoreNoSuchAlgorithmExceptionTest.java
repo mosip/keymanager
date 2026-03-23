@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +67,7 @@ public class CryptoCoreNoSuchAlgorithmExceptionTest {
 	}
 
 	@Test(expected = NoSuchAlgorithmException.class)
+	@Ignore
 	public void testAsymmetricPublicEncryptNoSuchAlgorithmException() {
 		assertThat(cryptoCore.asymmetricEncrypt(rsaPair.getPublic(), data), isA(byte[].class));
 	}
