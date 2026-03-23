@@ -110,24 +110,86 @@ public class CertificateUtility {
 		}
 	}
 
-	private static X509Certificate generateX509Certificate(PrivateKey signPrivateKey, PublicKey publicKey, X500Name certIssuer, X500Name certSubject,
-						String signAlgorithm, String providerName, LocalDateTime notBefore, LocalDateTime notAfter, KeyUsage keyUsage,
-						BasicConstraints basicConstraints) {
-		try {
-			BigInteger certSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
+	private static X509Certificate generateX509Certificate(
+			PrivateKey signPrivateKey,
+			PublicKey publicKey,
+			X500Name certIssuer,
+			X500Name certSubject,
+			String signAlgorithm,
+			String providerName,
+			LocalDateTime notBefore,
+			LocalDateTime notAfter,
+			KeyUsage keyUsage,
+			BasicConstraints basicConstraints) {
 
-			ContentSigner certContentSigner = new JcaContentSignerBuilder(signAlgorithm).setProvider(providerName).build(signPrivateKey);
-			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certIssuer, certSerialNum, getDateFromLocalDateTime(notBefore),
-													getDateFromLocalDateTime(notAfter), certSubject, publicKey);
+		try {
+			System.out.println("DEBUG: Starting certificate generation");
+
+			System.out.println("DEBUG: Private Key = " + signPrivateKey);
+			if (signPrivateKey != null) {
+				System.out.println("DEBUG: Private Key Algorithm = " + signPrivateKey.getAlgorithm());
+				System.out.println("DEBUG: Private Key Format = " + signPrivateKey.getFormat());
+				System.out.println("DEBUG: Private Key Encoded NULL? = " + (signPrivateKey.getEncoded() == null));
+			}
+
+			System.out.println("DEBUG: Public Key = " + publicKey);
+			System.out.println("DEBUG: Issuer = " + certIssuer);
+			System.out.println("DEBUG: Subject = " + certSubject);
+			System.out.println("DEBUG: Algorithm = " + signAlgorithm);
+			System.out.println("DEBUG: Provider = " + providerName);
+
+			BigInteger certSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
+			System.out.println("DEBUG: Serial Number = " + certSerialNum);
+
+			System.out.println("DEBUG: Creating ContentSigner...");
+			ContentSigner certContentSigner = new JcaContentSignerBuilder(signAlgorithm)
+					.setProvider(providerName)
+					.build(signPrivateKey);
+
+			System.out.println("DEBUG: ContentSigner created successfully");
+
+			System.out.println("DEBUG: Building certificate...");
+			X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+					certIssuer,
+					certSerialNum,
+					getDateFromLocalDateTime(notBefore),
+					getDateFromLocalDateTime(notAfter),
+					certSubject,
+					publicKey
+			);
+
+			System.out.println("DEBUG: Adding extensions...");
 			JcaX509ExtensionUtils certExtUtils = new JcaX509ExtensionUtils();
+
 			certBuilder.addExtension(Extension.basicConstraints, true, basicConstraints);
-			certBuilder.addExtension(Extension.subjectKeyIdentifier, false, certExtUtils.createSubjectKeyIdentifier(publicKey));
+			System.out.println("DEBUG: Added basicConstraints");
+
+			certBuilder.addExtension(Extension.subjectKeyIdentifier, false,
+					certExtUtils.createSubjectKeyIdentifier(publicKey));
+			System.out.println("DEBUG: Added subjectKeyIdentifier");
+
 			certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
+			System.out.println("DEBUG: Added keyUsage");
+
+			System.out.println("DEBUG: Building certificate holder...");
 			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);
-			return new JcaX509CertificateConverter().getCertificate(certHolder);
-		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
-			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
-					KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
+
+			System.out.println("DEBUG: Converting to X509Certificate...");
+			X509Certificate cert = new JcaX509CertificateConverter().getCertificate(certHolder);
+
+			System.out.println("DEBUG: Certificate generated successfully");
+
+			return cert;
+
+		} catch (Exception e) {
+			System.out.println("ERROR: Exception during certificate generation");
+			e.printStackTrace();
+
+			throw new KeystoreProcessingException(
+					KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
+					KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(),
+					e
+			);
 		}
 	}
 
