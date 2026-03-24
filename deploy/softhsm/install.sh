@@ -8,7 +8,7 @@ if [ $# -ge 1 ] ; then
 fi
 
 NS=softhsm
-CHART_VERSION=0.0.1-develop
+CHART_VERSION=1.4.0
 
 echo Create $NS namespaces
 kubectl create ns $NS
