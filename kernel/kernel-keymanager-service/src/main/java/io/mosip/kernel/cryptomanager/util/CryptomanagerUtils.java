@@ -234,10 +234,27 @@ public class CryptomanagerUtils {
 	}
 
 	public byte[] generateRandomBytes(int size) {
+
+		System.out.println("Requested Random Byte Size: " + size);
+
 		byte[] randomBytes = new byte[size];
+
 		SecureRandom secureRandom = new SecureRandom();
+		System.out.println("SecureRandom Algorithm: " + secureRandom.getAlgorithm());
+
 		secureRandom.nextBytes(randomBytes);
+
+		System.out.println("Generated Random Bytes Length: " + randomBytes.length);
+		System.out.println("Generated Random Bytes (Hex): " + bytesToHex(randomBytes));
+
 		return randomBytes;
+	}
+	private static String bytesToHex(byte[] bytes) {
+		StringBuilder hex = new StringBuilder(bytes.length * 2);
+		for (byte b : bytes) {
+			hex.append(String.format("%02x", b));
+		}
+		return hex.toString();
 	}
 
 	public byte[] concatByteArrays(byte[] array1, byte[] array2){

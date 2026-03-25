@@ -186,65 +186,178 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 	 */
 	@Override
 	public CryptomanagerResponseDto encrypt(CryptomanagerRequestDto cryptoRequestDto) {
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Request for data encryption.");
-		
-		cryptomanagerUtil.validateKeyIdentifierIds(cryptoRequestDto.getApplicationId(), cryptoRequestDto.getReferenceId());
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT,
+				CryptomanagerConstant.ENCRYPT, "Request for data encryption.");
+
+		System.out.println("ApplicationId: " + cryptoRequestDto.getApplicationId());
+		System.out.println("ReferenceId: " + cryptoRequestDto.getReferenceId());
+		System.out.println("Salt: " + cryptoRequestDto.getSalt());
+		System.out.println("AAD: " + cryptoRequestDto.getAad());
+		System.out.println("Data (Base64): " + cryptoRequestDto.getData());
+
+		cryptomanagerUtil.validateKeyIdentifierIds(
+				cryptoRequestDto.getApplicationId(),
+				cryptoRequestDto.getReferenceId());
+
 		SecretKey secretKey = keyGenerator.getSymmetricKey();
+
+		System.out.println("Generated SecretKey Algorithm: " + secretKey.getAlgorithm());
+		System.out.println("Generated SecretKey Length: " + secretKey.getEncoded().length);
+
 		final byte[] encryptedData;
 		byte[] headerBytes = new byte[0];
-		if (cryptomanagerUtil.isValidSalt(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt()))) {
-			encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
-							cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt())),
-							cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad())));
+
+		if (cryptomanagerUtil.isValidSalt(
+				CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt()))) {
+
+			System.out.println("Salt is valid. Using salt-based encryption.");
+
+			encryptedData = cryptoCore.symmetricEncrypt(
+					secretKey,
+					cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
+					cryptomanagerUtil.decodeBase64Data(
+							CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt())),
+					cryptomanagerUtil.decodeBase64Data(
+							CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad())));
+
 		} else {
-			byte[] aad = cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad()));
-			if (aad == null || aad.length == 0){
+
+			System.out.println("Salt is NOT valid. Checking AAD.");
+
+			byte[] aad = cryptomanagerUtil.decodeBase64Data(
+					CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad()));
+
+			System.out.println("AAD decoded length: " + (aad != null ? aad.length : "null"));
+
+			if (aad == null || aad.length == 0) {
+
+				System.out.println("AAD empty. Generating AAD internally.");
+
 				encryptedData = generateAadAndEncryptData(secretKey, cryptoRequestDto.getData());
 				headerBytes = CryptomanagerConstant.VERSION_RSA_2048;
+
+				System.out.println("HeaderBytes length: " + headerBytes.length);
+
 			} else {
-				encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
-										aad);
+
+				System.out.println("Using provided AAD for encryption.");
+
+				encryptedData = cryptoCore.symmetricEncrypt(
+						secretKey,
+						cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
+						aad);
 			}
 		}
 
+		System.out.println("Encrypted Data Length: " + encryptedData.length);
+
 		Certificate certificate = cryptomanagerUtil.getCertificate(cryptoRequestDto);
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Found the cerificate, proceeding with session key encryption.");
+
+		System.out.println("Certificate Type: " + certificate.getType());
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID,
+				CryptomanagerConstant.ENCRYPT,
+				CryptomanagerConstant.ENCRYPT,
+				"Found the certificate, proceeding with session key encryption.");
+
 		PublicKey publicKey = certificate.getPublicKey();
-		final byte[] encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(publicKey, secretKey.getEncoded());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Session key encryption completed.");
-		//boolean prependThumbprint = cryptoRequestDto.getPrependThumbprint() == null ? false : cryptoRequestDto.getPrependThumbprint();
+
+		System.out.println("Public Key Algorithm: " + publicKey.getAlgorithm());
+		System.out.println("Public Key Format: " + publicKey.getFormat());
+
+		final byte[] encryptedSymmetricKey =
+				cryptoCore.asymmetricEncrypt(publicKey, secretKey.getEncoded());
+
+		System.out.println("Encrypted Symmetric Key Length: " + encryptedSymmetricKey.length);
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID,
+				CryptomanagerConstant.ENCRYPT,
+				CryptomanagerConstant.ENCRYPT,
+				"Session key encryption completed.");
+
 		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
-		// support of 1.1.3 no thumbprint is configured as true & encryption request with no thumbprint
-		// request thumbprint flag will not be considered if support no thumbprint is set to false.
-		//------------------- 
-		// no thumbprint flag will not be required to consider at the time of encryption. So commented the below code.
-		// from 1.2.0.1 version, support of no thumbprint flag will be removed in case of data encryption.
-		/* if (noThumbprint && !prependThumbprint) {
-			byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, encryptedSymmetricKey);
-			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, finalEncKeyBytes, keySplitter)));
-			return cryptoResponseDto;
-		} */ 
-		//---------------------
-		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
-		byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
-		byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
-		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, 
-							finalEncKeyBytes, keySplitter)));
+
+		byte[] certThumbprint =
+				cryptomanagerUtil.getCertificateThumbprint(certificate);
+
+		System.out.println("Certificate Thumbprint Length: " + certThumbprint.length);
+
+		byte[] concatedData =
+				cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
+
+		System.out.println("Concatenated Data Length: " + concatedData.length);
+
+		byte[] finalEncKeyBytes =
+				cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
+
+		System.out.println("Final Enc Key Bytes Length: " + finalEncKeyBytes.length);
+
+		byte[] combinedData =
+				CryptoUtil.combineByteArray(encryptedData, finalEncKeyBytes, keySplitter);
+
+		System.out.println("Combined Data Length: " + combinedData.length);
+
+		String encodedData =
+				CryptoUtil.encodeToURLSafeBase64(combinedData);
+
+		System.out.println("Final Encoded Data: " + encodedData);
+
+		cryptoResponseDto.setData(encodedData);
+
 		return cryptoResponseDto;
 	}
 
 	private byte[] generateAadAndEncryptData(SecretKey secretKey, String data){
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Provided AAD value is null or empty byte array. So generating random 32 bytes for AAD.");
+
+		LOGGER.info(CryptomanagerConstant.SESSIONID,
+				CryptomanagerConstant.ENCRYPT,
+				CryptomanagerConstant.ENCRYPT,
+				"Provided AAD value is null or empty byte array. So generating random 32 bytes for AAD.");
+
+		System.out.println("Input Data (Base64): " + data);
+		System.out.println("SecretKey Algorithm: " + secretKey.getAlgorithm());
+		System.out.println("SecretKey Length: " + secretKey.getEncoded().length);
+
 		byte[] aad = cryptomanagerUtil.generateRandomBytes(CryptomanagerConstant.GCM_AAD_LENGTH);
-        byte[] nonce = new byte[CryptomanagerConstant.GCM_NONCE_LENGTH];
-        System.arraycopy(aad, 0, nonce, 0, CryptomanagerConstant.GCM_NONCE_LENGTH);
-		byte[] encData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(data),
-								nonce, aad);
-		return cryptomanagerUtil.concatByteArrays(aad, encData);
+
+		System.out.println("Generated AAD Length: " + aad.length);
+		System.out.println("Generated AAD (Hex): " + bytesToHex(aad));
+
+		byte[] nonce = new byte[CryptomanagerConstant.GCM_NONCE_LENGTH];
+
+		System.arraycopy(aad, 0, nonce, 0, CryptomanagerConstant.GCM_NONCE_LENGTH);
+
+		System.out.println("Nonce Length: " + nonce.length);
+		System.out.println("Nonce (Hex): " + bytesToHex(nonce));
+
+		byte[] decodedData = cryptomanagerUtil.decodeBase64Data(data);
+
+		System.out.println("Decoded Data Length: " + decodedData.length);
+		System.out.println("Decoded Data (Hex): " + bytesToHex(decodedData));
+
+		byte[] encData = cryptoCore.symmetricEncrypt(
+				secretKey,
+				decodedData,
+				nonce,
+				aad);
+
+		System.out.println("Encrypted Data Length: " + encData.length);
+		System.out.println("Encrypted Data (Hex): " + bytesToHex(encData));
+
+		byte[] finalData = cryptomanagerUtil.concatByteArrays(aad, encData);
+
+		System.out.println("Final Concatenated Data Length: " + finalData.length);
+		System.out.println("Final Data (Hex): " + bytesToHex(finalData));
+
+		return finalData;
+	}
+	private static String bytesToHex(byte[] bytes) {
+		StringBuilder hex = new StringBuilder(bytes.length * 2);
+		for (byte b : bytes) {
+			hex.append(String.format("%02x", b));
+		}
+		return hex.toString();
 	}
 
 	/*
