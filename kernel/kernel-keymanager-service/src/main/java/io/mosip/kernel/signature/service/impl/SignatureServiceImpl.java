@@ -637,13 +637,17 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 					AlgorithmFactoryFactory.getInstance().getJwsAlgorithmFactory().getSupportedAlgorithms());
 			} else {
 				LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"KeyStore Provider Name:" + ecKeyStore.getKeystoreProviderName());
+					"KeyStore Provider Name: " + ecKeyStore.getKeystoreProviderName());
 				if (!ecKeyStore.getKeystoreProviderName().equals(
-						io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.KEYSTORE_TYPE_OFFLINE)) {
+						io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant.KEYSTORE_TYPE_OFFLINE) && !keyAlgorithm.equals(KeymanagerConstant.RSA)) {
 					ProviderContext provContext = new ProviderContext();
 					provContext.getSuppliedKeyProviderContext().setSignatureProvider(ecKeyStore.getKeystoreProviderName());
+					LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+							"Provider context added successfully. Provider context: " + provContext.getSuppliedKeyProviderContext().getSignatureProvider());
 					jws.setProviderContext(provContext);
 				}
+				LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+						"Found Certificate for Signature verification.  Public key algorithm: " + keyAlgorithm);
 				publicKey = certToVerify.getPublicKey();
 			}
 						
