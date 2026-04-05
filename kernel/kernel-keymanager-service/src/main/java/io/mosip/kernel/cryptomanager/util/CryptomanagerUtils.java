@@ -64,6 +64,12 @@ public class CryptomanagerUtils {
 
 	private static ObjectMapper mapper = JsonMapper.builder().addModule(new AfterburnerModule()).build();
 
+	// Single shared instance seeded once at JVM startup. SecureRandom.nextBytes()
+	// is thread-safe (synchronized internally). Static so it survives @RefreshScope
+	// bean recreation and avoids re-seeding overhead (and potential entropy
+	// starvation) at 150 new instances/sec under load.
+	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
 	/** The Constant UTC_DATETIME_PATTERN. */
 	private static final String UTC_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
@@ -235,8 +241,7 @@ public class CryptomanagerUtils {
 
 	public byte[] generateRandomBytes(int size) {
 		byte[] randomBytes = new byte[size];
-		SecureRandom secureRandom = new SecureRandom();
-		secureRandom.nextBytes(randomBytes);
+		SECURE_RANDOM.nextBytes(randomBytes);
 		return randomBytes;
 	}
 

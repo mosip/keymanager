@@ -1,5 +1,6 @@
 package io.mosip.kernel.keymanagerservice.config;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 
@@ -36,9 +37,17 @@ public class ResponseBodyAdviceConfig implements ResponseBodyAdvice<ResponseWrap
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@PostConstruct
+	public void init() {
+		// Register JavaTimeModule once at startup on the shared singleton ObjectMapper.
+		// Registering per-request (150 RPS) creates object churn and mutates shared
+		// state concurrently — both corrected here.
+		objectMapper.registerModule(new JavaTimeModule());
+	}
+
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice#
 	 * supports(org.springframework.core.MethodParameter, java.lang.Class)
@@ -79,7 +88,6 @@ public class ResponseBodyAdviceConfig implements ResponseBodyAdvice<ResponseWrap
 								.getContentAsByteArray());
 			}
 
-			objectMapper.registerModule(new JavaTimeModule());
 			if (!EmptyCheckUtils.isNullEmpty(requestBody)) {
 				requestWrapper = objectMapper.readValue(requestBody, RequestWrapper.class);
 				body.setId(requestWrapper.getId());
