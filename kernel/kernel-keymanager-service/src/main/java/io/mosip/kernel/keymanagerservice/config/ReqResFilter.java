@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.web.util.ContentCachingRequestWrapper;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 
 /**
  * This class is for input logging of all parameters in HTTP requests
@@ -32,18 +31,17 @@ public class ReqResFilter implements Filter {
 			throws IOException, ServletException {
 		HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 		HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-		ContentCachingRequestWrapper requestWrapper = null;
-		ContentCachingResponseWrapper responseWrapper = null;
-
 		// Default processing for url ends with .stream
 		if (httpServletRequest.getRequestURI().endsWith(".stream")) {
 			chain.doFilter(request, response);
 			return;
 		}
-		requestWrapper = new ContentCachingRequestWrapper(httpServletRequest);
-		responseWrapper = new ContentCachingResponseWrapper(httpServletResponse);
-		chain.doFilter(requestWrapper, responseWrapper);
-		responseWrapper.copyBodyToResponse();
+		// Cache only the first 4096 bytes — sufficient for JSON metadata (id, version)
+		// without buffering the full encrypted payload in memory at high RPS.
+		ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(httpServletRequest, 4096);
+		// Pass the actual response directly; response body buffering is not required
+		// since ResponseBodyAdviceConfig only reads request metadata, not the response.
+		chain.doFilter(requestWrapper, httpServletResponse);
 
 	}
 
