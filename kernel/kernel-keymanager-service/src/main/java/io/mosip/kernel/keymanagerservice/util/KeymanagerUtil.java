@@ -400,20 +400,91 @@ public class KeymanagerUtil {
 
 	public Certificate convertToCertificate(String certData) {
 		try {
+			// LOG 1: Raw input check
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"RAW certData length: " + (certData != null ? certData.length() : "NULL"));
+
+			// LOG 2: Check for hidden characters
+			if (certData != null) {
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"certData starts with: [" + certData.substring(0, Math.min(30, certData.length())) + "]");
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"certData ends with: [" + certData.substring(Math.max(0, certData.length() - 30)) + "]");
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"Contains \\r\\n: " + certData.contains("\r\n") +
+								" | Contains \\r: " + certData.contains("\r") +
+								" | Contains \\n: " + certData.contains("\n"));
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"Has BEGIN header: " + certData.contains("-----BEGIN CERTIFICATE-----") +
+								" | Has END footer: " + certData.contains("-----END CERTIFICATE-----"));
+
+				// LOG 3: First 5 char codes (detect BOM or hidden chars)
+				StringBuilder charCodes = new StringBuilder("First 5 char codes: ");
+				for (int i = 0; i < Math.min(5, certData.length()); i++) {
+					charCodes.append((int) certData.charAt(i)).append(" ");
+				}
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE, charCodes.toString());
+			}
+
 			StringReader strReader = new StringReader(certData);
 			PemReader pemReader = new PemReader(strReader);
+
+			// LOG 4: Before readPemObject
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE, "Calling pemReader.readPemObject()...");
+
 			PemObject pemObject = pemReader.readPemObject();
+
+			// LOG 5: PemObject result
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"pemObject is null: " + Objects.isNull(pemObject));
+
 			if (Objects.isNull(pemObject)) {
-				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE, 
-								KeymanagerConstant.CERTIFICATE_PARSE, "Error Parsing Certificate.");
-				throw new KeymanagerServiceException(io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
-								KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());				
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"Error Parsing Certificate. certData dump: [\n" + certData + "\n]");
+				throw new KeymanagerServiceException(
+						io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
+						KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
 			}
+
+			// LOG 6: PemObject type and content size
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"pemObject type: " + pemObject.getType() +
+							" | content bytes length: " + pemObject.getContent().length);
+
 			byte[] certBytes = pemObject.getContent();
 			CertificateFactory certFactory = CertificateFactory.getInstance(KeymanagerConstant.CERTIFICATE_TYPE);
-			return certFactory.generateCertificate(new ByteArrayInputStream(certBytes));
-		} catch(IOException | CertificateException e) {
-			throw new KeymanagerServiceException(KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
+
+			// LOG 7: Before certificate generation
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"Calling certFactory.generateCertificate() with " + certBytes.length + " bytes...");
+
+			Certificate cert = certFactory.generateCertificate(new ByteArrayInputStream(certBytes));
+
+			// LOG 8: Success
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"Certificate parsed successfully. Type: " + cert.getType());
+
+			return cert;
+
+		} catch (IOException | CertificateException e) {
+			// LOG 9: Exception detail
+			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"Exception in convertToCertificate: " + e.getClass().getName() + " - " + e.getMessage());
+			throw new KeymanagerServiceException(
+					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
 					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage() + e.getMessage());
 		}
 	}
