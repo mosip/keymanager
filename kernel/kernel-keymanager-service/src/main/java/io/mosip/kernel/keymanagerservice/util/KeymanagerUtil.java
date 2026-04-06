@@ -63,6 +63,10 @@ import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cms.CMSException;
+import org.bouncycastle.cms.CMSSignedData;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -70,6 +74,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
+import org.bouncycastle.util.Store;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
@@ -400,92 +405,90 @@ public class KeymanagerUtil {
 
 	public Certificate convertToCertificate(String certData) {
 		try {
-			// LOG 1: Raw input check
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE,
-					"RAW certData length: " + (certData != null ? certData.length() : "NULL"));
+			String sanitized = certData.trim();
 
-			// LOG 2: Check for hidden characters
-			if (certData != null) {
+			// Check: PEM hai ya P7B?
+			if (!sanitized.contains("-----BEGIN")) {
 				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
 						KeymanagerConstant.CERTIFICATE_PARSE,
-						"certData starts with: [" + certData.substring(0, Math.min(30, certData.length())) + "]");
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-						KeymanagerConstant.CERTIFICATE_PARSE,
-						"certData ends with: [" + certData.substring(Math.max(0, certData.length() - 30)) + "]");
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-						KeymanagerConstant.CERTIFICATE_PARSE,
-						"Contains \\r\\n: " + certData.contains("\r\n") +
-								" | Contains \\r: " + certData.contains("\r") +
-								" | Contains \\n: " + certData.contains("\n"));
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-						KeymanagerConstant.CERTIFICATE_PARSE,
-						"Has BEGIN header: " + certData.contains("-----BEGIN CERTIFICATE-----") +
-								" | Has END footer: " + certData.contains("-----END CERTIFICATE-----"));
-
-				// LOG 3: First 5 char codes (detect BOM or hidden chars)
-				StringBuilder charCodes = new StringBuilder("First 5 char codes: ");
-				for (int i = 0; i < Math.min(5, certData.length()); i++) {
-					charCodes.append((int) certData.charAt(i)).append(" ");
-				}
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-						KeymanagerConstant.CERTIFICATE_PARSE, charCodes.toString());
+						"No PEM header found. Attempting P7B/PKCS7 parsing...");
+				return convertFromP7B(sanitized);
 			}
 
-			StringReader strReader = new StringReader(certData);
+			// Normal PEM flow
+			StringReader strReader = new StringReader(sanitized);
 			PemReader pemReader = new PemReader(strReader);
-
-			// LOG 4: Before readPemObject
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE, "Calling pemReader.readPemObject()...");
-
 			PemObject pemObject = pemReader.readPemObject();
 
-			// LOG 5: PemObject result
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE,
-					"pemObject is null: " + Objects.isNull(pemObject));
-
 			if (Objects.isNull(pemObject)) {
-				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-						KeymanagerConstant.CERTIFICATE_PARSE,
-						"Error Parsing Certificate. certData dump: [\n" + certData + "\n]");
+				LOGGER.error("Error Parsing Certificate.");
 				throw new KeymanagerServiceException(
 						io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
 						KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
 			}
 
-			// LOG 6: PemObject type and content size
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE,
-					"pemObject type: " + pemObject.getType() +
-							" | content bytes length: " + pemObject.getContent().length);
-
 			byte[] certBytes = pemObject.getContent();
-			CertificateFactory certFactory = CertificateFactory.getInstance(KeymanagerConstant.CERTIFICATE_TYPE);
-
-			// LOG 7: Before certificate generation
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE,
-					"Calling certFactory.generateCertificate() with " + certBytes.length + " bytes...");
-
-			Certificate cert = certFactory.generateCertificate(new ByteArrayInputStream(certBytes));
-
-			// LOG 8: Success
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
-					KeymanagerConstant.CERTIFICATE_PARSE,
-					"Certificate parsed successfully. Type: " + cert.getType());
-
-			return cert;
+			CertificateFactory certFactory = CertificateFactory
+					.getInstance(KeymanagerConstant.CERTIFICATE_TYPE);
+			return certFactory.generateCertificate(new ByteArrayInputStream(certBytes));
 
 		} catch (IOException | CertificateException e) {
-			// LOG 9: Exception detail
+			throw new KeymanagerServiceException(
+					io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
+					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
+		}
+	}
+
+	private Certificate convertFromP7B(String certData) {
+		try {
+			// Base64 decode (URL-safe characters bhi handle karo)
+			String base64 = certData
+					.replaceAll("\\s+", "")
+					.replace('-', '+')   // URL-safe base64 fix
+					.replace('_', '/');  // URL-safe base64 fix
+
+			byte[] p7bBytes = Base64.decodeBase64(base64);
+
+			// PKCS7 parse karo
+			CMSSignedData cmsSignedData = new CMSSignedData(p7bBytes);
+			Store<X509CertificateHolder> certStore = cmsSignedData.getCertificates();
+			Collection<X509CertificateHolder> certHolders = certStore.getMatches(null);
+
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"P7B parsed. Total certificates found: " + certHolders.size());
+
+			// End-entity cert dhundo (CA:FALSE wala)
+			JcaX509CertificateConverter converter = new JcaX509CertificateConverter();
+			for (X509CertificateHolder holder : certHolders) {
+				X509Certificate cert = converter.getCertificate(holder);
+				boolean isCA = cert.getBasicConstraints() != -1;
+
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+						KeymanagerConstant.CERTIFICATE_PARSE,
+						"Cert Subject: " + cert.getSubjectDN() + " | isCA: " + isCA);
+
+				if (!isCA) {
+					LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+							KeymanagerConstant.CERTIFICATE_PARSE,
+							"End-entity certificate selected: " + cert.getSubjectDN());
+					return cert;
+				}
+			}
+
+			// Agar sab CA certs hain toh pehla return karo
+			LOGGER.warn(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
+					KeymanagerConstant.CERTIFICATE_PARSE,
+					"No end-entity cert found in P7B, returning first cert.");
+			return converter.getCertificate(certHolders.iterator().next());
+
+		} catch (CMSException | CertificateException e) {
 			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.CERTIFICATE_PARSE,
 					KeymanagerConstant.CERTIFICATE_PARSE,
-					"Exception in convertToCertificate: " + e.getClass().getName() + " - " + e.getMessage());
+					"P7B parsing failed: " + e.getMessage());
 			throw new KeymanagerServiceException(
 					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
-					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage() + e.getMessage());
+					KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
 		}
 	}
 
