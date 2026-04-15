@@ -617,13 +617,13 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		JsonWebSignature jws = new JsonWebSignature();
 		try {
 			X509Certificate x509CertToVerify = (X509Certificate) certToVerify;
-			boolean validCert = SignatureUtil.isCertificateDatesValid(x509CertToVerify);
-			if (!validCert) {
-				LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
-					"Error certificate dates are not valid.");
-					throw new CertificateNotValidException(SignatureErrorCode.CERT_NOT_VALID.getErrorCode(),
-								SignatureErrorCode.CERT_NOT_VALID.getErrorMessage());
-			}
+//			boolean validCert = SignatureUtil.isCertificateDatesValid(x509CertToVerify);
+//			if (!validCert) {
+//				 LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+//				 	"Error certificate dates are not valid.");
+//					throw new CertificateNotValidException(SignatureErrorCode.CERT_NOT_VALID.getErrorCode(),
+//								SignatureErrorCode.CERT_NOT_VALID.getErrorMessage());
+//			}
 
 			String keyAlgorithm = x509CertToVerify.getPublicKey().getAlgorithm();
 			PublicKey publicKey = null;
