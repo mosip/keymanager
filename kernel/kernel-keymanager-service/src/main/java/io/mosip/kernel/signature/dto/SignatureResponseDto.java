@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @ApiModel(description = "Model representing a Crypto-Manager-Service Response")
 public class SignatureResponseDto {
 	/**
-	 * Data Encrypted/Decrypted in BASE64 encoding
+	 * Data signed in BASE64 encoding
 	 */
 	@ApiModelProperty(notes = "Data encrypted/decrypted in BASE64 encoding")
 	private String data;

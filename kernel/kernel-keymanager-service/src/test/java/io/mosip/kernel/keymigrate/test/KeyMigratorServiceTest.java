@@ -340,7 +340,7 @@ public class KeyMigratorServiceTest {
         KeyAlias tempKeyAlias = new KeyAlias();
         tempKeyAlias.setAlias("temp-alias");
         keyAliasMapTemp.put("currentKeyAlias", Collections.singletonList(tempKeyAlias));
-        
+
         Map<String, List<KeyAlias>> keyAliasMapMaster = new HashMap<>();
         KeyAlias masterKeyAlias = new KeyAlias();
         masterKeyAlias.setAlias("master-alias");
@@ -385,7 +385,7 @@ public class KeyMigratorServiceTest {
         KeyAlias tempKeyAlias = new KeyAlias();
         tempKeyAlias.setAlias("temp-alias");
         keyAliasMapTemp.put("currentKeyAlias", Collections.singletonList(tempKeyAlias));
-        
+
         Map<String, List<KeyAlias>> keyAliasMapMaster = new HashMap<>();
         KeyAlias masterKeyAlias = new KeyAlias();
         masterKeyAlias.setAlias("master-alias");
@@ -418,17 +418,17 @@ public class KeyMigratorServiceTest {
     public void testMigrateZKKeysMultipleKeys() throws Exception {
         ZKKeyMigrateRequestDto requestDto = new ZKKeyMigrateRequestDto();
         List<ZKKeyDataDto> keyDataList = new ArrayList<>();
-        
+
         ZKKeyDataDto keyData1 = new ZKKeyDataDto();
         keyData1.setKeyIndex(1);
         keyData1.setEncryptedKeyData("ZW5jcnlwdGVkLWtleS1kYXRh");
         keyDataList.add(keyData1);
-        
+
         ZKKeyDataDto keyData2 = new ZKKeyDataDto();
         keyData2.setKeyIndex(2);
         keyData2.setEncryptedKeyData("ZW5jcnlwdGVkLWtleS1kYXRh");
         keyDataList.add(keyData2);
-        
+
         requestDto.setZkEncryptedDataList(keyDataList);
         requestDto.setPurgeTempKeyFlag(false);
 
@@ -436,7 +436,7 @@ public class KeyMigratorServiceTest {
         KeyAlias tempKeyAlias = new KeyAlias();
         tempKeyAlias.setAlias("temp-alias");
         keyAliasMapTemp.put("currentKeyAlias", Collections.singletonList(tempKeyAlias));
-        
+
         Map<String, List<KeyAlias>> keyAliasMapMaster = new HashMap<>();
         KeyAlias masterKeyAlias = new KeyAlias();
         masterKeyAlias.setAlias("master-alias");
@@ -475,7 +475,7 @@ public class KeyMigratorServiceTest {
         KeyAlias tempKeyAlias = new KeyAlias();
         tempKeyAlias.setAlias("temp-alias");
         keyAliasMapTemp.put("currentKeyAlias", Collections.singletonList(tempKeyAlias));
-        
+
         Map<String, List<KeyAlias>> keyAliasMapMaster = new HashMap<>();
         KeyAlias masterKeyAlias = new KeyAlias();
         masterKeyAlias.setAlias("master-alias");
@@ -512,7 +512,7 @@ public class KeyMigratorServiceTest {
         KeyAlias tempKeyAlias = new KeyAlias();
         tempKeyAlias.setAlias("temp-alias");
         keyAliasMapTemp.put("currentKeyAlias", Collections.singletonList(tempKeyAlias));
-        
+
         Map<String, List<KeyAlias>> keyAliasMapMaster = new HashMap<>();
         KeyAlias masterKeyAlias = new KeyAlias();
         masterKeyAlias.setAlias("master-alias");
@@ -656,7 +656,7 @@ public class KeyMigratorServiceTest {
         when(cryptoCore.asymmetricDecrypt(any(PrivateKey.class), any(PublicKey.class), any(byte[].class)))
                 .thenReturn(decryptedData);
 
-        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey", 
+        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey",
                 encryptedData, secretKey, privateKey, publicKey);
 
         assertNotNull(result);
@@ -672,7 +672,7 @@ public class KeyMigratorServiceTest {
         when(cryptoCore.asymmetricDecrypt(any(PrivateKey.class), any(PublicKey.class), any(byte[].class)))
                 .thenThrow(new InvalidDataException("KER-CRY-001", "Decryption failed"));
 
-        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey", 
+        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey",
                 encryptedData, secretKey, privateKey, publicKey);
 
         assertNull(result);
@@ -688,7 +688,7 @@ public class KeyMigratorServiceTest {
         when(cryptoCore.asymmetricDecrypt(any(PrivateKey.class), any(PublicKey.class), any(byte[].class)))
                 .thenThrow(new InvalidKeyException("KER-CRY-002", "Invalid key"));
 
-        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey", 
+        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey",
                 encryptedData, secretKey, privateKey, publicKey);
 
         assertNull(result);
@@ -704,14 +704,14 @@ public class KeyMigratorServiceTest {
 
         when(cryptoCore.asymmetricDecrypt(any(PrivateKey.class), any(PublicKey.class), any(byte[].class)))
                 .thenReturn(decryptedData);
-        
+
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "INVALID/ALGORITHM");
 
-        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey", 
+        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey",
                 encryptedData, secretKey, privateKey, publicKey);
 
         assertNull(result);
-        
+
         // Restore original transformation
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "AES/ECB/NoPadding");
     }
@@ -726,14 +726,14 @@ public class KeyMigratorServiceTest {
 
         when(cryptoCore.asymmetricDecrypt(any(PrivateKey.class), any(PublicKey.class), any(byte[].class)))
                 .thenReturn(decryptedData);
-        
+
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "AES/INVALID/NoPadding");
 
-        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey", 
+        byte[] result = (byte[]) ReflectionTestUtils.invokeMethod(keyMigratorService, "encryptRandomKey",
                 encryptedData, secretKey, privateKey, publicKey);
 
         assertNull(result);
-        
+
         // Restore original transformation
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "AES/ECB/NoPadding");
     }

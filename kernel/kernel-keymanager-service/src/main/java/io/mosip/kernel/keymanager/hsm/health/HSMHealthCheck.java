@@ -6,6 +6,7 @@ import java.util.Map;
 
 import javax.crypto.Cipher;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
@@ -121,7 +121,7 @@ public class HSMHealthCheck implements ReactiveHealthIndicator {
             return cachedKeyAlias;
 
         Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(healthCheckDefaultAppId,
-        healthCheckDefaultRefId, DateUtils.getUTCCurrentDateTime());
+        healthCheckDefaultRefId, DateUtils2.getUTCCurrentDateTime());
         List<KeyAlias> currentKeyAliases = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS);
         if (currentKeyAliases.isEmpty() || currentKeyAliases.size() > 1) {
             return EMPTY_STR;

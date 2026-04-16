@@ -1,8 +1,8 @@
 /*
- * 
- * 
- * 
- * 
+ *
+ *
+ *
+ *
  */
 package io.mosip.kernel.keymanagerservice.exception;
 
@@ -12,9 +12,11 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -44,7 +46,6 @@ import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.signatureutil.exception.ParseResponseException;
 import io.mosip.kernel.core.signatureutil.exception.SignatureUtilClientException;
 import io.mosip.kernel.core.signatureutil.exception.SignatureUtilException;
-import io.mosip.kernel.core.util.EmptyCheckUtils;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
 import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -72,9 +73,17 @@ public class KeymanagerExceptionHandler {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@PostConstruct
+	public void init() {
+		// Register JavaTimeModule once at startup. The original code called
+		// registerModule() inside setErrors() which runs on every exception path,
+		// mutating the shared ObjectMapper bean concurrently and creating garbage.
+		objectMapper.registerModule(new JavaTimeModule());
+	}
+
 	@ExceptionHandler(NullDataException.class)
 	public ResponseEntity<ResponseWrapper<ServiceError>> nullDataException(HttpServletRequest httpServletRequest,
-			final NullDataException e) throws IOException {
+																		   final NullDataException e) throws IOException {
 		ExceptionUtils.logRootCause(e);
 		return new ResponseEntity<>(
 				getErrorResponse(httpServletRequest, e.getErrorCode(), e.getErrorText(), HttpStatus.OK), HttpStatus.OK);
@@ -367,17 +376,44 @@ public class KeymanagerExceptionHandler {
 	private ResponseWrapper<ServiceError> setErrors(HttpServletRequest httpServletRequest) throws IOException {
 		ResponseWrapper<ServiceError> responseWrapper = new ResponseWrapper<>();
 		responseWrapper.setResponsetime(LocalDateTime.now(ZoneId.of("UTC")));
-		String requestBody = null;
+
+		byte[] cachedBody = null;
 		if (httpServletRequest instanceof ContentCachingRequestWrapper) {
-			requestBody = new String(((ContentCachingRequestWrapper) httpServletRequest).getContentAsByteArray());
+			cachedBody = ((ContentCachingRequestWrapper) httpServletRequest).getContentAsByteArray();
 		}
-		if (EmptyCheckUtils.isNullEmpty(requestBody)) {
+		if (cachedBody == null || cachedBody.length == 0) {
 			return responseWrapper;
 		}
-		objectMapper.registerModule(new JavaTimeModule());
-		JsonNode reqNode = objectMapper.readTree(requestBody);
-		responseWrapper.setId(reqNode.path("id").asText());
-		responseWrapper.setVersion(reqNode.path("version").asText());
+
+		// Use a streaming JSON parser to extract only the top-level "id" and "version"
+		// fields. The cached body is capped at 4096 bytes (ReqResFilter) so a full
+		// readTree() fails with JsonEOFException when the encrypted "data" field
+		// crosses the truncation boundary. The streaming parser stops as soon as both
+		// fields are found — within the first ~100 bytes — before any truncation.
+		try (JsonParser parser = objectMapper.getFactory().createParser(cachedBody)) {
+			String id = null;
+			String version = null;
+			JsonToken token;
+			while ((token = parser.nextToken()) != null) {
+				if (id != null && version != null) break;
+				if (token == JsonToken.FIELD_NAME) {
+					String fieldName = parser.getCurrentName();
+					token = parser.nextToken();
+					if ("id".equals(fieldName) && token == JsonToken.VALUE_STRING) {
+						id = parser.getText();
+					} else if ("version".equals(fieldName) && token == JsonToken.VALUE_STRING) {
+						version = parser.getText();
+					} else if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
+						if (id != null && version != null) break;
+						parser.skipChildren();
+					}
+				}
+			}
+			if (id != null) responseWrapper.setId(id);
+			if (version != null) responseWrapper.setVersion(version);
+		} catch (Exception e) {
+			// Best-effort: truncated or malformed body won't affect error response structure
+		}
 		return responseWrapper;
 	}
 	

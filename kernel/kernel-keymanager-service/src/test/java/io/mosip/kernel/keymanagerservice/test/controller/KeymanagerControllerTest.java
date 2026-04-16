@@ -462,13 +462,14 @@ public class KeymanagerControllerTest {
         KeyPairGenerateRequestDto keyPairDto = new KeyPairGenerateRequestDto();
         keyPairDto.setApplicationId("TEST");
         keyPairDto.setReferenceId("");
-        keyPairDto.setForce(true);
+        keyPairDto.setForce(false);
         request.setRequest(keyPairDto);
 
         mockMvc.perform(post("/generateMasterKey/CERTIFICATE")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").exists());
     }
 
     @Test

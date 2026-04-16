@@ -12,11 +12,11 @@ import java.util.Set;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.keymanagerservice.entity.CACertificateStore;
 import io.mosip.kernel.keymanagerservice.entity.PartnerCertificateStore;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
@@ -84,8 +84,8 @@ public class PartnerCertManagerDBHelper {
                     X509Certificate reqX509Cert, String certThumbprint, String partnerDomain, String caCertType) {
 
         String certSerialNo = reqX509Cert.getSerialNumber().toString();
-        LocalDateTime notBeforeDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
-        LocalDateTime notAfterDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotAfter());
+        LocalDateTime notBeforeDate = DateUtils2.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
+        LocalDateTime notAfterDate = DateUtils2.parseDateToLocalDateTime(reqX509Cert.getNotAfter());
         String certData = keymanagerUtil.getPEMFormatedData(reqX509Cert);
         CACertificateStore certStoreObj = new CACertificateStore();
         certStoreObj.setCertId(certId);
@@ -125,7 +125,7 @@ public class PartnerCertManagerDBHelper {
     }
 
     public String getIssuerCertId(String certIssuerDn) {
-        LocalDateTime currentDateTime = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime currentDateTime = DateUtils2.getUTCCurrentDateTime();
         List<CACertificateStore> certificates = caCertificateStoreRepository.findByCertSubject(certIssuerDn)
                         .stream().filter(cert -> PartnerCertificateManagerUtil.isValidTimestamp(currentDateTime, cert))
                         .collect(Collectors.toList());
@@ -144,8 +144,8 @@ public class PartnerCertManagerDBHelper {
                     String signedCertData) {
 
         String certSerialNo = reqX509Cert.getSerialNumber().toString();
-        LocalDateTime notBeforeDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
-        LocalDateTime notAfterDate = DateUtils.parseDateToLocalDateTime(reqX509Cert.getNotAfter());
+        LocalDateTime notBeforeDate = DateUtils2.parseDateToLocalDateTime(reqX509Cert.getNotBefore());
+        LocalDateTime notAfterDate = DateUtils2.parseDateToLocalDateTime(reqX509Cert.getNotAfter());
         String certData = keymanagerUtil.getPEMFormatedData(reqX509Cert);
         
         PartnerCertificateStore partnerStoreObj = new PartnerCertificateStore();

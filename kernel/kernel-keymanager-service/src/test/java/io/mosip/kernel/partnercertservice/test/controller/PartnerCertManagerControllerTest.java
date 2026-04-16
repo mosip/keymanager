@@ -359,7 +359,7 @@ public class PartnerCertManagerControllerTest {
     @Test
     public void testUploadCACertificate_AllDomains() throws Exception {
         String[] domains = {"FTM", "DEVICE", "AUTH"};
-        
+
         for (String domain : domains) {
             RequestWrapper<CACertificateRequestDto> request = new RequestWrapper<>();
             CACertificateRequestDto requestDto = new CACertificateRequestDto();

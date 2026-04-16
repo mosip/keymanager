@@ -42,7 +42,7 @@ import io.mosip.kernel.core.keymanager.exception.NoSuchSecurityProviderException
 import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keygenerator.bouncycastle.constant.KeyGeneratorExceptionConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
@@ -150,7 +150,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		provider = setupProvider(configPath);
 		addProvider(provider);
 		this.keyStore = getKeystoreInstance(keystoreType, provider);
-		lastProviderLoadedTime = DateUtils.getUTCCurrentDateTime();
+		lastProviderLoadedTime = DateUtils2.getUTCCurrentDateTime();
 		this.secureRandom = getSecureRandom();
 		
     }
@@ -333,7 +333,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 
 	private synchronized void reloadProvider() {
 		LOGGER.info("sessionId", "KeyStoreImpl", "KeyStoreImpl", "reloading provider");
-		if(DateUtils.getUTCCurrentDateTime().isBefore(
+		if(DateUtils2.getUTCCurrentDateTime().isBefore(
 				lastProviderLoadedTime.plusSeconds(PROVIDER_ALLOWED_RELOAD_INTERVEL_IN_SECONDS))) {
 			LOGGER.warn("sessionId", "KeyStoreImpl", "reloadProvider", 
 				"Last time successful reload done on " + lastProviderLoadedTime.toString() + 
@@ -349,7 +349,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 			Security.removeProvider(existingProviderName);
 		addProvider(provider);
 		this.keyStore = getKeystoreInstance(keystoreType, provider);
-		lastProviderLoadedTime = DateUtils.getUTCCurrentDateTime();
+		lastProviderLoadedTime = DateUtils2.getUTCCurrentDateTime();
 	}
 
 	/*

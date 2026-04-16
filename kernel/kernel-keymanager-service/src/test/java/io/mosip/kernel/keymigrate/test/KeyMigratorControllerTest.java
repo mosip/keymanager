@@ -80,9 +80,9 @@ public class KeyMigratorControllerTest {
         requestWrapper.setRequest(requestDto);
 
         mockMvc.perform(post("/migrateBaseKey")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestWrapper)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestWrapper)))
                 .andExpect(status().isOk());
     }
 
@@ -94,7 +94,7 @@ public class KeyMigratorControllerTest {
         when(keyMigratorService.getZKTempCertificate()).thenReturn(responseDto);
 
         mockMvc.perform(get("/getZKTempCertificate")
-                .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
@@ -114,9 +114,9 @@ public class KeyMigratorControllerTest {
         requestWrapper.setRequest(requestDto);
 
         mockMvc.perform(post("/migrateZKKeys")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestWrapper)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestWrapper)))
                 .andExpect(status().isOk());
     }
 }
