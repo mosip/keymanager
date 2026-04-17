@@ -52,7 +52,7 @@ public enum SignatureErrorCode {
 
     UNTAGGED_COSE_SIGN1("KER-SIG-120", "Untagged COSE Sign1 not found"),
 
-    TAGGED_COSE_SIGN1("KER-SIG-121", "Tagged COSE Sign1 not found");
+    TAGGED_COSE_SIGN1("KER-CWS-121", "Tagged COSE Sign1 not found");
 
 	private final String errorCode;
 	private final String errorMessage;

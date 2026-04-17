@@ -206,48 +206,41 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                 "COSE Signature Verification Request.");
 
-        try {
-            String coseHexdata = requestDto.getCoseSignedData();
-            if (!SignatureUtil.isDataValid(coseHexdata)) {
-                LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
-                        "Provided COSE Signed data is invalid.");
-                throw new RequestException(SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorCode(),
-                        SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorMessage());
-            }
-
-            String reqCertData = SignatureUtil.isDataValid(requestDto.getCertificateData()) ? requestDto.getCertificateData() : null;
-            String applicationId = requestDto.getApplicationId();
-            String referenceId = requestDto.getReferenceId() == null ? SignatureConstant.BLANK : requestDto.getReferenceId();
-            if (!keymanagerUtil.isValidApplicationId(applicationId)) {
-                applicationId = signApplicationid;
-                referenceId = signRefid;
-            }
-
-            byte[] coseData = signatureUtil.decodeHex(coseHexdata);
-            CBORDecoder cborDecoder = new CBORDecoder(coseData);
-            boolean isIncludeCoseTag = !Boolean.FALSE.equals(requestDto.getIsCOSETagIncluded());
-
-            COSESign1 coseSign1;
-            if (isIncludeCoseTag)
-                coseSign1 = parseTaggedCoseSign1(cborDecoder);
-            else
-                coseSign1 = parseUntaggedCoseSign1(cborDecoder);
-
-            boolean signatureValid = verifyCoseSignature(coseSign1, reqCertData, applicationId, referenceId);
-            LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
-                    "COSE Signature Verification Status: " + signatureValid);
-
-            CoseSignVerifyResponseDto responseDto = new CoseSignVerifyResponseDto();
-            responseDto.setSignatureValid(signatureValid);
-            responseDto.setMessage(signatureValid ? SignatureConstant.VALIDATION_SUCCESSFUL : SignatureConstant.VALIDATION_FAILED);
-            responseDto.setTrustValid(validateTrustForCose(applicationId, referenceId, coseSign1, reqCertData, requestDto));
-            return responseDto;
-        } catch (Exception e) {
+        String coseHexdata = requestDto.getCoseSignedData();
+        if (!SignatureUtil.isDataValid(coseHexdata)) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
-                    "COSE Verification failed due to error: {}", e.getMessage(), e);
-            throw new SignatureFailureException(SignatureErrorCode.COSE_VERIFY_ERROR.getErrorCode(),
-                    SignatureErrorCode.COSE_VERIFY_ERROR.getErrorMessage(), e);
+                    "Provided COSE Signed data is invalid.");
+            throw new RequestException(SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorCode(),
+                    SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorMessage());
         }
+
+        String reqCertData = SignatureUtil.isDataValid(requestDto.getCertificateData()) ? requestDto.getCertificateData() : null;
+        String applicationId = requestDto.getApplicationId();
+        String referenceId = requestDto.getReferenceId() == null ? SignatureConstant.BLANK : requestDto.getReferenceId();
+        if (!keymanagerUtil.isValidApplicationId(applicationId)) {
+            applicationId = signApplicationid;
+            referenceId = signRefid;
+        }
+
+        byte[] coseData = signatureUtil.decodeHex(coseHexdata);
+        CBORDecoder cborDecoder = new CBORDecoder(coseData);
+        boolean isIncludeCoseTag = !Boolean.FALSE.equals(requestDto.getIsCOSETagIncluded());
+
+        COSESign1 coseSign1;
+        if (isIncludeCoseTag)
+            coseSign1 = parseTaggedCoseSign1(cborDecoder);
+        else
+            coseSign1 = parseUntaggedCoseSign1(cborDecoder);
+
+        boolean signatureValid = verifyCoseSignature(coseSign1, reqCertData, applicationId, referenceId);
+        LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
+                "COSE Signature Verification Status: " + signatureValid);
+
+        CoseSignVerifyResponseDto responseDto = new CoseSignVerifyResponseDto();
+        responseDto.setSignatureValid(signatureValid);
+        responseDto.setMessage(signatureValid ? SignatureConstant.VALIDATION_SUCCESSFUL : SignatureConstant.VALIDATION_FAILED);
+        responseDto.setTrustValid(validateTrustForCose(applicationId, referenceId, coseSign1, reqCertData, requestDto));
+        return responseDto;
     }
 
     private String validateTrustForCose(String appId, String refId, COSESign1 coseSign1, String reqCertData, CoseSignVerifyRequestDto requestDto) {
@@ -664,7 +657,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                 throw new RequestException(SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorCode(),
                         SignatureErrorCode.INVALID_COSE_SIGN1_INPUT.getErrorMessage());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                     "Error occurred while parsing COSE Sign1 Tagged Content" + e);
             throw new RequestException(SignatureErrorCode.TAGGED_COSE_SIGN1.getErrorCode(),
