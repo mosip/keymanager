@@ -42,6 +42,7 @@ public class SignatureUtilTest {
     private KeyAliasRepository keyAliasRepository;
 
     private String testUniqueId = "1234567890ABCDEF";
+    private X509Certificate testX509Certificate;
 
     @Before
     public void setUp() {
@@ -49,6 +50,8 @@ public class SignatureUtilTest {
         keyPairGenRequestDto.setApplicationId("ROOT");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+        KeyPairGenerateResponseDto certResponse = keymanagerService.getCertificate("ROOT", Optional.of(""));
+        testX509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certResponse.getCertificate());
     }
 
     @After
@@ -167,8 +170,8 @@ public class SignatureUtilTest {
 
     @Test
     public void testGetJWSHeaderV2WithNullHeaders() {
-        var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false, 
-            null, null, testUniqueId, false, "", null);
+        var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false,
+            null, testX509Certificate, testUniqueId, false, "", null);
         Assert.assertNotNull(header);
     }
 
