@@ -669,9 +669,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 	}
 
 	@Override
-	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify)
-		@Override
-	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate headerCertificate, String reqCertData)  {
+	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertToVerify) {
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation.");
 		boolean validateTrust = SignatureUtil.isIncludeAttrsValid(jwtVerifyRequestDto.getValidateTrust());

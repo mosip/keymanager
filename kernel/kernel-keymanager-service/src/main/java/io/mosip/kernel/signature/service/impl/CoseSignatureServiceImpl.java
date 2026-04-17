@@ -261,17 +261,17 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                     "Certificate not found in COSE Header.");
             KeyPairGenerateResponseDto certificateResponse = keymanagerService.getCertificate(appId, Optional.of(refId));
             Certificate reqCertToVerify = keymanagerUtil.convertToCertificate(certificateResponse.getCertificate());
-            return signatureService.validateTrust(jwtVerifyRequestDto, reqCertToVerify, certificateResponse.getCertificate());
+            return signatureService.validateTrust(jwtVerifyRequestDto, reqCertToVerify);
         } else if (x5Chain == null) {
             LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_VERIFY, SignatureConstant.BLANK,
                     "Certificate not found in COSE Header. Using certificate provided Certificate Data.");
-            return signatureService.validateTrust(jwtVerifyRequestDto, keymanagerUtil.convertToCertificate(reqCertData), reqCertData);
+            return signatureService.validateTrust(jwtVerifyRequestDto, keymanagerUtil.convertToCertificate(reqCertData));
         } else if (x5Chain.size() > 1) {
             List<Certificate> certificateList = new ArrayList<>(x5Chain);
             return signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList, reqCertData);
         } else {
             Certificate certificate = x5Chain.getFirst();
-            return signatureService.validateTrust(jwtVerifyRequestDto, certificate, reqCertData);
+            return signatureService.validateTrust(jwtVerifyRequestDto, certificate);
         }
     }
 
