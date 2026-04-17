@@ -1,7 +1,7 @@
-package io.mosip.kernel.signature.test.Util;
+package io.mosip.kernel.signature.test.util;
 
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
@@ -213,19 +213,19 @@ public class SignatureUtilTest {
 
     @Test
     public void testIsNotBeforeDateValid() {
-        Date pastDate = DateUtils.addDays(new Date(), -1);
+        Date pastDate = DateUtils2.addDays(new Date(), -1);
         Assert.assertTrue(signatureUtil.isNotBeforeDateValid(pastDate));
         
-        Date futureDate = DateUtils.addDays(new Date(), 1);
+        Date futureDate = DateUtils2.addDays(new Date(), 1);
         Assert.assertFalse(signatureUtil.isNotBeforeDateValid(futureDate));
     }
 
     @Test
     public void testIsExpireDateValid() {
-        Date futureDate = DateUtils.addDays(new Date(), 1);
+        Date futureDate = DateUtils2.addDays(new Date(), 1);
         Assert.assertTrue(signatureUtil.isExpireDateValid(futureDate));
         
-        Date pastDate = DateUtils.addDays(new Date(), -1);
+        Date pastDate = DateUtils2.addDays(new Date(), -1);
         Assert.assertFalse(signatureUtil.isExpireDateValid(pastDate));
     }
 
