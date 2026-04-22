@@ -2,6 +2,7 @@ package io.mosip.kernel.keymanagerservice.test.util;
 
 import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -22,6 +23,7 @@ import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.signature.util.SignatureUtil;
+import io.mosip.kernel.core.util.CryptoUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,7 +36,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import io.mosip.kernel.core.keymanager.exception.KeystoreProcessingException;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
@@ -48,21 +50,21 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class KeymanagerUtilTest {
 
-	@MockBean
-	private KeyAliasRepository keyAliasRepository;
+    @MockBean
+    private KeyAliasRepository keyAliasRepository;
 
-	@MockBean
-	private KeyPolicyRepository keyPolicyRepository;
+    @MockBean
+    private KeyPolicyRepository keyPolicyRepository;
 
-	@MockBean
-	private KeyStoreRepository keyStoreRepository;
+    @MockBean
+    private KeyStoreRepository keyStoreRepository;
 
-	@Autowired
-	private KeymanagerUtil keymanagerUtil;
+    @Autowired
+    private KeymanagerUtil keymanagerUtil;
 
-	private KeyPair keyPairMaster;
+    private KeyPair keyPairMaster;
 
-	private KeyPair keyPair;
+    private KeyPair keyPair;
 
 	private X509Certificate[] chain;
     @Autowired
@@ -72,29 +74,29 @@ public class KeymanagerUtilTest {
 	public void setupKey() throws NoSuchAlgorithmException {
 		BouncyCastleProvider provider = new BouncyCastleProvider();
         Security.addProvider(provider);
-		KeyPairGenerator keyGen = KeyPairGenerator.getInstance(KeymanagerConstant.RSA);
-		keyGen.initialize(2048);
-		keyPairMaster = keyGen.generateKeyPair();
-		keyPair = keyGen.generateKeyPair();
-		X509Certificate x509Certificate = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "mosip", "mosip", "mosip",
-				"india", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00), "SHA256withRSA", "BC");
-		chain = new X509Certificate[1];
-		chain[0] = x509Certificate;
-	}
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance(KeymanagerConstant.RSA);
+        keyGen.initialize(2048);
+        keyPairMaster = keyGen.generateKeyPair();
+        keyPair = keyGen.generateKeyPair();
+        X509Certificate x509Certificate = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "mosip", "mosip", "mosip",
+                "india", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00), "SHA256withRSA", "BC");
+        chain = new X509Certificate[1];
+        chain[0] = x509Certificate;
+    }
 
-	@Test
-	public void encryptdecryptPrivateKeyTest() {
-		byte[] key = keymanagerUtil.encryptKey(keyPair.getPrivate(), keyPairMaster.getPublic());
-		assertThat(key, isA(byte[].class));
-		assertThat(keymanagerUtil.decryptKey(key, keyPairMaster.getPrivate(), keyPairMaster.getPublic()), isA(byte[].class));
-	}
+    @Test
+    public void encryptdecryptPrivateKeyTest() {
+        byte[] key = keymanagerUtil.encryptKey(keyPair.getPrivate(), keyPairMaster.getPublic());
+        assertThat(key, isA(byte[].class));
+        assertThat(keymanagerUtil.decryptKey(key, keyPairMaster.getPrivate(), keyPairMaster.getPublic()), isA(byte[].class));
+    }
 
-	@Test(expected = KeystoreProcessingException.class)
-	public void isCertificateValidExceptionTest() {
-		CertificateEntry<X509Certificate, PrivateKey> certificateEntry = new CertificateEntry<X509Certificate, PrivateKey>(
-				chain, keyPair.getPrivate());
-		keymanagerUtil.isCertificateValid(certificateEntry, DateUtils.parseUTCToDate("2019-05-01T12:00:00.00Z"));
-	}
+    @Test(expected = KeystoreProcessingException.class)
+    public void isCertificateValidExceptionTest() {
+        CertificateEntry<X509Certificate, PrivateKey> certificateEntry = new CertificateEntry<X509Certificate, PrivateKey>(
+                chain, keyPair.getPrivate());
+        keymanagerUtil.isCertificateValid(certificateEntry, DateUtils2.parseUTCToDate("2019-05-01T12:00:00.00Z"));
+    }
 
 	@Test
 	public void testIsValidTimestamp() {

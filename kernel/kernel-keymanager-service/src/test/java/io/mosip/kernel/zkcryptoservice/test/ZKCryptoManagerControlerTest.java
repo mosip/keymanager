@@ -73,9 +73,9 @@ public class ZKCryptoManagerControlerTest {
         when(zkCryptoManagerService.zkEncrypt(any(ZKCryptoRequestDto.class))).thenReturn(responseDto);
 
         mockMvc.perform(post("/zkEncrypt")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestWrapper))
-                .with(csrf()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestWrapper))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response.zkDataAttributes[0].identifier").value("name"))
                 .andExpect(jsonPath("$.response.zkDataAttributes[0].value").value("John Doe"))
@@ -110,9 +110,9 @@ public class ZKCryptoManagerControlerTest {
         when(zkCryptoManagerService.zkDecrypt(any(ZKCryptoRequestDto.class))).thenReturn(responseDto);
 
         mockMvc.perform(post("/zkDecrypt")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestWrapper))
-                .with(csrf()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestWrapper))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response.zkDataAttributes[0].identifier").value("name"))
                 .andExpect(jsonPath("$.response.zkDataAttributes[0].value").value("DecryptedValue"));
@@ -129,8 +129,8 @@ public class ZKCryptoManagerControlerTest {
         when(zkCryptoManagerService.zkReEncryptRandomKey(any(String.class))).thenReturn(responseDto);
 
         mockMvc.perform(post("/zkReEncryptRandomKey")
-                .param("encryptedKey", encryptedKey)
-                .with(csrf()))
+                        .param("encryptedKey", encryptedKey)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response.encryptedKey").value("reEncryptedKey"));
     }
@@ -147,9 +147,9 @@ public class ZKCryptoManagerControlerTest {
         when(authorizedRolesDTO.getPostzkencrypt()).thenReturn(List.of("ZONAL_ADMIN"));
 
         mockMvc.perform(post("/zkEncrypt")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestWrapper))
-                .with(csrf()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestWrapper))
+                        .with(csrf()))
                 .andExpect(status().isBadRequest());
     }
 

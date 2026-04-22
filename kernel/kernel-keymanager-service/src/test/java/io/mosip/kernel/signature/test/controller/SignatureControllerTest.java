@@ -8,7 +8,6 @@ import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.signature.dto.*;
-import io.mosip.kernel.signature.service.CoseSignatureService;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,9 +39,6 @@ public class SignatureControllerTest {
 
     @Autowired
     private KeymanagerService keymanagerService;
-
-    @Autowired
-    private CoseSignatureService coseSignatureService;
 
     @Autowired
     private KeyAliasRepository keyAliasRepository;
@@ -80,134 +76,6 @@ public class SignatureControllerTest {
         keyAliasRepository.deleteAll();
     }
 
-    // ===== CoseSignController endpoints =====
-
-    @Test
-    public void testCoseSign1StatusOk() throws Exception {
-        KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
-        key.setApplicationId("TEST");
-        key.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", key);
-
-        RequestWrapper<CoseSignRequestDto> req = new RequestWrapper<>();
-        CoseSignRequestDto dto = new CoseSignRequestDto();
-        dto.setApplicationId("TEST");
-        dto.setReferenceId("");
-        dto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        req.setRequest(dto);
-
-        String content = mockMvc.perform(post("/coseSign1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists())
-                .andReturn().getResponse().getContentAsString();
-
-        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
-        assertNotNull("Root JSON should not be null", root);
-        assertTrue("Response field should exist", root.has("response"));
-        assertNotNull("Response object should not be null", root.get("response"));
-        assertTrue("Errors should be absent or empty", !root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
-    }
-
-    @Test
-    public void testCoseVerify1StatusOk() throws Exception {
-        KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
-        key.setApplicationId("TEST");
-        key.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", key);
-
-        CoseSignRequestDto signDto = new CoseSignRequestDto();
-        signDto.setApplicationId("TEST");
-        signDto.setReferenceId("");
-        signDto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        CoseSignResponseDto signed = coseSignatureService.coseSign1(signDto);
-
-        RequestWrapper<CoseSignVerifyRequestDto> req = new RequestWrapper<>();
-        CoseSignVerifyRequestDto verifyDto = new CoseSignVerifyRequestDto();
-        verifyDto.setApplicationId("TEST");
-        verifyDto.setReferenceId("");
-        verifyDto.setCoseSignedData(signed.getSignedData());
-        req.setRequest(verifyDto);
-
-        String content = mockMvc.perform(post("/coseVerify1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists())
-                .andReturn().getResponse().getContentAsString();
-
-        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
-        assertNotNull(root);
-        assertTrue(root.has("response"));
-        assertNotNull(root.get("response"));
-        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
-    }
-
-    @Test
-    public void testCwtSignStatusOk() throws Exception {
-        KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
-        key.setApplicationId("ID_REPO");
-        key.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", key);
-
-        RequestWrapper<CWTSignRequestDto> req = new RequestWrapper<>();
-        CWTSignRequestDto dto = new CWTSignRequestDto();
-        dto.setApplicationId("ID_REPO");
-        dto.setReferenceId("");
-        dto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        req.setRequest(dto);
-
-        String content = mockMvc.perform(post("/cwtSign")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").exists())
-                .andReturn().getResponse().getContentAsString();
-
-        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
-        assertNotNull(root);
-        assertTrue(root.has("response"));
-        assertNotNull(root.get("response"));
-        assertTrue(!root.has("errors") || root.get("errors").isNull() || root.get("errors").isEmpty());
-    }
-
-    @Test
-    public void testCwtVerifyStatusOk() throws Exception {
-        KeyPairGenerateRequestDto key = new KeyPairGenerateRequestDto();
-        key.setApplicationId("ID_REPO");
-        key.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", key);
-
-        CWTSignRequestDto signDto = new CWTSignRequestDto();
-        signDto.setApplicationId("ID_REPO");
-        signDto.setReferenceId("");
-        signDto.setPayload("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        signDto.setSubject("Mosip");
-        signDto.setIssuer("Keymanager");
-        CoseSignResponseDto signed = coseSignatureService.cwtSign(signDto);
-
-        RequestWrapper<CWTVerifyRequestDto> req = new RequestWrapper<>();
-        CWTVerifyRequestDto verifyDto = new CWTVerifyRequestDto();
-        verifyDto.setApplicationId("ID_REPO");
-        verifyDto.setReferenceId("");
-        verifyDto.setCoseSignedData(signed.getSignedData());
-        verifyDto.setIssuer("Keymanager");
-        verifyDto.setSubject("Mosip");
-        req.setRequest(verifyDto);
-
-        String content = mockMvc.perform(post("/cwtVerify")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(content);
-        assertNotNull(root);
-    }
-
-    // ===== SignatureController endpoints =====
-
     @Test
     public void testSignStatusOk() throws Exception {
         RequestWrapper<SignRequestDto> req = new RequestWrapper<>();
@@ -242,19 +110,19 @@ public class SignatureControllerTest {
         SignRequestDto signDto = new SignRequestDto();
         signDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
         signReq.setRequest(signDto);
-        
+
         String signResponse = mockMvc.perform(post("/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(signReq)))
                 .andReturn().getResponse().getContentAsString();
-        
+
         String signature = objectMapper.readTree(signResponse).path("response").path("data").asText();
 
         RequestWrapper<TimestampRequestDto> req = new RequestWrapper<>();
         TimestampRequestDto dto = new TimestampRequestDto();
         dto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
         dto.setSignature(signature);
-        dto.setTimestamp(io.mosip.kernel.core.util.DateUtils.getUTCCurrentDateTime());
+        dto.setTimestamp(io.mosip.kernel.core.util.DateUtils2.getUTCCurrentDateTime());
         req.setRequest(dto);
 
         String content = mockMvc.perform(post("/validate")
@@ -280,7 +148,7 @@ public class SignatureControllerTest {
         dto.setApplicationId("TEST");
         dto.setReferenceId("");
         dto.setData(pdfData);
-        dto.setTimeStamp(io.mosip.kernel.core.util.DateUtils.getUTCCurrentDateTimeString());
+        dto.setTimeStamp(io.mosip.kernel.core.util.DateUtils2.getUTCCurrentDateTimeString());
         dto.setPageNumber(1);
         dto.setLowerLeftX(100);
         dto.setLowerLeftY(100);

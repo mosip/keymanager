@@ -15,12 +15,13 @@
 		<!-- maven -->
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
-		<maven.compiler.version>3.9.6</maven.compiler.version>
+		<maven.compiler.version>3.9.0</maven.compiler.version>
 
 		<maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
 		<maven.war.plugin.version>3.1.0</maven.war.plugin.version>
 		<maven.javadoc.version>3.6.3</maven.javadoc.version>
 		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
+		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
@@ -112,6 +113,7 @@
 			<url>https://central.sonatype.com/api/v1/publisher</url>
 		</repository>
 	</distributionManagement>
+
 	<build>
 		<plugins>
 			<plugin>

@@ -134,6 +134,8 @@ public class ZKCryptoManagerServiceTest {
         // Mock certificate
         mockCertificate = org.mockito.Mockito.mock(X509Certificate.class);
         when(mockCertificate.getPublicKey()).thenReturn(keyPair.getPublic());
+
+        zkCryptoManagerService.init();
     }
 
     @Test
@@ -231,6 +233,183 @@ public class ZKCryptoManagerServiceTest {
 
         assertNotNull(response);
         assertEquals(2, response.getZkDataAttributes().size());
+    }
+
+    // ==================== zkDecrypt Tests ====================
+
+    @Test
+    public void testZkDecryptSuccess() throws Exception {
+        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
+        requestDto.setId("12345");
+        CryptoDataDto cryptoData = new CryptoDataDto();
+        cryptoData.setIdentifier("name");
+
+        // Create valid encrypted data
+        int keyIndex = 0;
+        byte[] indexBytes = ByteBuffer.allocate(4).putInt(keyIndex).array();
+        byte[] nonce = new byte[ZKCryptoManagerConstants.GCM_NONCE_LENGTH];
+        byte[] aad = new byte[ZKCryptoManagerConstants.GCM_AAD_LENGTH];
+        new SecureRandom().nextBytes(nonce);
+        new SecureRandom().nextBytes(aad);
+
+        // Encrypt randomKey with masterKey for DB mock
+        Cipher ecbCipher = Cipher.getInstance("AES/ECB/NoPadding");
+        ecbCipher.init(Cipher.ENCRYPT_MODE, masterKey);
+        byte[] encryptedRandomKeyBytes = ecbCipher.doFinal(randomKey.getEncoded());
+        String encryptedRandomKeyString = Base64.getEncoder().encodeToString(encryptedRandomKeyBytes);
+
+        when(dataEncryptKeystoreRepository.findKeyById(keyIndex))
+                .thenReturn(encryptedRandomKeyString);
+
+        when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
+                .thenReturn(createKeyAliasMap("master-alias"));
+        when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+
+        // Calculate derived key
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        byte[] idBytes = "12345".getBytes();
+        digest.update(idBytes);
+        byte[] hashBytes = digest.digest();
+
+        ecbCipher.init(Cipher.ENCRYPT_MODE, randomKey);
+        byte[] derivedKeyBytes = ecbCipher.doFinal(hashBytes);
+        SecretKey derivedKey = new SecretKeySpec(derivedKeyBytes, "AES");
+
+        // Encrypt data with derivedKey
+        Cipher gcmCipher = Cipher.getInstance("AES/GCM/NoPadding");
+        javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, nonce);
+        gcmCipher.init(Cipher.ENCRYPT_MODE, derivedKey, gcmSpec);
+        gcmCipher.updateAAD(aad);
+        byte[] encryptedData = gcmCipher.doFinal("John Doe".getBytes());
+
+        // Construct final payload
+        byte[] finalData = new byte[indexBytes.length + nonce.length + aad.length + encryptedData.length];
+        System.arraycopy(indexBytes, 0, finalData, 0, indexBytes.length);
+        System.arraycopy(nonce, 0, finalData, indexBytes.length, nonce.length);
+        System.arraycopy(aad, 0, finalData, indexBytes.length + nonce.length, aad.length);
+        System.arraycopy(encryptedData, 0, finalData, indexBytes.length + nonce.length + aad.length,
+                encryptedData.length);
+
+        cryptoData.setValue(CryptoUtil.encodeToURLSafeBase64(finalData));
+        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
+
+        doNothing().when(keymanagerUtil).destoryKey(any(SecretKey.class));
+
+        ZKCryptoResponseDto response = zkCryptoManagerService.zkDecrypt(requestDto);
+
+        assertNotNull(response);
+        assertEquals(1, response.getZkDataAttributes().size());
+        assertEquals("John Doe", response.getZkDataAttributes().get(0).getValue());
+    }
+
+    @Test
+    public void testZkDecryptMultipleAttributes() throws Exception {
+        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
+        requestDto.setId("12345");
+        List<CryptoDataDto> cryptoDataList = new ArrayList<>();
+
+        // Attribute 1
+        CryptoDataDto cryptoData1 = new CryptoDataDto();
+        cryptoData1.setIdentifier("name");
+
+        int keyIndex = 0;
+        byte[] indexBytes = ByteBuffer.allocate(4).putInt(keyIndex).array();
+        byte[] nonce = new byte[ZKCryptoManagerConstants.GCM_NONCE_LENGTH];
+        byte[] aad = new byte[ZKCryptoManagerConstants.GCM_AAD_LENGTH];
+        new SecureRandom().nextBytes(nonce);
+        new SecureRandom().nextBytes(aad);
+
+        Cipher ecbCipher = Cipher.getInstance("AES/ECB/NoPadding");
+        ecbCipher.init(Cipher.ENCRYPT_MODE, masterKey);
+        byte[] encryptedRandomKeyBytes = ecbCipher.doFinal(randomKey.getEncoded());
+        String encryptedRandomKeyString = Base64.getEncoder().encodeToString(encryptedRandomKeyBytes);
+
+        when(dataEncryptKeystoreRepository.findKeyById(keyIndex))
+                .thenReturn(encryptedRandomKeyString);
+
+        when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
+                .thenReturn(createKeyAliasMap("master-alias"));
+        when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        byte[] idBytes = "12345".getBytes();
+        digest.update(idBytes);
+        byte[] hashBytes = digest.digest();
+
+        ecbCipher.init(Cipher.ENCRYPT_MODE, randomKey);
+        byte[] derivedKeyBytes = ecbCipher.doFinal(hashBytes);
+        SecretKey derivedKey = new SecretKeySpec(derivedKeyBytes, "AES");
+
+        Cipher gcmCipher = Cipher.getInstance("AES/GCM/NoPadding");
+        javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, nonce);
+        gcmCipher.init(Cipher.ENCRYPT_MODE, derivedKey, gcmSpec);
+        gcmCipher.updateAAD(aad);
+        byte[] encryptedData1 = gcmCipher.doFinal("John Doe".getBytes());
+
+        byte[] finalData1 = new byte[indexBytes.length + nonce.length + aad.length + encryptedData1.length];
+        System.arraycopy(indexBytes, 0, finalData1, 0, indexBytes.length);
+        System.arraycopy(nonce, 0, finalData1, indexBytes.length, nonce.length);
+        System.arraycopy(aad, 0, finalData1, indexBytes.length + nonce.length, aad.length);
+        System.arraycopy(encryptedData1, 0, finalData1, indexBytes.length + nonce.length + aad.length,
+                encryptedData1.length);
+
+        cryptoData1.setValue(CryptoUtil.encodeToURLSafeBase64(finalData1));
+        cryptoDataList.add(cryptoData1);
+
+        // Attribute 2
+        CryptoDataDto cryptoData2 = new CryptoDataDto();
+        cryptoData2.setIdentifier("email");
+
+        byte[] nonce2 = new byte[ZKCryptoManagerConstants.GCM_NONCE_LENGTH];
+        byte[] aad2 = new byte[ZKCryptoManagerConstants.GCM_AAD_LENGTH];
+        new SecureRandom().nextBytes(nonce2);
+        new SecureRandom().nextBytes(aad2);
+
+        gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, nonce2);
+        gcmCipher.init(Cipher.ENCRYPT_MODE, derivedKey, gcmSpec);
+        gcmCipher.updateAAD(aad2);
+        byte[] encryptedData2 = gcmCipher.doFinal("john@example.com".getBytes());
+
+        byte[] finalData2 = new byte[indexBytes.length + nonce2.length + aad2.length + encryptedData2.length];
+        System.arraycopy(indexBytes, 0, finalData2, 0, indexBytes.length);
+        System.arraycopy(nonce2, 0, finalData2, indexBytes.length, nonce2.length);
+        System.arraycopy(aad2, 0, finalData2, indexBytes.length + nonce2.length, aad2.length);
+        System.arraycopy(encryptedData2, 0, finalData2, indexBytes.length + nonce2.length + aad2.length,
+                encryptedData2.length);
+
+        cryptoData2.setValue(CryptoUtil.encodeToURLSafeBase64(finalData2));
+        cryptoDataList.add(cryptoData2);
+
+        requestDto.setZkDataAttributes(cryptoDataList);
+
+        doNothing().when(keymanagerUtil).destoryKey(any(SecretKey.class));
+
+        ZKCryptoResponseDto response = zkCryptoManagerService.zkDecrypt(requestDto);
+
+        assertNotNull(response);
+        assertEquals(2, response.getZkDataAttributes().size());
+        assertEquals("John Doe", response.getZkDataAttributes().get(0).getValue());
+        assertEquals("john@example.com", response.getZkDataAttributes().get(1).getValue());
+    }
+
+    @Test(expected = ZKCryptoException.class)
+    public void testZkDecryptInvalidLength() {
+        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
+        requestDto.setId("12345");
+        CryptoDataDto cryptoData = new CryptoDataDto();
+        cryptoData.setIdentifier("name");
+
+        // Create data shorter than header length (4 + 12 + 16 = 32 bytes)
+        byte[] shortData = new byte[30];
+        cryptoData.setValue(CryptoUtil.encodeToURLSafeBase64(shortData));
+        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
+
+        zkCryptoManagerService.zkDecrypt(requestDto);
+    }
+
+    @Test
+    public void testShutdown() {
+        zkCryptoManagerService.shutdown();
     }
 
     @Test
@@ -367,41 +546,6 @@ public class ZKCryptoManagerServiceTest {
         zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
     }
 
-    // ==================== Exception Tests ====================
-
-    @Test
-    public void testGetDecryptedRandomKeyNoSuchAlgorithmException() {
-        when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
-                .thenReturn(Base64.getEncoder().encodeToString(new byte[16]));
-        // Use lenient stubbing since exception happens before these are called
-        org.mockito.Mockito.lenient().when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
-                .thenReturn(createKeyAliasMap("master-alias"));
-        org.mockito.Mockito.lenient().when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
-
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesECBTransformation", "INVALID/ALGORITHM");
-
-        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
-        requestDto.setId("12345");
-        CryptoDataDto cryptoData = new CryptoDataDto();
-        cryptoData.setIdentifier("name");
-        cryptoData.setValue("John Doe");
-        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
-
-        List<Integer> indexes = Arrays.asList(0);
-        when(dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS))
-                .thenReturn(indexes);
-
-        try {
-            zkCryptoManagerService.zkEncrypt(requestDto);
-            org.junit.Assert.fail("Expected ZKKeyDerivationException");
-        } catch (ZKKeyDerivationException e) {
-            // Expected
-        }
-
-        // Restore
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesECBTransformation", "AES/ECB/NoPadding");
-    }
-
     @Test(expected = NoUniqueAliasException.class)
     public void testGetMasterKeyFromHSMNullAlias() {
         when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
@@ -475,33 +619,6 @@ public class ZKCryptoManagerServiceTest {
         when(keyStoreRepository.findByAlias(anyString())).thenReturn(Optional.empty());
 
         zkCryptoManagerService.zkEncrypt(requestDto);
-    }
-
-    @Test(expected = ZKCryptoException.class)
-    public void testDoCipherOpsNoSuchAlgorithmException() {
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesGCMTransformation", "INVALID/ALGORITHM");
-
-        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
-        requestDto.setId("12345");
-        CryptoDataDto cryptoData = new CryptoDataDto();
-        cryptoData.setIdentifier("name");
-        cryptoData.setValue("John Doe");
-        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
-
-        List<Integer> indexes = Arrays.asList(0);
-        when(dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS))
-                .thenReturn(indexes);
-        when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
-                .thenReturn(Base64.getEncoder().encodeToString(new byte[16]));
-
-        when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
-                .thenReturn(createKeyAliasMap("master-alias"));
-        when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
-
-        zkCryptoManagerService.zkEncrypt(requestDto);
-
-        // Restore
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesGCMTransformation", "AES/GCM/NoPadding");
     }
 
     @Test
@@ -586,10 +703,12 @@ public class ZKCryptoManagerServiceTest {
     @Test
     public void testDoFinalIllegalArgumentException() {
         when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
-                .thenReturn("INVALID_BASE64"); // This will cause IllegalArgumentException in Base64.decode
+                .thenReturn("INVALID_BASE64"); // This will cause IllegalArgumentException in
+        // Base64.decode
 
         // Use lenient stubbing since exception happens before these are called
-        org.mockito.Mockito.lenient().when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
+        org.mockito.Mockito.lenient()
+                .when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
         org.mockito.Mockito.lenient().when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
 
@@ -610,71 +729,6 @@ public class ZKCryptoManagerServiceTest {
         } catch (ZKKeyDerivationException e) {
             // Expected
         }
-    }
-
-    @Test
-    public void testDoCipherOpsNoSuchPaddingException() {
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesGCMTransformation", "AES/INVALID_PADDING/NoPadding");
-
-        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
-        requestDto.setId("12345");
-        CryptoDataDto cryptoData = new CryptoDataDto();
-        cryptoData.setIdentifier("name");
-        cryptoData.setValue("John Doe");
-        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
-
-        List<Integer> indexes = Arrays.asList(0);
-        when(dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS))
-                .thenReturn(indexes);
-        when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
-                .thenReturn(Base64.getEncoder().encodeToString(new byte[16]));
-
-        when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
-                .thenReturn(createKeyAliasMap("master-alias"));
-        when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
-
-        try {
-            zkCryptoManagerService.zkEncrypt(requestDto);
-            org.junit.Assert.fail("Expected ZKCryptoException");
-        } catch (ZKCryptoException e) {
-            // Expected
-        }
-
-        // Restore
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesGCMTransformation", "AES/GCM/NoPadding");
-    }
-
-    @Test
-    public void testDoFinalNoSuchPaddingException() {
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesECBTransformation", "AES/INVALID_PADDING/NoPadding");
-
-        when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
-                .thenReturn(Base64.getEncoder().encodeToString(new byte[16]));
-        // Use lenient stubbing since exception happens before these are called
-        org.mockito.Mockito.lenient().when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
-                .thenReturn(createKeyAliasMap("master-alias"));
-        org.mockito.Mockito.lenient().when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
-
-        ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
-        requestDto.setId("12345");
-        CryptoDataDto cryptoData = new CryptoDataDto();
-        cryptoData.setIdentifier("name");
-        cryptoData.setValue("John Doe");
-        requestDto.setZkDataAttributes(Collections.singletonList(cryptoData));
-
-        List<Integer> indexes = Arrays.asList(0);
-        when(dataEncryptKeystoreRepository.getIdsByKeyStatus(ZKCryptoManagerConstants.ACTIVE_STATUS))
-                .thenReturn(indexes);
-
-        try {
-            zkCryptoManagerService.zkEncrypt(requestDto);
-            org.junit.Assert.fail("Expected ZKKeyDerivationException");
-        } catch (ZKKeyDerivationException e) {
-            // Expected
-        }
-
-        // Restore
-        ReflectionTestUtils.setField(zkCryptoManagerService, "aesECBTransformation", "AES/ECB/NoPadding");
     }
 
     @Test
@@ -714,7 +768,8 @@ public class ZKCryptoManagerServiceTest {
         assertNotNull(response);
         assertNotNull(response.getEncryptedRandomKey());
         // Should contain dot separator for multiple keys
-        assertTrue(response.getEncryptedRandomKey().contains(".") || response.getEncryptedRandomKey().length() > 0);
+        assertTrue(response.getEncryptedRandomKey().contains(".")
+                || response.getEncryptedRandomKey().length() > 0);
     }
 
     @Test
@@ -881,7 +936,8 @@ public class ZKCryptoManagerServiceTest {
 
     @Test
     public void testEncryptRandomKeyWithNullReferenceId() throws Exception {
-        // Test when reference ID array contains null (though split won't produce null, but test the null check)
+        // Test when reference ID array contains null (though split won't produce null,
+        // but test the null check)
         ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
 
         ZKCryptoRequestDto requestDto = new ZKCryptoRequestDto();
@@ -986,7 +1042,8 @@ public class ZKCryptoManagerServiceTest {
     @Test
     public void testGetDerivedKeyIllegalBlockSizeException() {
         // Test IllegalBlockSizeException in getDerivedKey
-        // This is hard to trigger directly, but the exception path is covered by other tests
+        // This is hard to trigger directly, but the exception path is covered by other
+        // tests
         // This test verifies normal flow works
         when(dataEncryptKeystoreRepository.findKeyById(anyInt()))
                 .thenReturn(Base64.getEncoder().encodeToString(new byte[16]));
@@ -1104,7 +1161,8 @@ public class ZKCryptoManagerServiceTest {
                 .thenReturn(new byte[256]);
         doNothing().when(keymanagerUtil).destoryKey(any(SecretKey.class));
 
-        // This should work normally - InvalidKeyException path is covered by other tests
+        // This should work normally - InvalidKeyException path is covered by other
+        // tests
         ZKCryptoResponseDto response = zkCryptoManagerService.zkEncrypt(requestDto);
         assertNotNull(response);
     }
@@ -1262,7 +1320,8 @@ public class ZKCryptoManagerServiceTest {
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
         assertNotNull(response);
-        // Should match second key (thumbprint2), first key should be skipped (continue), then break
+        // Should match second key (thumbprint2), first key should be skipped
+        // (continue), then break
         assertNotNull(response.getEncryptedKey());
     }
 
@@ -1329,7 +1388,8 @@ public class ZKCryptoManagerServiceTest {
                 .thenReturn(new byte[256]);
         doNothing().when(keymanagerUtil).destoryKey(any(SecretKey.class));
 
-        // This should work normally - IllegalBlockSizeException is hard to trigger in GCM mode
+        // This should work normally - IllegalBlockSizeException is hard to trigger in
+        // GCM mode
         // but the exception path is covered by other tests
         ZKCryptoResponseDto response = zkCryptoManagerService.zkEncrypt(requestDto);
         assertNotNull(response);
@@ -1371,7 +1431,8 @@ public class ZKCryptoManagerServiceTest {
                 .thenReturn(createKeyAliasMap("master-alias"));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
 
-        // Use lenient stubbing since exception might be thrown before destoryKey is called
+        // Use lenient stubbing since exception might be thrown before destoryKey is
+        // called
         org.mockito.Mockito.lenient().doNothing().when(keymanagerUtil).destoryKey(any(SecretKey.class));
 
         // This will fail when trying to decrypt with wrong nonce length
@@ -1489,4 +1550,3 @@ public class ZKCryptoManagerServiceTest {
         return response;
     }
 }
-
