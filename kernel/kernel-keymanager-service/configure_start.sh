@@ -38,5 +38,13 @@ cd $DIR_NAME && chmod +x install.sh && sudo ./install.sh && chmod a-w install.sh
 echo "Installation complete"
 cd $work_dir
 
+echo "Downloading IAM adapter..."
+wget -q "${iam_adapter_url_env}" -O "${loader_path_env}/kernel-auth-adapter.jar"
+
+spring_args=""
+
+if [ -n "$spring_config_name_env" ]; then
+  spring_args="-Dspring.cloud.config.name=${spring_config_name_env}"
+fi
 
 exec "$@"
