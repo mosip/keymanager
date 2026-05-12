@@ -250,7 +250,9 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 	public List<String> getAllAlias() {
 		Enumeration<String> enumeration = null;
 		try {
+			long startTime = System.currentTimeMillis();
 			enumeration = keyStore.aliases();
+			LOGGER.debug("sessionId", "KeyStoreImpl","getAllAlias", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
@@ -268,7 +270,9 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 	public Key getKey(String alias) {
 		Key key = null;
 		try {
+			long startTime = System.currentTimeMillis();
 			key = keyStore.getKey(alias, keystorePwdCharArr);
+			LOGGER.debug("sessionId", "KeyStoreImpl","getKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
@@ -296,15 +300,19 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		Exception exp = null;
 		do {
 			try {
-				if (keyStore.entryInstanceOf(alias, PrivateKeyEntry.class)) {
+				long startTime = System.currentTimeMillis();
+				boolean isPrivateKeyEntry = keyStore.entryInstanceOf(alias, PrivateKeyEntry.class);
+				if (isPrivateKeyEntry) {
 					LOGGER.debug("sessionId", "KeyStoreImpl", "getAsymmetricKey", "alias is instanceof keystore");
 					ProtectionParameter password = getPasswordProtection();
 					privateKeyEntry = (PrivateKeyEntry) keyStore.getEntry(alias, password);
+					LOGGER.debug("sessionId", "KeyStoreImpl","getAsymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 					if (privateKeyEntry != null) {
 						LOGGER.debug("sessionId", "KeyStoreImpl", "getAsymmetricKey", "privateKeyEntry is not null");
 						break;
 					}
 				} else {
+					LOGGER.debug("sessionId", "KeyStoreImpl","getAsymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 					throw new NoSuchSecurityProviderException(KeymanagerErrorCode.NO_SUCH_ALIAS.getErrorCode(),
 							KeymanagerErrorCode.NO_SUCH_ALIAS.getErrorMessage() + alias);
 				}
@@ -413,15 +421,19 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		Exception exp = null;
 		do {
 			try {
-				if (keyStore.entryInstanceOf(alias, SecretKeyEntry.class)) {
+				long startTime = System.currentTimeMillis();
+				boolean isSecretKeyEntry = keyStore.entryInstanceOf(alias, SecretKeyEntry.class);
+				if (isSecretKeyEntry) {
 					ProtectionParameter password = getPasswordProtection();
 					SecretKeyEntry retrivedSecret = (SecretKeyEntry) keyStore.getEntry(alias, password);
 					secretKey = retrivedSecret.getSecretKey();
+					LOGGER.debug("sessionId", "KeyStoreImpl","getSymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 					if (secretKey != null) {
 						LOGGER.debug("sessionId", "KeyStoreImpl", "getSymmetricKey", "secretKey is not null");
 						break;
 					}
 				} else {
+					LOGGER.debug("sessionId", "KeyStoreImpl","getSymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 					throw new NoSuchSecurityProviderException(KeymanagerErrorCode.NO_SUCH_ALIAS.getErrorCode(),
 							KeymanagerErrorCode.NO_SUCH_ALIAS.getErrorMessage() + alias);
 				}
@@ -457,7 +469,9 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 	@Override
 	public void deleteKey(String alias) {
 		try {
+			long startTime = System.currentTimeMillis();
 			keyStore.deleteEntry(alias);
+			LOGGER.debug("sessionId", "KeyStoreImpl","deleteKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
@@ -468,8 +482,10 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		PrivateKeyEntry privateKeyEntry = new PrivateKeyEntry(privateKey, chain);
 		ProtectionParameter password = getPasswordProtection();
 		try {
+			long startTime = System.currentTimeMillis();
 			keyStore.setEntry(alias, privateKeyEntry, password);
 			keyStore.store(null, keystorePwdCharArr);
+			LOGGER.debug("sessionId", "KeyStoreImpl","storeCertificate", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage());
@@ -530,8 +546,10 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		SecretKeyEntry secret = new SecretKeyEntry(secretKey);
 		ProtectionParameter password = getPasswordProtection();
 		try {
+			long startTime = System.currentTimeMillis();
 			keyStore.setEntry(alias, secret, password);
 			keyStore.store(null, keystorePwdCharArr);
+			LOGGER.debug("sessionId", "KeyStoreImpl","generateAndStoreSymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
@@ -542,7 +560,10 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		try {
 			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricKeyAlgorithm, provider);
 			generator.initialize(asymmetricKeyLength, secureRandom);
-			return generator.generateKeyPair();
+			long startTime = System.currentTimeMillis();
+			KeyPair keyPair = generator.generateKeyPair();
+			LOGGER.debug("sessionId", "KeyStoreImpl","generateRSAKeyPair", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
+			return keyPair;
 		} catch (java.security.NoSuchAlgorithmException e) {
 			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
 					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
@@ -558,7 +579,10 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 			}
 			KeyPairGenerator generator = KeyPairGenerator.getInstance(asymmetricECKeyAlgorithm, provider);
 			generator.initialize(new ECGenParameterSpec(ecCurve), secureRandom);
-			return generator.generateKeyPair();
+			long startTime = System.currentTimeMillis();
+			KeyPair keyPair = generator.generateKeyPair();
+			LOGGER.debug("sessionId", "KeyStoreImpl","generateECKeyPair", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
+			return keyPair;
 		} catch (java.security.NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
 			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
 					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
@@ -570,13 +594,16 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		try {
 			KeyGenerator generator = KeyGenerator.getInstance(symmetricKeyAlgorithm, provider);
 			generator.init(symmetricKeyLength, secureRandom);
-			return generator.generateKey();
+			long startTime = System.currentTimeMillis();
+			SecretKey secretKey = generator.generateKey();
+			LOGGER.debug("sessionId", "KeyStoreImpl","generateSymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
+			return secretKey;
 		} catch (java.security.NoSuchAlgorithmException e) {
 			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
 					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
 					KeyGeneratorExceptionConstant.MOSIP_NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage(), e);
 		}
-		
+
 	}
 
 	@Override
@@ -584,8 +611,10 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 		try {
 			PrivateKeyEntry privateKeyEntry = new PrivateKeyEntry(privateKey, new Certificate[] {certificate});
 			ProtectionParameter password = getPasswordProtection();
+			long startTime = System.currentTimeMillis();
 			keyStore.setEntry(alias, privateKeyEntry, password);
 			keyStore.store(null, keystorePwdCharArr);
+			LOGGER.debug("sessionId", "KeyStoreImpl","storeCertificate", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
