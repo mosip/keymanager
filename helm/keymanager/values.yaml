@@ -46,8 +46,8 @@ service:
   externalTrafficPolicy: Cluster
 image:
   registry: docker.io
-  repository: mosipid/kernel-keymanager-service
-  tag: 1.4.0
+  repository: mosipqa/kernel-keymanager-service
+  tag: 1.4.1-develop
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -116,12 +116,16 @@ resources:
     cpu: 2000m
     memory: 8000Mi
   requests:
-    cpu: 500m
-    memory: 3000Mi
+    cpu: 1000m
+    memory: 4000Mi
 additionalResources:
   ## Specify any JAVA_OPTS string here. These typically will be specified in conjunction with above resources
   ## Example: java_opts: "-Xms500M -Xmx500M"
-  javaOpts: "-Xms4250M -Xmx4250M"
+  javaOpts: >-
+      -XX:+UseZGC -XX:+ZGenerational -XX:+ZUncommit
+      -XX:ZUncommitDelay=30 -XX:+ZProactive -XX:ZCollectionInterval=5
+      -Xms4000m -Xmx5400m -XX:SoftMaxHeapSize=4000m
+      -Djava.security.egd=file:/dev/urandom
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
 ## Clamav container already runs as 'mosip' user, so we may not need to enable this
 containerSecurityContext:
