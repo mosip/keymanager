@@ -424,8 +424,8 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 				if (isSecretKeyEntry) {
 					ProtectionParameter password = getPasswordProtection();
 					SecretKeyEntry retrivedSecret = (SecretKeyEntry) keyStore.getEntry(alias, password);
-					secretKey = retrivedSecret.getSecretKey();
 					LOGGER.debug("sessionId", "KeyStoreImpl","getSymmetricKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
+					secretKey = retrivedSecret.getSecretKey();
 					if (secretKey != null) {
 						LOGGER.debug("sessionId", "KeyStoreImpl", "getSymmetricKey", "secretKey is not null");
 						break;
