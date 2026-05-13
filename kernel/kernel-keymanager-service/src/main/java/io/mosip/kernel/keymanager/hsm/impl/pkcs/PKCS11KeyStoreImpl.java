@@ -250,9 +250,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 	public List<String> getAllAlias() {
 		Enumeration<String> enumeration = null;
 		try {
-			long startTime = System.currentTimeMillis();
 			enumeration = keyStore.aliases();
-			LOGGER.debug("sessionId", "KeyStoreImpl","getAllAlias", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
@@ -469,9 +467,7 @@ public class PKCS11KeyStoreImpl implements ECKeyStore {
 	@Override
 	public void deleteKey(String alias) {
 		try {
-			long startTime = System.currentTimeMillis();
 			keyStore.deleteEntry(alias);
-			LOGGER.debug("sessionId", "KeyStoreImpl","deleteKey", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 		} catch (KeyStoreException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorCode(),
 					KeymanagerErrorCode.KEYSTORE_PROCESSING_ERROR.getErrorMessage() + e.getMessage(), e);
