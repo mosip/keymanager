@@ -14,9 +14,12 @@ import java.util.*;
 
 import javax.security.auth.x500.X500Principal;
 
+import io.mosip.kernel.core.logger.spi.Logger;
+import io.mosip.kernel.keymanager.hsm.impl.pkcs.PKCS11KeyStoreImpl;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.dto.ExtendedCertificateParameters;
 import io.mosip.kernel.keymanagerservice.dto.SubjectAlternativeNamesDto;
+import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
@@ -45,7 +48,8 @@ import io.mosip.kernel.keymanager.hsm.constant.KeymanagerErrorCode;
  */
 public class CertificateUtility {
 
-	
+	private static final Logger LOGGER = KeymanagerLogger.getLogger(CertificateUtility.class);
+
 	/**
 	 * Private constructor for CertificateUtility
 	 */
@@ -123,7 +127,9 @@ public class CertificateUtility {
 			certBuilder.addExtension(Extension.basicConstraints, true, basicConstraints);
 			certBuilder.addExtension(Extension.subjectKeyIdentifier, false, certExtUtils.createSubjectKeyIdentifier(publicKey));
 			certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
+			long startTime = System.currentTimeMillis();
 			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);
+			LOGGER.debug("sessionId", "CertificateUtility","generateX509Certificate", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 			return new JcaX509CertificateConverter().getCertificate(certHolder);
 		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
