@@ -153,7 +153,9 @@ public class CertificateUtility {
 			if (altNames != null && altNames.length > 0) {
 				certBuilder.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(altNames));
 			}
+			long startTime = System.currentTimeMillis();
 			X509CertificateHolder certHolder = certBuilder.build(certContentSigner);
+			LOGGER.debug("sessionId", "CertificateUtility","generateX509Certificate", "HSM interaction time(ms): " + (System.currentTimeMillis() - startTime));
 			return new JcaX509CertificateConverter().getCertificate(certHolder);
 		} catch (OperatorCreationException | NoSuchAlgorithmException | CertificateException | IOException e) {
 			throw new KeystoreProcessingException(KeymanagerErrorCode.CERTIFICATE_PROCESSING_ERROR.getErrorCode(),
