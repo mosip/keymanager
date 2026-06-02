@@ -1,1 +1,1 @@
-drop role if exists keymgruser; 
+drop role if exists :dbuname;

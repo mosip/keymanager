@@ -1,4 +1,4 @@
-\c mosip_keymgr 
+\c :mosipdbname
 
 \ir ddl/keymgr-key_alias.sql
 \ir ddl/keymgr-key_policy_def.sql
@@ -10,4 +10,3 @@
 \ir ddl/keymgr-licensekey_permission.sql
 \ir ddl/keymgr-tsp_licensekey_map.sql
 \ir ddl/keymgr-fk.sql
-

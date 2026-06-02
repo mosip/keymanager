@@ -1,17 +1,16 @@
-\c mosip_keymgr 
+\c :mosipdbname
 
 GRANT CONNECT
-   ON DATABASE mosip_keymgr
-   TO keymgruser;
+   ON DATABASE :mosipdbname
+   TO :dbuname;
 
 GRANT USAGE
    ON SCHEMA keymgr
-   TO keymgruser;
+   TO :dbuname;
 
 GRANT SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES
-   ON ALL TABLES IN SCHEMA keymgr
-   TO keymgruser;
+      ON ALL TABLES IN SCHEMA keymgr
+          TO :dbuname;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA keymgr 
-	GRANT SELECT,INSERT,UPDATE,DELETE,REFERENCES ON TABLES TO keymgruser;
-
+ALTER DEFAULT PRIVILEGES IN SCHEMA keymgr
+	GRANT SELECT,INSERT,UPDATE,DELETE,REFERENCES ON TABLES TO :dbuname;

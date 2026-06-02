@@ -1,4 +1,4 @@
-\c mosip_keymgr 
+\c :mosipdbname
 
 TRUNCATE TABLE keymgr.key_policy_def cascade ;
 
