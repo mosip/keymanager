@@ -9,7 +9,7 @@ import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.keymanager.model.CertificateEntry;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.dto.SignatureCertificate;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
@@ -300,7 +300,7 @@ class LocalClientCryptoServiceImpl implements ClientCryptoService {
     private CertificateEntry<X509Certificate, PrivateKey> getResidentCertificateEntry() {
         SignatureCertificate certificateResponse = applicationContext.getBean(KeymanagerService.class)
             .getSignatureCertificate(residentServiceAppId, Optional.empty(), 
-                DateUtils.getUTCCurrentDateTimeString());
+                DateUtils2.getUTCCurrentDateTimeString());
         return certificateResponse.getCertificateEntry();
     }
 

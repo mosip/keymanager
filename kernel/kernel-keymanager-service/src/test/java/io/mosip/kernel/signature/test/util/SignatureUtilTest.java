@@ -1,7 +1,7 @@
-package io.mosip.kernel.signature.test.Util;
+package io.mosip.kernel.signature.test.util;
 
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateResponseDto;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
@@ -42,6 +42,7 @@ public class SignatureUtilTest {
     private KeyAliasRepository keyAliasRepository;
 
     private String testUniqueId = "1234567890ABCDEF";
+    private X509Certificate testX509Certificate;
 
     @Before
     public void setUp() {
@@ -49,6 +50,8 @@ public class SignatureUtilTest {
         keyPairGenRequestDto.setApplicationId("ROOT");
         keyPairGenRequestDto.setReferenceId("");
         keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
+        KeyPairGenerateResponseDto certResponse = keymanagerService.getCertificate("ROOT", Optional.of(""));
+        testX509Certificate = (X509Certificate) keymanagerUtil.convertToCertificate(certResponse.getCertificate());
     }
 
     @After
@@ -157,18 +160,18 @@ public class SignatureUtilTest {
         String payload = "{\"iss\":\"test-issuer\",\"data\":\"value\"}";
         String issuer = SignatureUtil.getIssuerFromPayload(payload);
         Assert.assertEquals("test-issuer", issuer);
-        
+
         String noIssuer = SignatureUtil.getIssuerFromPayload("{\"data\":\"value\"}");
         Assert.assertEquals("", noIssuer);
-        
+
         String invalidJson = SignatureUtil.getIssuerFromPayload("invalid json");
         Assert.assertEquals("", invalidJson);
     }
 
     @Test
     public void testGetJWSHeaderV2WithNullHeaders() {
-        var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false, 
-            null, null, testUniqueId, false, "", null);
+        var header = signatureUtil.getJWSHeaderV2("PS256", false, false, false,
+            null, testX509Certificate, testUniqueId, false, "", null);
         Assert.assertNotNull(header);
     }
 
@@ -213,19 +216,19 @@ public class SignatureUtilTest {
 
     @Test
     public void testIsNotBeforeDateValid() {
-        Date pastDate = DateUtils.addDays(new Date(), -1);
+        Date pastDate = DateUtils2.addDays(new Date(), -1);
         Assert.assertTrue(signatureUtil.isNotBeforeDateValid(pastDate));
         
-        Date futureDate = DateUtils.addDays(new Date(), 1);
+        Date futureDate = DateUtils2.addDays(new Date(), 1);
         Assert.assertFalse(signatureUtil.isNotBeforeDateValid(futureDate));
     }
 
     @Test
     public void testIsExpireDateValid() {
-        Date futureDate = DateUtils.addDays(new Date(), 1);
+        Date futureDate = DateUtils2.addDays(new Date(), 1);
         Assert.assertTrue(signatureUtil.isExpireDateValid(futureDate));
         
-        Date pastDate = DateUtils.addDays(new Date(), -1);
+        Date pastDate = DateUtils2.addDays(new Date(), -1);
         Assert.assertFalse(signatureUtil.isExpireDateValid(pastDate));
     }
 

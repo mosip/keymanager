@@ -3,7 +3,7 @@ package io.mosip.kernel.signature.test.service;
 import io.mosip.kernel.core.crypto.exception.SignatureException;
 import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.dto.KeyPairGenerateRequestDto;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
@@ -11,14 +11,18 @@ import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
+import io.mosip.kernel.signature.constant.SignatureConstant;
 import io.mosip.kernel.signature.constant.SignatureErrorCode;
-import io.mosip.kernel.signature.constant.SignatureProviderEnum;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.exception.RequestException;
 import io.mosip.kernel.signature.exception.SignatureFailureException;
 import io.mosip.kernel.signature.service.SignatureProvider;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.mosip.kernel.signature.service.SignatureServicev2;
+import io.mosip.kernel.signature.service.impl.EC256SignatureProviderImpl;
+import io.mosip.kernel.signature.service.impl.Ed25519SignatureProviderImpl;
+import io.mosip.kernel.signature.service.impl.PS256SIgnatureProviderImpl;
+import io.mosip.kernel.signature.service.impl.RS256SignatureProviderImpl;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -68,6 +72,16 @@ public class SignatureServiceTest {
     @After
     public void tearDown() {
         keyAliasRepository.deleteAll();
+    }
+
+    private static Map<String, SignatureProvider> SIGNATURE_PROVIDER = new HashMap<>();
+
+    static {
+        SIGNATURE_PROVIDER.put(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST, new PS256SIgnatureProviderImpl());
+        SIGNATURE_PROVIDER.put(SignatureConstant.JWS_RS256_SIGN_ALGO_CONST, new RS256SignatureProviderImpl());
+        SIGNATURE_PROVIDER.put(SignatureConstant.JWS_ES256_SIGN_ALGO_CONST, new EC256SignatureProviderImpl());
+        SIGNATURE_PROVIDER.put(SignatureConstant.JWS_ES256K_SIGN_ALGO_CONST, new EC256SignatureProviderImpl());
+        SIGNATURE_PROVIDER.put(SignatureConstant.JWS_EDDSA_SIGN_ALGO_CONST, new Ed25519SignatureProviderImpl());
     }
 
     @Test
@@ -510,7 +524,7 @@ public class SignatureServiceTest {
         pdfSignRequestDto.setApplicationId("TEST");
         pdfSignRequestDto.setReferenceId("");
         pdfSignRequestDto.setData(CryptoUtil.encodeToURLSafeBase64("dummy pdf content".getBytes()));
-        pdfSignRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTimeString());
+        pdfSignRequestDto.setTimeStamp(DateUtils2.getUTCCurrentDateTimeString());
         pdfSignRequestDto.setReason("Test signing");
         pdfSignRequestDto.setPageNumber(1);
         pdfSignRequestDto.setLowerLeftX(100);
@@ -526,24 +540,6 @@ public class SignatureServiceTest {
             // PDF signing may fail due to invalid PDF content, but we test the flow
             Assert.assertTrue(e instanceof KeymanagerServiceException);
         }
-    }
-
-    @Test
-    public void testValidateTrust() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("TEST");
-        keyPairGenRequestDto.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        JWTSignatureVerifyRequestDto jwtVerifyRequestDto = new JWTSignatureVerifyRequestDto();
-        jwtVerifyRequestDto.setValidateTrust(false);
-
-        String trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED", trustResult);
-
-        jwtVerifyRequestDto.setValidateTrust(true);
-        trustResult = signatureService.validateTrust(jwtVerifyRequestDto, null, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED_NO_DOMAIN", trustResult);
     }
 
     @Test
@@ -576,55 +572,21 @@ public class SignatureServiceTest {
         Assert.assertNotNull(response);
     }
 
-    @Test
-    public void testValidate() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("KERNEL");
-        keyPairGenRequestDto.setReferenceId("SIGN");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        SignRequestDto signRequestDto = new SignRequestDto();
-        signRequestDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        SignatureResponse signResponse = signatureService.sign(signRequestDto);
-
-        TimestampRequestDto timestampRequestDto = new TimestampRequestDto();
-        timestampRequestDto.setSignature(signResponse.getData());
-        timestampRequestDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        timestampRequestDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
-        ValidatorResponseDto response = signatureService.validate(timestampRequestDto);
-        Assert.assertNotNull(response);
-        Assert.assertEquals("success", response.getStatus());
-    }
-
-    @Test(expected = SignatureException.class)
-    public void testValidateException() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("KERNEL");
-        keyPairGenRequestDto.setReferenceId("SIGN");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        TimestampRequestDto timestampRequestDto = new TimestampRequestDto();
-        timestampRequestDto.setData("eyAibW9kdWxlIjogImtleW1hbmFnZXIiLCAicHVycG9zZSI6ICJ0ZXN0IGNhc2UiIH0");
-        timestampRequestDto.setSignature("invalid signature");
-        timestampRequestDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
-        signatureService.validate(timestampRequestDto);
-    }
-
     @Test(expected = SignatureFailureException.class)
     public void testPS256Exception() {
-        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider("PS256");
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get("PS256");
         signatureProvider.sign(null, null, "Invalid Provider");
     }
 
     @Test(expected = SignatureFailureException.class)
     public void testRS256Exception() {
-        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider("RS256");
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get("RS256");
         signatureProvider.sign(null, null, "Invalid Provider");
     }
 
     @Test(expected = SignatureFailureException.class)
     public void testEC256Exception() {
-        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider("ES256");
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get("ES256");
         signatureProvider.sign(null, null, "Invalid Provider");
     }
 
@@ -634,32 +596,8 @@ public class SignatureServiceTest {
         keyPairGenerator.initialize(2048);
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
 
-        SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider("EdDSA");
+        SignatureProvider signatureProvider = SIGNATURE_PROVIDER.get("EdDSA");
         signatureProvider.sign(keyPair.getPrivate(), null, "Invalid Provider");
-    }
-
-    @Test
-    public void testValidateTrustV2() {
-        KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        keyPairGenRequestDto.setApplicationId("TEST");
-        keyPairGenRequestDto.setReferenceId("");
-        keymanagerService.generateMasterKey("CSR", keyPairGenRequestDto);
-
-        JWTSignatureVerifyRequestDto jwtVerifyRequestDto = new JWTSignatureVerifyRequestDto();
-        jwtVerifyRequestDto.setValidateTrust(false);
-
-        String trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, null, null);
-        Assert.assertEquals("TRUST_NOT_VERIFIED", trustResult);
-
-        jwtVerifyRequestDto.setValidateTrust(true);
-        String pemCertificate = keymanagerService.getCertificate("TEST", Optional.empty()).getCertificate();
-        List<Certificate> certificateList = new ArrayList<>(Collections.singleton(keymanagerUtil.convertToCertificate(pemCertificate)));
-        trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList, pemCertificate);
-        Assert.assertEquals("TRUST_NOT_VERIFIED_NO_DOMAIN", trustResult);
-
-        jwtVerifyRequestDto.setDomain("DEVICE");
-        trustResult = signatureService.validateTrustV2(jwtVerifyRequestDto, certificateList, pemCertificate);
-        Assert.assertEquals("TRUST_CERT_PATH_NOT_VALID", trustResult);
     }
 
     @Test
@@ -745,6 +683,7 @@ public class SignatureServiceTest {
         jwsSignRequestDtoV2.setIncludePayload(false);
         jwsSignRequestDtoV2.setIncludeCertificateChain(false);
         jwsSignRequestDtoV2.setB64JWSHeaderParam(true);
+        jwsSignRequestDtoV2.setIncludeCertHash(true);
         jwsSignRequestDtoV2.setCertificateUrl("https:://test/certificate.com");
         response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
         Assert.assertNotNull(response);
@@ -759,6 +698,14 @@ public class SignatureServiceTest {
 
         jwsSignRequestDtoV2.setApplicationId("TEST");
         jwsSignRequestDtoV2.setReferenceId("ED25519_SIGN");
+        response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
+        Assert.assertNotNull(response);
+
+        addtionalHeader.put("typ", "jws");
+        addtionalHeader.put("jku", "https://test.com/jwks.json");
+        addtionalHeader.put("cty", "application/json");
+        addtionalHeader.put("crit", "alg, x5c");
+        jwsSignRequestDtoV2.setAdditionalHeaders(addtionalHeader);
         response = signatureService.jwsSignV2(jwsSignRequestDtoV2);
         Assert.assertNotNull(response);
     }

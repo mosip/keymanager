@@ -1,4 +1,3 @@
-
 package io.mosip.kernel.cryptomanager.test.util;
 
 import static org.mockito.Mockito.when;
@@ -41,28 +40,28 @@ import io.mosip.kernel.keymanagerservice.test.KeymanagerTestBootApplication;
 public class CryptographicUtilExceptionTest {
 
 
-	@Autowired
-	CryptomanagerUtils cryptomanagerUtil;
+    @Autowired
+    CryptomanagerUtils cryptomanagerUtil;
 
-	@MockBean
-	private ECKeyStore keyStore;
+    @MockBean
+    private ECKeyStore keyStore;
 
-	/** The key manager. */
-	@MockBean
-	private KeymanagerService keyManagerService;
+    /** The key manager. */
+    @MockBean
+    private KeymanagerService keyManagerService;
 
-	@Before
-	public void setUp() {
-		ReflectionTestUtils.setField(cryptomanagerUtil, "asymmetricAlgorithmName", "test");
-	
-	}
+    @Before
+    public void setUp() {
+        ReflectionTestUtils.setField(cryptomanagerUtil, "asymmetricAlgorithmName", "test");
 
-	@Test(expected = KeymanagerServiceException.class)
-	public void testNoSuchAlgorithmEncrypt() throws Exception {
-		KeyPairGenerateResponseDto keyPairGenerateResponseDto = new KeyPairGenerateResponseDto("badCertificateData", null, LocalDateTime.now(),
-				LocalDateTime.now().plusDays(100), LocalDateTime.now());
-		String appid = "REGISTRATION";
-		String refid = "ref123";
+    }
+
+    @Test(expected = KeymanagerServiceException.class)
+    public void testNoSuchAlgorithmEncrypt() throws Exception {
+        KeyPairGenerateResponseDto keyPairGenerateResponseDto = new KeyPairGenerateResponseDto("badCertificateData", null, LocalDateTime.now(),
+                LocalDateTime.now().plusDays(100), LocalDateTime.now());
+        String appid = "REGISTRATION";
+        String refid = "ref123";
 
 		when(keyManagerService.getCertificate(Mockito.eq(appid), Mockito.eq(Optional.of(refid))))
 				.thenReturn(keyPairGenerateResponseDto);

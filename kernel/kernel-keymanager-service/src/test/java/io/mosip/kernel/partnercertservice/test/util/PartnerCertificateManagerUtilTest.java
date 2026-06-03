@@ -158,7 +158,7 @@ public class PartnerCertificateManagerUtilTest {
 
         String dn = testCertificate.getSubjectX500Principal().getName();
         String formattedDN = PartnerCertificateManagerUtil.formatCertificateDN(dn);
-        
+
         Assert.assertNotNull(formattedDN);
         Assert.assertFalse(formattedDN.isEmpty());
     }
@@ -174,7 +174,7 @@ public class PartnerCertificateManagerUtilTest {
         X509Certificate testCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(interCertificate);
 
         String thumbprint = PartnerCertificateManagerUtil.getCertificateThumbprint(testCertificate);
-        
+
         Assert.assertNotNull(thumbprint);
         Assert.assertFalse(thumbprint.isEmpty());
         Assert.assertEquals(40, thumbprint.length());
@@ -217,7 +217,7 @@ public class PartnerCertificateManagerUtilTest {
         CACertificateStore certStore = new CACertificateStore();
         certStore.setCertNotBefore(DateUtils.getUTCCurrentDateTime().minusDays(1));
         certStore.setCertNotAfter(DateUtils.getUTCCurrentDateTime().plusDays(1));
-        
+
         LocalDateTime currentTime = DateUtils.getUTCCurrentDateTime();
         boolean result = PartnerCertificateManagerUtil.isValidTimestamp(currentTime, certStore);
         Assert.assertTrue(result);
@@ -228,7 +228,7 @@ public class PartnerCertificateManagerUtilTest {
         CACertificateStore certStore = new CACertificateStore();
         certStore.setCertNotBefore(DateUtils.getUTCCurrentDateTime().plusDays(1));
         certStore.setCertNotAfter(DateUtils.getUTCCurrentDateTime().plusDays(2));
-        
+
         LocalDateTime currentTime = DateUtils.getUTCCurrentDateTime();
         boolean result = PartnerCertificateManagerUtil.isValidTimestamp(currentTime, certStore);
         Assert.assertFalse(result);
@@ -240,7 +240,7 @@ public class PartnerCertificateManagerUtilTest {
         CACertificateStore certStore = new CACertificateStore();
         certStore.setCertNotBefore(exactTime);
         certStore.setCertNotAfter(exactTime.plusDays(1));
-        
+
         boolean result = PartnerCertificateManagerUtil.isValidTimestamp(exactTime, certStore);
         Assert.assertTrue(result);
     }
@@ -257,7 +257,7 @@ public class PartnerCertificateManagerUtilTest {
     public void testGetCertificateOrgName_NoOrg() {
         X500Principal principal = new X500Principal("CN=Test");
         String orgName = PartnerCertificateManagerUtil.getCertificateOrgName(principal);
-        
+
         Assert.assertEquals("", orgName);
     }
 
@@ -291,10 +291,10 @@ public class PartnerCertificateManagerUtilTest {
         X500Principal principal = testCertificate.getSubjectX500Principal();
         LocalDateTime notBefore = DateUtils.getUTCCurrentDateTime();
         LocalDateTime notAfter = notBefore.plusDays(365);
-        
+
         CertificateParameters params = PartnerCertificateManagerUtil.getCertificateParameters(
-            principal, notBefore, notAfter);
-        
+                principal, notBefore, notAfter);
+
         Assert.assertNotNull(params);
         Assert.assertNotNull(params.getCommonName());
         Assert.assertEquals(notBefore, params.getNotBefore());
@@ -306,11 +306,11 @@ public class PartnerCertificateManagerUtilTest {
         X509Certificate testCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(interCertificate);
 
         Certificate[] certChain = {testCertificate, selfSignedCertificate};
-        
+
         String p7bChain = PartnerCertificateManagerUtil.buildP7BCertificateChain(
-            Arrays.asList(certChain), testCertificate, "FTM", false, 
-            selfSignedCertificate, testCertificate);
-        
+                Arrays.asList(certChain), testCertificate, "FTM", false,
+                selfSignedCertificate, testCertificate);
+
         Assert.assertNotNull(p7bChain);
         Assert.assertFalse(p7bChain.isEmpty());
     }
@@ -320,11 +320,11 @@ public class PartnerCertificateManagerUtilTest {
         X509Certificate testCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(interCertificate);
 
         Certificate[] certChain = {testCertificate, selfSignedCertificate};
-        
+
         String p7bChain = PartnerCertificateManagerUtil.buildP7BCertificateChain(
-            Arrays.asList(certChain), testCertificate, "DEVICE", true, 
-            selfSignedCertificate, testCertificate);
-        
+                Arrays.asList(certChain), testCertificate, "DEVICE", true,
+                selfSignedCertificate, testCertificate);
+
         Assert.assertNotNull(p7bChain);
         Assert.assertFalse(p7bChain.isEmpty());
     }
@@ -334,9 +334,9 @@ public class PartnerCertificateManagerUtilTest {
         X509Certificate testCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(interCertificate);
 
         Certificate[] certChain = {testCertificate, selfSignedCertificate};
-        
+
         String p7bFile = PartnerCertificateManagerUtil.buildp7bFile(certChain);
-        
+
         Assert.assertNotNull(p7bFile);
         Assert.assertTrue(p7bFile.contains("-----BEGIN PKCS7-----"));
         Assert.assertTrue(p7bFile.contains("-----END PKCS7-----"));
@@ -346,9 +346,9 @@ public class PartnerCertificateManagerUtilTest {
     public void testBuildCertChainWithPKCS7_Success() {
         X509Certificate testCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(interCertificate);
         Certificate[] certChain = {testCertificate, selfSignedCertificate};
-        
+
         String pkcs7Chain = PartnerCertificateManagerUtil.buildCertChainWithPKCS7(certChain);
-        
+
         Assert.assertNotNull(pkcs7Chain);
         Assert.assertTrue(pkcs7Chain.contains("-----BEGIN PKCS7-----"));
         Assert.assertTrue(pkcs7Chain.contains("-----END PKCS7-----"));
@@ -383,7 +383,7 @@ public class PartnerCertificateManagerUtilTest {
     public void testFormatCertificateDN_ComplexDN() {
         String complexDN = "CN=Test User,OU=IT Department,O=MOSIP,L=Bangalore,ST=Karnataka,C=IN";
         String formattedDN = PartnerCertificateManagerUtil.formatCertificateDN(complexDN);
-        
+
         Assert.assertNotNull(formattedDN);
         Assert.assertTrue(formattedDN.contains("CN=Test User"));
         Assert.assertTrue(formattedDN.contains("O=MOSIP"));
@@ -394,7 +394,7 @@ public class PartnerCertificateManagerUtilTest {
     public void testFormatCertificateDN_PartialDN() {
         String partialDN = "CN=Test User,O=MOSIP";
         String formattedDN = PartnerCertificateManagerUtil.formatCertificateDN(partialDN);
-        
+
         Assert.assertNotNull(formattedDN);
         Assert.assertTrue(formattedDN.contains("CN=Test User"));
         Assert.assertTrue(formattedDN.contains("O=MOSIP"));
@@ -405,10 +405,10 @@ public class PartnerCertificateManagerUtilTest {
         X500Principal minimalPrincipal = new X500Principal("CN=Minimal Test");
         LocalDateTime notBefore = DateUtils.getUTCCurrentDateTime();
         LocalDateTime notAfter = notBefore.plusDays(30);
-        
+
         CertificateParameters params = PartnerCertificateManagerUtil.getCertificateParameters(
-            minimalPrincipal, notBefore, notAfter);
-        
+                minimalPrincipal, notBefore, notAfter);
+
         Assert.assertNotNull(params);
         Assert.assertEquals("Minimal Test", params.getCommonName());
         Assert.assertEquals("", params.getOrganization());

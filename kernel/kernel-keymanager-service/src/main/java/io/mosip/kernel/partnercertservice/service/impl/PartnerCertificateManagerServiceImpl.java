@@ -33,7 +33,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.concurrent.TimeUnit;
 
-import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
+import io.mosip.kernel.core.util.DateUtils2;
 import jakarta.annotation.PostConstruct;
 import javax.security.auth.x500.X500Principal;
 
@@ -49,7 +49,6 @@ import io.mosip.kernel.core.keymanager.model.CertificateParameters;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanager.hsm.util.CertificateUtility;
@@ -125,6 +124,9 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     @Value("${mosip.kernel.partner.cacertificate.upload.minimumvalidity.month:12}")
     private int minValidity;
 
+    @Value("${mosip.kernel.partner.certificate.chain.cache.expire.inMin:1440}")
+    private long certChainCacheExpireInMin;
+
     @Value("${mosip.kernel.partner.certificate.allowed.sign.algorithms:SHA256withRSA}")
     private List<String> allowedSignAlgorithms;
 
@@ -132,19 +134,19 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
      * Utility to generate Metadata
      */
     @Autowired
-    KeymanagerUtil keymanagerUtil;
+    private KeymanagerUtil keymanagerUtil;
 
     /**
      * Utility to generate Metadata
      */
     @Autowired
-    PartnerCertManagerDBHelper certDBHelper;
+    private PartnerCertManagerDBHelper certDBHelper;
 
     /**
      * Repository to get CA certificate
      */
     @Autowired
-    CACertificateStoreRepository caCertificateStoreRepository;
+    private CACertificateStoreRepository caCertificateStoreRepository;
 
     /**
      * Keystore instance to handles and store cryptographic keys.
@@ -158,24 +160,26 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     private Cache<String, Object> caCertTrustStore = null;
     
     @Autowired
-    CryptomanagerUtils cryptomanagerUtil;
+    private CryptomanagerUtils cryptomanagerUtil;
 
     @Autowired
-    KeyAliasRepository keyAliasRepository;
+    private KeyAliasRepository keyAliasRepository;
 
     @Autowired
-    PartnerCertManagerDBHelper partnerCertManagerDBHelper;
+    private PartnerCertManagerDBHelper partnerCertManagerDBHelper;
+
+    private Cache<String, List<Certificate>> certChainCache;
 
     @PostConstruct
     public void init() {
-        // Added Cache2kBuilder in the postConstruct because expire value 
+        // Added Cache2kBuilder in the postConstruct because expire value
         // configured in properties are getting injected after this object creation.
         // Cache2kBuilder constructor is throwing error.
         checkAndUpdateCaCertificateTypeIsNull();
         if (!disableTrustStoreCache) {
                 caCertTrustStore = new Cache2kBuilder<String, Object>() {}
                 // added hashcode because test case execution failing with IllegalStateException: Cache already created
-                .name("caCertTrustStore-" + this.hashCode()) 
+                .name("caCertTrustStore-" + this.hashCode())
                 .expireAfterWrite(cacheExpireInMins, TimeUnit.MINUTES)
                 .entryCapacity(10)
                 .refreshAhead(true)
@@ -186,6 +190,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                         return certDBHelper.getTrustAnchors(partnerDomain);
                 })
                 .build();
+
+            certChainCache = new Cache2kBuilder<String, List<Certificate>>() {}
+                    .name("certChainCache-" + this.hashCode())
+                    .expireAfterWrite(certChainCacheExpireInMin, TimeUnit.MINUTES)
+                    .entryCapacity(100)
+                    .build();
         }
     }
 
@@ -206,7 +216,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             caCertificateStoreRepository.saveAndFlush(certificate);
         }
     }
-
+    
     @Override
     public CACertificateResponseDto uploadCACertificate(CACertificateRequestDto caCertRequestDto) {
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
@@ -285,7 +295,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             responseDto.setStatus(PartnerCertManagerConstants.PARTIAL_SUCCESS_UPLOAD);
         else 
             responseDto.setStatus(PartnerCertManagerConstants.UPLOAD_FAILED);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -301,15 +311,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
                                         + " able to parse, may be p7b certificate data inputed.");
         }
         // Try to Parse as P7B file.
-        byte[] p7bBytes;
-        try {
-            p7bBytes = CryptoUtil.decodeURLSafeBase64(certificateData);
-        } catch (Exception e) {
-            LOGGER.error(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
-                PartnerCertManagerConstants.EMPTY, "Invalid Certificate Data provided to upload the ca/sub-ca certificate.");
-            throw new PartnerCertManagerException(KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorCode(),
-                    KeymanagerErrorConstant.CERTIFICATE_PARSING_ERROR.getErrorMessage());
-        }
+        byte[] p7bBytes= CryptoUtil.decodeURLSafeBase64(certificateData);
         try (ByteArrayInputStream certStream = new ByteArrayInputStream(p7bBytes)) {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             Collection<?> p7bCertList = cf.generateCertificates(certStream);
@@ -354,13 +356,25 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     private List<? extends Certificate> getCertificateTrustPath(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
 
         try {
+            final String cacheKey = partnerDomain + PartnerCertManagerConstants.SEPERATOR + PartnerCertificateManagerUtil.getCertificateThumbprint(reqX509Cert);
+
+            List<? extends Certificate> cachedChain = certChainCache.get(cacheKey);
+            if (cachedChain != null) {
+                LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
+                        PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation found in cache for domain and thumbprint: " + cacheKey);
+                return cachedChain;
+            }
+
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
+                    PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation not found in cache for domain and thumbprint: " + cacheKey);
+
             Map<String, Set<?>> trustStoreMap = !disableTrustStoreCache ? (Map<String, Set<?>>) caCertTrustStore.get(partnerDomain):
-                                                        certDBHelper.getTrustAnchors(partnerDomain);
+                    certDBHelper.getTrustAnchors(partnerDomain);
             Set<TrustAnchor> rootTrustAnchors = (Set<TrustAnchor>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_ROOT);
             Set<X509Certificate> interCerts = interCertsTrust == null ? (Set<X509Certificate>) trustStoreMap
                     .get(PartnerCertManagerConstants.TRUST_INTER) : interCertsTrust;
-            
+
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                     PartnerCertManagerConstants.EMPTY, "Certificate Trust Path Validation for domain: " + partnerDomain);
             LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
@@ -388,8 +402,12 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
             List<Certificate> trustCertList = new ArrayList<>();
             certList.stream().forEach(cert -> {
                 trustCertList.add(cert);
-            }); 
+            });
             trustCertList.add(rootCert);
+
+            certChainCache.put(cacheKey, trustCertList);
+            LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
+                    PartnerCertManagerConstants.EMPTY, "Certificate Chain stored in cache, key: {}", cacheKey);
             return trustCertList;
         } catch (CertPathBuilderException | InvalidAlgorithmParameterException | NoSuchAlgorithmException exp) {
             LOGGER.debug(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_CA_CERT,
@@ -399,6 +417,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         return null;
     }
 
+    @Override
     public List<? extends Certificate> getCertificateTrustChain(X509Certificate reqX509Cert, String partnerDomain, Set<X509Certificate> interCertsTrust) {
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.CERT_TRUST_VALIDATION,
                 PartnerCertManagerConstants.EMPTY, "Certificate Trust chain for domain: " + partnerDomain);
@@ -461,7 +480,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         X509Certificate rootCert = (X509Certificate) keymanagerUtil.convertToCertificate(
                                         keymanagerService.getCertificate(PartnerCertManagerConstants.ROOT_APP_ID, 
                                                         Optional.of(PartnerCertManagerConstants.EMPTY)).getCertificate());
-        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String timestamp = DateUtils2.getUTCCurrentDateTimeString();
         SignatureCertificate certificateResponse = keymanagerService.getSignatureCertificate(masterSignKeyAppId,
                                                         Optional.of(PartnerCertManagerConstants.EMPTY), timestamp);
         X509Certificate pmsCert = certificateResponse.getCertificateEntry().getChain()[0];
@@ -482,7 +501,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         PartnerCertificateResponseDto responseDto = new PartnerCertificateResponseDto();
         responseDto.setCertificateId(certId);
         responseDto.setSignedCertificateData(p7bCertChain);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -672,7 +691,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         int noOfDays = PartnerCertManagerConstants.YEAR_DAYS * issuerCertDuration;
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.UPLOAD_PARTNER_CERT, "Cert Duration",
                 "Calculated Signed Certficiate Number of Days for expire: " + noOfDays);
-        LocalDateTime notBeforeDate = DateUtils.getUTCCurrentDateTime(); 
+        LocalDateTime notBeforeDate = DateUtils2.getUTCCurrentDateTime();
         LocalDateTime notAfterDate = notBeforeDate.plus(noOfDays, ChronoUnit.DAYS);
         CertificateParameters certParams = PartnerCertificateManagerUtil.getCertificateParameters(subjectPrincipal,
                 notBeforeDate, notAfterDate);
@@ -692,7 +711,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
 
         PartnerCertDownloadResponeDto responseDto = new PartnerCertDownloadResponeDto();
         responseDto.setCertificateData(partnerCertStore.getSignedCertData());
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         return responseDto;
     }
 
@@ -747,7 +766,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         PartnerSignedCertDownloadResponseDto responseDto = new PartnerSignedCertDownloadResponseDto();
         responseDto.setMosipSignedCertificateData(partnerCertStore.getSignedCertData());
         responseDto.setCaSignedCertificateData(partnerCertStore.getCertData());
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         LOGGER.info(PartnerCertManagerConstants.SESSIONID, PartnerCertManagerConstants.GET_PARTNER_CERT,
                 PartnerCertManagerConstants.EMPTY, "Get Partner CA Signed Certificate & " +
                         "Mosip Signed Certificate Request. - Completed");
@@ -765,7 +784,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
         CACertificateStore caCertificateStore = getCACertificate(caCertId);
         X509Certificate caCertificate = (X509Certificate) keymanagerUtil.convertToCertificate(String.valueOf(caCertificateStore.getCertData()));
         String partnerDomain = caCertificateStore.getPartnerDomain();
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         List<? extends Certificate> certList = null;
         List<Certificate> chain = new ArrayList<>();
 
@@ -901,7 +920,7 @@ public class PartnerCertificateManagerServiceImpl implements PartnerCertificateM
     }
 
     private boolean isActiveCaCert(CACertificateStore certificate) {
-        LocalDateTime timeStamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timeStamp = DateUtils2.getUTCCurrentDateTime();
         return timeStamp.isEqual(certificate.getCertNotBefore()) || timeStamp.isEqual(certificate.getCertNotAfter())
                 || (timeStamp.isAfter(certificate.getCertNotBefore()) && timeStamp.isBefore(certificate.getCertNotAfter()));
     }

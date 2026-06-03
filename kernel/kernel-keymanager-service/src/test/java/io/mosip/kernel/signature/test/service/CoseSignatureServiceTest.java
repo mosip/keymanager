@@ -242,13 +242,13 @@ public class CoseSignatureServiceTest {
         CoseSignVerifyRequestDto coseSignVerifyRequestDto = new CoseSignVerifyRequestDto();
         coseSignVerifyRequestDto.setCoseSignedData("");
 
-        SignatureFailureException exception = assertThrows(SignatureFailureException.class, () -> {
+        RequestException exception = assertThrows(RequestException.class, () -> {
             coseSignatureService.coseVerify1(coseSignVerifyRequestDto);
         });
         Assert.assertNotNull(exception);
     }
 
-    @Test(expected = SignatureFailureException.class)
+    @Test(expected = RequestException.class)
     public void testCoseVerifyTag() {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
         keyPairGenRequestDto.setApplicationId("ID_REPO");

@@ -42,16 +42,16 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.signature.constant.SignatureConstant;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
+import java.util.Set;
 import java.util.stream.Collectors;
-
+import java.util.Arrays;
 import com.nimbusds.jose.JOSEObjectType;
 
 /**
@@ -112,7 +112,7 @@ public class SignatureUtil {
 	public static boolean isCertificateDatesValid(X509Certificate x509Cert) {
 
 		try {
-			Date currentDate = Date.from(DateUtils.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
+			Date currentDate = Date.from(DateUtils2.getUTCCurrentDateTime().atZone(ZoneId.systemDefault()).toInstant());
 			x509Cert.checkValidity(currentDate);
 			return true;
 		} catch (CertificateExpiredException | CertificateNotYetValidException exp) {
@@ -226,6 +226,12 @@ public class SignatureUtil {
 
 	public static String getIssuerFromPayload(String jsonPayload) {
 		try {
+			if (!isDataValid(jsonPayload)) {
+				LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+						"Invalid JSON Payload Data Provided. Payload: " + jsonPayload);
+				return SignatureConstant.BLANK;
+			}
+
 			JsonNode jsonNode = mapper.readTree(jsonPayload);
 
 			if (jsonNode.has(SignatureConstant.ISSUER)) {
@@ -465,8 +471,8 @@ public class SignatureUtil {
         }
 
         Date issuedAt = new Date();
-        Date notBefore = DateUtils.addDays(issuedAt, notBeforeIndays);
-        Date expire = DateUtils.addDays(notBefore, expireIndays);
+        Date notBefore = DateUtils2.addDays(issuedAt, notBeforeIndays);
+        Date expire = DateUtils2.addDays(notBefore, expireIndays);
         String cwtId = requestDto.getCWTId() != null ? requestDto.getCWTId() : SignatureConstant.BLANK;
         String cwtUniqueId = (cwtId.equalsIgnoreCase(SignatureConstant.RANDOM_UUID))
                 ? UUID.randomUUID().toString()

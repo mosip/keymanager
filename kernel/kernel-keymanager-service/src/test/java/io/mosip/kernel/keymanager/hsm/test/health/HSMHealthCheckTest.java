@@ -72,7 +72,7 @@ public class HSMHealthCheckTest {
         assertEquals(Status.DOWN, health.getStatus());
         assertEquals("NO_UNIQUE_KEY_ALIAS_FOUND", health.getDetails().get("Error: "));
     }
-    
+
     @Test
     public void testHealthDownWhenMultipleKeyAliasesFound() {
         ReflectionTestUtils.setField(hsmHealthCheck, "healthCheckEnabled", true);

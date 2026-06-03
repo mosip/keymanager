@@ -81,11 +81,10 @@ public interface SignatureService {
 	 * Validate trust for the given JWT signature verify request.
 	 *
 	 * @param jwtVerifyRequestDto the JWTSignatureVerifyRequestDto
-	 * @param headerCertificate   the certificate from the JWT header
 	 * @param reqCertData         the certificate data from the request
 	 * @return a String indicating the validation result
 	 */
-	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate headerCertificate, String reqCertData);
+	public String validateTrust(JWTSignatureVerifyRequestDto jwtVerifyRequestDto, Certificate reqCertData);
 
 	/**
 	 * Validate trust for the given JWT signature verify request with Certificate Chain.

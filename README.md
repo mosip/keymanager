@@ -1,5 +1,5 @@
-[![Maven Package upon a push](https://github.com/mosip/keymanager/actions/workflows/push_trigger.yml/badge.svg?branch=develop)](https://github.com/mosip/keymanager/actions/workflows/push_trigger.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=develop&project=mosip_keymanager&metric=alert_status)](https://sonarcloud.io/dashboard?branch=develop&id=mosip_keymanager)
+[![Maven Package upon a push](https://github.com/mosip/keymanager/actions/workflows/push-trigger.yml/badge.svg?branch=release-1.4.x)](https://github.com/mosip/keymanager/actions/workflows/push-trigger.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.4.x&project=mosip_keymanager&metric=alert_status)](https://sonarcloud.io/dashboard?branch=release-1.4.x&id=mosip_keymanager)
 
 # Key Manager
 
@@ -17,7 +17,7 @@ Reference: [Key Manager](https://docs.mosip.io/1.2.0/id-lifecycle-management/sup
 - **Key Hierarchy**: Manages Root, Module, and Encryption/Decryption keys.
 
 ## Services
-- **kernel-keymanager-service**: Core microservice that exposes REST APIs. 
+- **kernel-keymanager-service**: Core microservice that exposes REST APIs.
 - **keys-generator**: Utility job used to generate the initial set of cryptographic keys required by MOSIP.
 - **keys-migrator**: Utility tool used to securely migrate cryptographic keys between HSMs.
 
@@ -32,11 +32,11 @@ There are two ways to set up the Key Manager service locally:
 - JDK 21 or higher
 - Maven 3.9.x
 - PostgreSQL 10 or higher
-- SoftHSM or a compatible HSM
+- SoftHSM, HSM, PKCS12(.p12) file or JCE
 - Docker (for Docker-based setup)
 
 ## Database Setup
-The Key Manager service requires a PostgreSQL database to store its data. 
+The Key Manager service requires a PostgreSQL database to store its data.
 Follow the steps below to set up the database:
 
 **Clone the Repository**
@@ -54,13 +54,13 @@ Follow the steps below to set up the database:
    ```
 
 **Option 2: Manual Setup**
-1. Create a database 
-Log into postgresql and create a database for the Key Manager service.
+1. Create a database
+   Log into postgresql and create a database for the Key Manager service.
 ```sql
 CREATE DATABASE mosip_keymgr;
 ```
-2. Create a schema 
-Log into postgresql and create a schema for the Key Manager service.
+2. Create a schema
+   Log into postgresql and create a schema for the Key Manager service.
 ```sql
 CREATE SCHEMA keymgr;
 ```
@@ -110,8 +110,8 @@ The service configuration can be found in `kernel/kernel-keymanager-service/src/
 
 4. **Verify and Interact**
    Once the service is up and running, you can explore the APIs:
-   - **Swagger UI**: Access the interactive API documentation at [http://localhost:8088/v1/keymanager/swagger-ui/index.html#/](http://localhost:8088/v1/keymanager/swagger-ui/index.html#/)
-   - **Postman**: You can also import the collection and test the APIs using [Postman](https://www.postman.com/).
+    - **Swagger UI**: Access the interactive API documentation at [http://localhost:8088/v1/keymanager/swagger-ui/index.html#/](http://localhost:8088/v1/keymanager/swagger-ui/index.html#/)
+    - **Postman**: You can also import the collection and test the APIs using [Postman](https://www.postman.com/).
 
 > **Note**: Keymanager relies on standard OAuth2/OIDC bearer token authentication. You may use MOSIP Auth Adaptor or any compatible OAuth2/OIDC provider to secure the REST APIs.
 
@@ -138,10 +138,10 @@ The service configuration can be found in `kernel/kernel-keymanager-service/src/
 Scripts for deployment are available in the `deploy` directory.
 ### Pre-requisites
 * Set KUBECONFIG variable to point to existing K8 cluster kubeconfig file:
-  * ```
+    * ```
     export KUBECONFIG=~/.kube/<my-cluster.config>
     ```
-    
+
 ### Install
   ```
     $ cd deploy
