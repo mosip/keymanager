@@ -1,4 +1,4 @@
-# MOSIP Key Manager — CLAUDE.md
+# MOSIP Key Manager — AGENTS.md
 
 ## Project Overview
 
