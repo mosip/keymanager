@@ -1,6 +1,6 @@
 package io.mosip.kernel.keymanagerservice.test.service;
 
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.dto.*;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
@@ -52,7 +52,7 @@ public class KeymanagerServiceImplTest {
 
     KeyPairGenerateResponseDto generateMasterKey;
 
-    String timestampStr = DateUtils.getUTCCurrentDateTime().toString();
+    String timestampStr = DateUtils2.getUTCCurrentDateTime().toString();
 
     @Before
     public void setUp() {
@@ -111,7 +111,7 @@ public class KeymanagerServiceImplTest {
     @Test
     public void testGenerateMasterKeyThrowNoUniqueKeyAliasException() {
         KeyPairGenerateRequestDto keyPairGenRequestDto = new KeyPairGenerateRequestDto();
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB752");
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "", UUID.randomUUID().toString(), timestamp.plusYears(3),
@@ -172,7 +172,7 @@ public class KeymanagerServiceImplTest {
 
     @Test
     public void testGetCertificateNoUniqueAliasException() {
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB75A");
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "", UUID.randomUUID().toString(), timestamp.plusYears(3),
@@ -361,7 +361,7 @@ public class KeymanagerServiceImplTest {
         Assert.assertEquals(KeymanagerErrorConstant.EC_SIGN_REFERENCE_ID_NOT_SUPPORTED.getErrorCode(), exception2.getErrorCode());
         Assert.assertEquals("KER-KMS-030 --> EC Sign Reference Id Not Supported for the Application ID.", exception2.getMessage());
 
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("PARTNER", timestamp.minusYears(2), "test", UUID.randomUUID().toString(), timestamp.minusDays(1),
                 "A8ECF08AB926EF26DB80E6C1B0DD4E9B9FA8E43A2BEC724F05C1B500D9FED5C2", "AA05CFE5D1AA1B814ABDDFF5FCDF6346CB30E8F6");
         requestDto.setApplicationId("PARTNER");
@@ -390,7 +390,7 @@ public class KeymanagerServiceImplTest {
 
     @Test
     public void testUploadOtherDomainCertificateNoUniqueKeyException() {
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("PARTNER", timestamp.minusDays(1), "test", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB752");
         dbHelper.storeKeyInAlias("PARTNER", timestamp.minusDays(1), "test", UUID.randomUUID().toString(), timestamp.plusYears(3),
@@ -437,7 +437,7 @@ public class KeymanagerServiceImplTest {
 
     @Test
     public void testGenerateSymmetricKeyNoUniqueKeyException() {
-        LocalDateTime timestamp = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
                 null, null);
         dbHelper.storeKeyInAlias("TEST", timestamp.minusDays(1), "abc", UUID.randomUUID().toString(), timestamp.plusYears(3),
@@ -596,7 +596,7 @@ public class KeymanagerServiceImplTest {
 
     @Test
     public void testGetSignPublicKeyUniqueKeyException() {
-        LocalDateTime timestamp1 = DateUtils.getUTCCurrentDateTime();
+        LocalDateTime timestamp1 = DateUtils2.getUTCCurrentDateTime();
         dbHelper.storeKeyInAlias("TEST", timestamp1.minusDays(1), "", UUID.randomUUID().toString(), timestamp1.plusYears(3),
                 "F367FDFB62F959DE8F38E24ACE65EED053F5C7CC4E8AB496DF1DA515D3173988", "A8402FCA390FA3DB5B8EDDD06CE9A008C3CBB752");
         dbHelper.storeKeyInAlias("TEST", timestamp1.minusDays(1), "", UUID.randomUUID().toString(), timestamp1.plusYears(3),
@@ -683,13 +683,13 @@ public class KeymanagerServiceImplTest {
         service.generateMasterKey("CSR", keyPairGenRequestDto);
         
         // Update expiry column for the generated key
-        updateKeyExpiry("RESIDENT", "", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B2584A");
+        updateKeyExpiry("RESIDENT", "", DateUtils2.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B2584A");
         KeyPairGenerateResponseDto result = service.getCertificate("RESIDENT", Optional.of(""));
         Assert.assertNotNull(result);
 
         keyPairGenRequestDto.setReferenceId("EC_SECP256R1_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
-        updateKeyExpiry("RESIDENT", "EC_SECP256R1_SIGN", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258B1");
+        updateKeyExpiry("RESIDENT", "EC_SECP256R1_SIGN", DateUtils2.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258B1");
         result = service.generateECSignKey("CSR", keyPairGenRequestDto);
         Assert.assertNotNull(result);
     }
@@ -728,7 +728,7 @@ public class KeymanagerServiceImplTest {
 
         keyPairGenRequestDto.setReferenceId("ED25519_SIGN");
         service.generateECSignKey("CSR", keyPairGenRequestDto);
-        updateKeyExpiry("PRE_REGISTRATION", "ED25519_SIGN", DateUtils.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258C2");
+        updateKeyExpiry("PRE_REGISTRATION", "ED25519_SIGN", DateUtils2.getUTCCurrentDateTime().minusHours(2), "FB59F8678D10E370C107442BD479D75ED1B258C2");
 
         SignatureCertificate result = service.getSignatureCertificate("PRE_REGISTRATION", Optional.of("ED25519_SIGN"), timestampStr);
         Assert.assertNotNull(result);

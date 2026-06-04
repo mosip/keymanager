@@ -46,11 +46,9 @@ public interface KeymanagerService {
 	 */
 	//public PublicKeyResponse<String> getPublicKey(String applicationId, String timeStamp, Optional<String> referenceId);
 
-	public PublicKeyResponse<String> getSignPublicKey(String applicationId, String timeStamp,
-			Optional<String> referenceId);
+	public PublicKeyResponse<String> getSignPublicKey(String applicationId, String timeStamp, Optional<String> referenceId);
 
-	public SignatureCertificate getSignatureCertificate(String applicationId, Optional<String> referenceId,
-													String timestamp);
+	public SignatureCertificate getSignatureCertificate(String applicationId, Optional<String> referenceId,	String timestamp);
 
 	/**
 	 * Function to generate Master key pair in the HSM specified in config.
