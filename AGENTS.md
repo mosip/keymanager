@@ -1,4 +1,5 @@
 # MOSIP Key Manager — AGENTS.md
+This file provides guidance to AI agents when working with code in this repository.
 
 ## Project Overview
 
@@ -58,21 +59,6 @@ Tests use H2 in-memory DB via `src/test/resources/schema.sql` + `data.sql`. No e
 - **Other**: CBOR (1.19), Argon2 (2.11), JNA (5.13.0), cache2k (2.4.1), TSS.Java (0.3.0)
 - **API docs**: springdoc-openapi 2.6.0 (accessible at `/v1/keymanager/swagger-ui.html`)
 
----
-
-## Module Versions (current develop)
-
-| Artifact | Version          |
-|----------|------------------|
-| `keymanager-parent` | `1.5.0-SNAPSHOT` |
-| `kernel-keymanager-service` | `1.5.0-SNAPSHOT` |
-| `keys-generator` | `1.5.0-SNAPSHOT` |
-| `keys-migrator` | `1.5.0-SNAPSHOT` |
-| `kernel-bom` / `kernel-core` deps | `1.4.0-SNAPSHOT` |
-| Helm chart versions | `0.0.1-develop`  |
-
----
-
 ## Java Package Structure
 
 All packages live under `io.mosip.kernel.*`:
@@ -108,9 +94,9 @@ All packages live under `io.mosip.kernel.*`:
 ## Key Hierarchy (MOSIP Design)
 
 ```
-Root Key (HSM, 5yr)
-  └── Module Key (HSM, 3yr) — one per application/module
-        └── Base Key (DB encrypted, 2yr) — one per app+ref_id pair
+Root Key 
+  └── Module Key — one per application/module
+        └── Base Key — one per app+ref_id pair
 ```
 
 - Root and Module keys live on the **HSM only**
@@ -151,23 +137,6 @@ Service port: **8088**. Actuator/management port: **9010**.
 
 ---
 
-## Helm Charts
-
-All charts use `0.0.1-develop` version on develop branch. Do **not** change Chart.yaml `version` when working on develop — it's bumped only at release time.
-
-Key `values.yaml` production settings (keymanager chart):
-```yaml
-resources:
-  limits: { cpu: 2000m, memory: 8000Mi }
-  requests: { cpu: 1000m, memory: 4000Mi }
-additionalResources:
-  javaOpts: "-XX:+UseZGC -XX:+ZGenerational -XX:ZCollectionInterval=5 -Xms4000m -Xmx5400m ..."
-```
-
-`helm/softhsm/values.yaml` image: `mosipqa/softhsm` (QA/dev registry — **not** `mosipid/softhsm`).
-
----
-
 ## CI/CD (GitHub Actions)
 
 | Workflow | Trigger | What it does |
@@ -176,17 +145,6 @@ additionalResources:
 | `db-test.yml` | Changes to `db_scripts/` | PostgreSQL schema validation |
 | `chart-lint-publish.yml` | PR / release publish | Helm chart lint + publish to chart repo |
 | `clear-artifacts.yml` | Manual | Clean up old artifacts |
-
----
-
-## Development Conventions
-
-- **Branch naming**: `develop` (main dev), `release-1.x.x` (release lines), feature branches
-- **Merge strategy**: Release → develop merges take release code by default; keep develop's pom versions, helm chart versions (`0.0.1-develop`), and softhsm image (`mosipqa`)
-- **Test conventions**: Tests use H2 + `@SpringBootTest`; test resource files in `src/test/resources/`
-- **No `mockito-inline` in prod scope** — test-scoped only
-- **Java path convention**: test util packages use lowercase (`util/`, not `Util/`)
-- **DB script naming**: `X_to_Y_upgrade.sql` and `X_to_Y_rollback.sql` in `db_upgrade_scripts/mosip_keymgr/sql/`
 
 ---
 
