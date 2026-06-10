@@ -954,7 +954,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(keyFromDBStore.get().getPrivateKey()),
 													masterPrivateKey, masterPublicKey, keyStore.getKeystoreProviderName());
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
-                    "Decrypted Private Key byte length: " + decryptedPrivateKey.length);
+                    "Private key decrypted from HSM master key");
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
                     "constructing the certificate from db certificate data.");
 			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(keyFromDBStore.get().getCertificateData());
