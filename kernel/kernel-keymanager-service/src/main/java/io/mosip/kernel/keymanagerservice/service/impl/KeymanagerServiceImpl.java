@@ -306,7 +306,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore = dbHelper
 					.getKeyStoreFromDB(currentKeyAlias.get(0).getAlias());
 			if (!keyFromDBStore.isPresent()) {
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
 						"Key in DBStore does not exist for this alias. Throwing exception");
 				throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
 						KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
@@ -934,7 +934,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	private Object[] getKeyDetails(Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore, String keyAlias) {
 		
 		if (!keyFromDBStore.isPresent()) {
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.KEYALIAS,
 					"Key in DBStore does not exist for this alias. So fetching the certificate from HSM.");
 			PrivateKeyEntry signKeyEntry = keyStore.getAsymmetricKey(keyAlias);
 			PrivateKey signPrivateKey = signKeyEntry.getPrivateKey();
