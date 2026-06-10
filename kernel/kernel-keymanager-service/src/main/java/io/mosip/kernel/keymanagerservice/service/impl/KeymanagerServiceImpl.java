@@ -953,7 +953,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
                     "Decrypt the encrypted private key using HSM master key");
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(keyFromDBStore.get().getPrivateKey()),
 													masterPrivateKey, masterPublicKey, keyStore.getKeystoreProviderName());
-            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
                     "Decrypted Private Key byte length: " + decryptedPrivateKey.length);
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
                     "constructing the certificate from db certificate data.");
