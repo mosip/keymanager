@@ -75,7 +75,7 @@ import io.mosip.kernel.keymanagerservice.exception.InvalidResponseObjectTypeExce
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
-import io.mosip.kernel.keymanagerservice.helper.SessionKeyDecrytorHelper;
+import io.mosip.kernel.keymanagerservice.helper.SessionKeyDecryptorHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -154,7 +154,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	CryptomanagerUtils cryptomanagerUtil;
 
 	@Autowired
-	SessionKeyDecrytorHelper keyDecryptorHelper;
+	SessionKeyDecryptorHelper keyDecryptorHelper;
 
 	@Autowired
 	private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
