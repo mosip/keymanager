@@ -1,6 +1,7 @@
 package io.mosip.kernel.tokenidgenerator.generator;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.HMACUtils2;
@@ -25,8 +26,8 @@ public class TokenIDGenerator {
 
 	public String generateTokenID(String uin, String partnerCode) {
 		try {
-			String uinHash = HMACUtils2.digestAsPlainText((uin + uinSalt).getBytes());
-			String hash = HMACUtils2.digestAsPlainText((partnerCodeSalt + partnerCode + uinHash).getBytes());
+			String uinHash = HMACUtils2.digestAsPlainText((uin + uinSalt).getBytes(StandardCharsets.UTF_8));
+			String hash = HMACUtils2.digestAsPlainText((partnerCodeSalt + partnerCode + uinHash).getBytes(StandardCharsets.UTF_8));
 			return new BigInteger(hash.getBytes()).toString().substring(0, tokenIDLength);
 		} catch (java.security.NoSuchAlgorithmException e) {
 			LOGGER.error("Error generating token ID: No such algorithm found", e);
