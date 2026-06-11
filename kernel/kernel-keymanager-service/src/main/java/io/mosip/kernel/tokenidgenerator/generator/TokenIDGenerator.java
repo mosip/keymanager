@@ -25,8 +25,8 @@ public class TokenIDGenerator {
 
 	public String generateTokenID(String uin, String partnerCode) {
 		try {
-			String uinHash = HMACUtils2.digestAsPlainText(HMACUtils2.generateHash((uin + uinSalt).getBytes()));
-			String hash = HMACUtils2.digestAsPlainText(HMACUtils2.generateHash((partnerCodeSalt + partnerCode + uinHash).getBytes()));
+			String uinHash = HMACUtils2.digestAsPlainText((uin + uinSalt).getBytes());
+			String hash = HMACUtils2.digestAsPlainText((partnerCodeSalt + partnerCode + uinHash).getBytes());
 			return new BigInteger(hash.getBytes()).toString().substring(0, tokenIDLength);
 		} catch (java.security.NoSuchAlgorithmException e) {
 			LOGGER.error("Error generating token ID: No such algorithm found", e);
