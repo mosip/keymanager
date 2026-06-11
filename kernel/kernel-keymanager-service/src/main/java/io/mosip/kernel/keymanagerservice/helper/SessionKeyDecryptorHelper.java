@@ -52,9 +52,9 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
  *
  */
 @Component
-public class SessionKeyDecrytorHelper {
+public class SessionKeyDecryptorHelper {
     
-	private static final Logger LOGGER = KeymanagerLogger.getLogger(SessionKeyDecrytorHelper.class);
+	private static final Logger LOGGER = KeymanagerLogger.getLogger(SessionKeyDecryptorHelper.class);
 
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
@@ -352,7 +352,7 @@ public class SessionKeyDecrytorHelper {
 			String ksAlias = fetchedKeyAlias.getAlias();
 			Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore = dbHelper.getKeyStoreFromDB(ksAlias);
 			if (!dbKeyStore.isPresent()) {
-				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, dbKeyStore.toString(),
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
 						"Key in DBStore does not exist for this alias. Throwing exception");
 				throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
 						KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());

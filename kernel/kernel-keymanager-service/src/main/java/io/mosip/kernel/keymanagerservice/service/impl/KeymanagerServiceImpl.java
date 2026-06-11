@@ -75,7 +75,7 @@ import io.mosip.kernel.keymanagerservice.exception.InvalidResponseObjectTypeExce
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.keymanagerservice.helper.KeymanagerDBHelper;
-import io.mosip.kernel.keymanagerservice.helper.SessionKeyDecrytorHelper;
+import io.mosip.kernel.keymanagerservice.helper.SessionKeyDecryptorHelper;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -154,7 +154,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	CryptomanagerUtils cryptomanagerUtil;
 
 	@Autowired
-	SessionKeyDecrytorHelper keyDecryptorHelper;
+	SessionKeyDecryptorHelper keyDecryptorHelper;
 
 	@Autowired
 	private ECKeyPairGenRequestValidator ecKeyPairGenRequestValidator;
@@ -306,7 +306,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 			Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore = dbHelper
 					.getKeyStoreFromDB(currentKeyAlias.get(0).getAlias());
 			if (!keyFromDBStore.isPresent()) {
-				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+				LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
 						"Key in DBStore does not exist for this alias. Throwing exception");
 				throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
 						KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
@@ -934,7 +934,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 	private Object[] getKeyDetails(Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> keyFromDBStore, String keyAlias) {
 		
 		if (!keyFromDBStore.isPresent()) {
-			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.KEYALIAS,
 					"Key in DBStore does not exist for this alias. So fetching the certificate from HSM.");
 			PrivateKeyEntry signKeyEntry = keyStore.getAsymmetricKey(keyAlias);
 			PrivateKey signPrivateKey = signKeyEntry.getPrivateKey();
@@ -945,16 +945,16 @@ public class KeymanagerServiceImpl implements KeymanagerService {
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
                     "Getting Master Key entry from keystore. for master key alias: " + keyFromDBStore.get().getMasterAlias());
             PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyFromDBStore.get().getMasterAlias());
-            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
-                    "master key entry found." + masterKeyEntry);
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
+                    "master key entry found.");
             PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
             PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
                     "Decrypt the encrypted private key using HSM master key");
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(keyFromDBStore.get().getPrivateKey()), 
 													masterPrivateKey, masterPublicKey, keyStore.getKeystoreProviderName());
-            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, keyFromDBStore.toString(),
-                    "Decrypted Private Key byte length: " + decryptedPrivateKey.length);
+            LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, KeymanagerConstant.EMPTY,
+                    "Private key decrypted from HSM master key.");
             LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
                     "constructing the certificate from db certificate data.");
 			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(keyFromDBStore.get().getCertificateData());
