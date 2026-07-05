@@ -1,5 +1,5 @@
 -- Below script required to upgrade from 1.3.0-B4 to 1.3.0
-\c mosip_keymgr
+\c :mosipdbname
 
 ALTER TABLE IF EXISTS keymgr.ca_cert_store
     ADD COLUMN ca_cert_type character varying(25);
