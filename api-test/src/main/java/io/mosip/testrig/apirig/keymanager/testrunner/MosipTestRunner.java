@@ -57,9 +57,6 @@ public class MosipTestRunner {
 			KeycloakUserManager.removeUser();
 			KeycloakUserManager.createUsers();
 			KeycloakUserManager.closeKeycloakInstance();
-//			AdminTestUtil.getRequiredField();
-
-//			BaseTestCase.getLanguageList();
 
 			generateDependency = KeyManagerConfigManager.getproperty("generateDependencyJson");
 
