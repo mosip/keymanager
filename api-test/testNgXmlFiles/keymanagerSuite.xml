@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+
+<suite name="KeyManager API Test">
+	<listeners>
+		<listener class-name="io.mosip.testrig.apirig.report.EmailableReport" />
+	</listeners>
+
+	<test name="GenerateMasterKey">
+		<parameter name="ymlFile" value="keymanager/GenerateMasterKey/GenerateMasterKey.yml" />
+		<classes>
+			<class name="io.mosip.testrig.apirig.keymanager.testscripts.SimplePostWithCertValidation" />
+		</classes>
+	</test>
+
+	<test name="GenerateECSignKey">
+		<parameter name="ymlFile" value="keymanager/GenerateECSignKey/GenerateECSignKey.yml" />
+		<classes>
+			<class name="io.mosip.testrig.apirig.keymanager.testscripts.SimplePostWithCertValidation" />
+		</classes>
+	</test>
+
+	<test name="GenerateCSRPrereq">
+		<parameter name="ymlFile" value="keymanager/GenerateCSRPrereq/GenerateCSRPrereq.yml" />
+		<classes>
+			<class name="io.mosip.testrig.apirig.keymanager.testscripts.SimplePostWithCertValidation" />
+		</classes>
+	</test>
+
+	<test name="GenerateCSR">
+		<parameter name="ymlFile" value="keymanager/GenerateCSR/GenerateCSR.yml" />
+		<classes>
+			<class name="io.mosip.testrig.apirig.keymanager.testscripts.SimplePostWithCsrValidation" />
+		</classes>
+	</test>
+
+</suite>

@@ -1,0 +1,16 @@
+{
+  "id": "io.mosip.keymanager.generateCSR",
+  "metadata": {},
+  "request": {
+    "applicationId": "{{applicationId}}",
+    "referenceId": "{{referenceId}}"{{#if commonName}},
+    "commonName": "{{commonName}}"{{/if}}{{#if organizationUnit}},
+    "organizationUnit": "{{organizationUnit}}"{{/if}}{{#if organization}},
+    "organization": "{{organization}}"{{/if}}{{#if location}},
+    "location": "{{location}}"{{/if}}{{#if state}},
+    "state": "{{state}}"{{/if}}{{#if country}},
+    "country": "{{country}}"{{/if}}
+  },
+  "requesttime": "{{requesttime}}",
+  "version": "1.0"
+}

@@ -1,0 +1,14 @@
+##### DB queries to be executed to tear down the data created during keymanager test execution
+
+##### key_policy_def is deleted: it is only used during key creation to set validity period.
+##### key_alias is intentionally NOT deleted: force=false checks this table to determine
+##### whether the HSM key already exists. Deleting key_alias while the HSM key remains
+##### causes the service to create a second HSM key with the same CKA_ID on the next run,
+##### resulting in KER-KMA-003 or "Missing key encoding" (KER-KMA-005).
+DELETE FROM keymgr.key_policy_def WHERE app_id = UPPER('${runContext}AUTOMATION')
+
+##### generateCSR tests use a dedicated appId (AUTOMATIONCSR) so their key_alias rows can be
+##### safely deleted. generateCSR has no force parameter — it always creates a new HSM key.
+##### Without deleting key_alias, run 2 creates a second HSM key with the same CKA_ID -> KER-KMA-003.
+DELETE FROM keymgr.key_alias WHERE app_id = UPPER('${runContext}AUTOMATIONCSR')
+DELETE FROM keymgr.key_policy_def WHERE app_id = UPPER('${runContext}AUTOMATIONCSR')

@@ -1,0 +1,4 @@
+##### DB queries to be executed as pre-requisite before keymanager test execution
+
+INSERT INTO keymgr.key_policy_def (app_id, key_validity_duration, is_active, pre_expire_days, access_allowed, cr_by, cr_dtimes, upd_by, upd_dtimes, is_deleted, del_dtimes) VALUES(UPPER('${runContext}AUTOMATION'), 1095, true, 60, 'NA', 'mosipadmin', NOW(), NULL, NULL, false, NULL)
+INSERT INTO keymgr.key_policy_def (app_id, key_validity_duration, is_active, pre_expire_days, access_allowed, cr_by, cr_dtimes, upd_by, upd_dtimes, is_deleted, del_dtimes) VALUES(UPPER('${runContext}AUTOMATIONCSR'), 1095, true, 60, 'NA', 'mosipadmin', NOW(), NULL, NULL, false, NULL)

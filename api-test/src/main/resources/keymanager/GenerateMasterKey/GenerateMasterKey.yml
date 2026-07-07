@@ -1,0 +1,258 @@
+GenerateMasterKey:
+
+  KeyManager_GenerateMasterKey_Certificate_Valid_Smoke:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_01
+    description: Generate master key for automation applicationId using CERTIFICATE objectType - validates PEM certificate in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateMasterKey/GenerateMasterKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateMasterKey_CSR_Valid_Smoke:
+    endPoint: /v1/keymanager/generateMasterKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_02
+    description: Generate master key for automation applicationId using CSR objectType - validates PEM CSR in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateMasterKey/GenerateMasterKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateMasterKey_Certificate_WithSubjectFields_Valid:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_03
+    description: Generate master key with all optional subject fields (CN, OU, O, L, ST, C) using CERTIFICATE objectType.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateMasterKey/GenerateMasterKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateMasterKey_CSR_WithSubjectFields_Valid:
+    endPoint: /v1/keymanager/generateMasterKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_04
+    description: Generate master key with all optional subject fields (CN, OU, O, L, ST, C) using CSR objectType.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateMasterKey/GenerateMasterKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateMasterKey_Certificate_ForceFalse_Valid:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_05
+    description: Generate master key with force=false on an existing key - returns existing certificate without regenerating.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateMasterKey/GenerateMasterKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateMasterKey_Certificate_WithReferenceId_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_08
+    description: Generate master key with non-empty referenceId using CERTIFICATE objectType - expects KER-KMS-010 (Reference Id Not Supported).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "AUTOMATION-REF",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-010"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateMasterKey_CSR_WithReferenceId_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_09
+    description: Generate master key with non-empty referenceId using CSR objectType - expects KER-KMS-010 (Reference Id Not Supported).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "AUTOMATION-REF",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-010"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateMasterKey_InvalidObjectType_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/INVALID
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_06
+    description: Generate master key with invalid objectType path param - expects KER-KMS-500 (Internal Server Error).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-500"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateMasterKey_EmptyApplicationId_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_07
+    description: Generate master key with empty applicationId - expects error response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateMasterKey_Unauthenticated_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_10
+    description: Generate master key without authentication token - expects 500 (no auth enforcement on this endpoint).
+    role: noauth
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/responseCode
+    checkOnlyStatusCodeInResponse: true
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{"responseCode": "500"}'
+
+  KeyManager_GenerateMasterKey_WhitespaceApplicationId_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_11
+    description: Generate master key with whitespace-only applicationId - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "   ",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateMasterKey_InvalidRequesttime_Negative:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateMasterKey_12
+    description: Generate master key with invalid requesttime format - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "INVALID-TIMESTAMP-FORMAT"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'

@@ -22,10 +22,15 @@ local.properties
 .loadpath
 .DS_Store
 test.txt
-.idea/
 .settings/
 .sonarlint/
 .recommenders/
 /.recommenders/
 **/*.iml
-.vscode
+testng-report/
+test-output/
+
+# Share IntelliJ run configurations, ignore the rest of .idea
+.idea/*
+!.idea/runConfigurations
+!.idea/runConfigurations/**

@@ -1,0 +1,19 @@
+GenerateCSRPrereq:
+
+  KeyManager_GenerateCSRPrereq_GenerateMasterKey_Valid:
+    endPoint: /v1/keymanager/generateMasterKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateCSRPrereq_01
+    description: Generate master key for the CSR automation appId - prerequisite so generateCSR tests can use an existing key.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateMasterKey/GenerateMasterKey
+    outputTemplate: keymanager/GenerateCSRPrereq/GenerateCSRPrereqResult
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*"
+    }'

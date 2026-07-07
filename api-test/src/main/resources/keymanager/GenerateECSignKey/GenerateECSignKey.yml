@@ -1,0 +1,334 @@
+GenerateECSignKey:
+
+  KeyManager_GenerateECSignKey_Certificate_SECP256R1_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_01
+    description: Generate EC sign key using SECP256R1 curve with CERTIFICATE objectType - validates PEM certificate in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateECSignKey_Certificate_SECP256K1_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_02
+    description: Generate EC sign key using SECP256K1 curve with CERTIFICATE objectType - validates PEM certificate in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256K1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateECSignKey_Certificate_ED25519_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_03
+    description: Generate EC sign key using ED25519 curve with CERTIFICATE objectType - validates PEM certificate in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "ED25519_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateECSignKey_CSR_SECP256R1_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_04
+    description: Generate EC sign key using SECP256R1 curve with CSR objectType - validates PEM CSR in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateECSignKey_CSR_SECP256K1_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_05
+    description: Generate EC sign key using SECP256K1 curve with CSR objectType - validates PEM CSR in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256K1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateECSignKey_CSR_ED25519_Valid_Smoke:
+    endPoint: /v1/keymanager/generateECSignKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_06
+    description: Generate EC sign key using ED25519 curve with CSR objectType - validates PEM CSR in response.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "ED25519_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateECSignKey_Certificate_WithSubjectFields_Valid:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_07
+    description: Generate EC sign key with all optional subject fields (CN, OU, O, L, ST, C) using SECP256R1 and CERTIFICATE objectType.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateECSignKey_CSR_WithSubjectFields_Valid:
+    endPoint: /v1/keymanager/generateECSignKey/CSR
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_08
+    description: Generate EC sign key with all optional subject fields (CN, OU, O, L, ST, C) using SECP256R1 and CSR objectType.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*"
+    }'
+
+  KeyManager_GenerateECSignKey_Certificate_ForceFalse_Valid:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_09
+    description: Generate EC sign key with force=false on existing SECP256R1 key - returns existing certificate without regenerating.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/GenerateECSignKey/GenerateECSignKeyResult
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certificate": "$REGEXP:(?s).*-----BEGIN CERTIFICATE-----.*",
+      "certIsValid": "true",
+      "certKeyUsageValid": "true"
+    }'
+
+  KeyManager_GenerateECSignKey_InvalidObjectType_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/INVALID
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_10
+    description: Generate EC sign key with invalid objectType path param - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateECSignKey_EmptyReferenceId_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_11
+    description: Generate EC sign key with empty referenceId - expects KER-KMS-030 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-030"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateECSignKey_InvalidReferenceId_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_12
+    description: Generate EC sign key with invalid referenceId - expects KER-KMS-030 (Invalid Reference Id).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "INVALID_CURVE",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-030"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateECSignKey_EmptyApplicationId_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_13
+    description: Generate EC sign key with empty applicationId - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateECSignKey_WhitespaceApplicationId_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_14
+    description: Generate EC sign key with whitespace-only applicationId - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "   ",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateECSignKey_Unauthenticated_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_15
+    description: Generate EC sign key without authentication token - expects 500 (no auth enforcement on this endpoint).
+    role: noauth
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/responseCode
+    checkOnlyStatusCodeInResponse: true
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{"responseCode": "500"}'
+
+  KeyManager_GenerateECSignKey_InvalidRequesttime_Negative:
+    endPoint: /v1/keymanager/generateECSignKey/CERTIFICATE
+    uniqueIdentifier: TC_KeyManager_GenerateECSignKey_16
+    description: Generate EC sign key with invalid requesttime format - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateECSignKey/GenerateECSignKey
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERAPPID$",
+      "referenceId": "EC_SECP256R1_SIGN",
+      "force": false,
+      "requesttime": "INVALID-TIMESTAMP-FORMAT"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'

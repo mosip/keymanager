@@ -1,0 +1,168 @@
+GenerateCSR:
+
+  KeyManager_GenerateCSR_Valid_Smoke:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_01
+    description: Generate CSR for automation applicationId with empty referenceId - returns both PEM certificate and PEM CSR.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/GenerateCSR/GenerateCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*",
+      "csrIsValid": "true",
+      "csrSignatureValid": "true"
+    }'
+
+  KeyManager_GenerateCSR_WithReferenceId_Valid_Smoke:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_02
+    description: Generate CSR for automation applicationId with a non-empty referenceId - returns both PEM certificate and PEM CSR.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/GenerateCSR/GenerateCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "AUTOMATION-SIGN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*",
+      "csrIsValid": "true",
+      "csrSignatureValid": "true"
+    }'
+
+  KeyManager_GenerateCSR_WithSubjectFields_Valid:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_03
+    description: Generate CSR with all optional subject fields (CN, OU, O, L, ST, C) and empty referenceId.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/GenerateCSR/GenerateCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "",
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*",
+      "csrIsValid": "true",
+      "csrSignatureValid": "true"
+    }'
+
+  KeyManager_GenerateCSR_WithSubjectFieldsAndReferenceId_Valid:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_04
+    description: Generate CSR with all optional subject fields (CN, OU, O, L, ST, C) and a non-empty referenceId.
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/GenerateCSR/GenerateCSRResult
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "AUTOMATION-SIGN",
+      "commonName": "www.mosip.io",
+      "organizationUnit": "MOSIP-TECH-CENTER",
+      "organization": "IITB",
+      "location": "BANGALORE",
+      "state": "KA",
+      "country": "IN",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "certSignRequest": "$REGEXP:(?s).*-----BEGIN CERTIFICATE REQUEST-----.*",
+      "csrIsValid": "true",
+      "csrSignatureValid": "true"
+    }'
+
+  KeyManager_GenerateCSR_EmptyApplicationId_Negative:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_05
+    description: Generate CSR with empty applicationId - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "",
+      "referenceId": "",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateCSR_WhitespaceApplicationId_Negative:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_06
+    description: Generate CSR with whitespace-only applicationId - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "   ",
+      "referenceId": "",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
+
+  KeyManager_GenerateCSR_Unauthenticated_Negative:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_07
+    description: Generate CSR without authentication token - expects 500 (no auth enforcement on this endpoint).
+    role: noauth
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/responseCode
+    checkOnlyStatusCodeInResponse: true
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "",
+      "requesttime": "$TIMESTAMP$"
+    }'
+    output: '{"responseCode": "500"}'
+
+  KeyManager_GenerateCSR_InvalidRequesttime_Negative:
+    endPoint: /v1/keymanager/generateCSR
+    uniqueIdentifier: TC_KeyManager_GenerateCSR_08
+    description: Generate CSR with invalid requesttime format - expects KER-KMS-005 (Invalid Request).
+    role: admin
+    restMethod: post
+    inputTemplate: keymanager/GenerateCSR/GenerateCSR
+    outputTemplate: keymanager/error
+    input: '{
+      "applicationId": "$KEYMANAGERCSRAPPID$",
+      "referenceId": "",
+      "requesttime": "INVALID-TIMESTAMP-FORMAT"
+    }'
+    output: '{
+      "errors": [
+      {
+        "errorCode": "KER-KMS-005"
+      }
+    ]
+    }'
