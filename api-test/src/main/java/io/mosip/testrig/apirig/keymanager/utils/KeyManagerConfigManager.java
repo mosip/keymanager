@@ -21,7 +21,8 @@ public class KeyManagerConfigManager extends ConfigManager {
 				moduleSpecificPropertiesMap.put(key, props.getProperty(key));
 			}
 		} catch (Exception e) {
-			LOGGER.error(e.getMessage());
+			LOGGER.error("Failed to load keymanager.properties: " + e.getMessage());
+			throw new RuntimeException("Failed to load keymanager.properties", e);
 		}
 		init(moduleSpecificPropertiesMap);
 	}

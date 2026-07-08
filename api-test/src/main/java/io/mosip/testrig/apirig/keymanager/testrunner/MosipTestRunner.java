@@ -32,6 +32,7 @@ public class MosipTestRunner {
 	public static boolean skipAll = false;
 
 	public static void main(String[] arg) {
+		boolean testRunSucceeded = false;
 		try {
 			LOGGER.info("** ------------- Key Manager API Test Rig Started --------------------------------------------- **");
 			setLogLevels();
@@ -73,8 +74,11 @@ public class MosipTestRunner {
 
 			KeyManagerUtil.dbCleanUp();
 			KeyManagerUtil.dbSetup();
-			startTestRunner();
-			KeyManagerUtil.dbCleanUp();
+			try {
+				testRunSucceeded = startTestRunner();
+			} finally {
+				KeyManagerUtil.dbCleanUp();
+			}
 
 		} catch (Exception e) {
 			LOGGER.error("Exception: " + e.getMessage());
@@ -90,7 +94,7 @@ public class MosipTestRunner {
 			AdminTestUtil.generateTestCaseInterDependencies(BaseTestCase.getTestCaseInterDependencyPath());
 		}
 
-		System.exit(0);
+		System.exit(testRunSucceeded ? 0 : 1);
 	}
 
 	public static void suiteSetup(String runType) {
@@ -120,7 +124,7 @@ public class MosipTestRunner {
 		KernelAuthentication.setLogLevel();
 	}
 
-	public static void startTestRunner() {
+	public static boolean startTestRunner() {
 		File homeDir = null;
 		String os = System.getProperty("os.name");
 		LOGGER.info(os);
@@ -133,22 +137,29 @@ public class MosipTestRunner {
 			LOGGER.info("JAR: " + homeDir);
 		}
 		File[] files = homeDir.listFiles();
+		boolean suiteFound = false;
+		boolean allPassed = true;
 		if (files != null) {
 			for (File file : files) {
 				TestNG runner = new TestNG();
 				List<String> suitefiles = new ArrayList<>();
 				if (file.getName().toLowerCase().contains("mastertestsuite")) {
+					suiteFound = true;
 					BaseTestCase.setReportName(KeyManagerUtil.MODULE_NAME);
 					suitefiles.add(file.getAbsolutePath());
 					runner.setTestSuites(suitefiles);
 					System.getProperties().setProperty("testng.outpur.dir", "testng-report");
 					runner.setOutputDirectory("testng-report");
 					runner.run();
+					if (runner.hasFailure()) {
+						allPassed = false;
+					}
 				}
 			}
 		} else {
 			LOGGER.error("No files found in directory: " + homeDir);
 		}
+		return suiteFound && allPassed;
 	}
 
 	public static String getGlobalResourcePath() {

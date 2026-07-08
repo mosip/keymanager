@@ -95,6 +95,8 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 
   build-maven-apitest-keymanager:
+    permissions:
+      contents: read
     uses: mosip/kattu/.github/workflows/maven-build.yml@master-java21
     with:
       SERVICE_LOCATION: ./api-test
@@ -109,6 +111,8 @@ jobs:
   sonar_analysis_apitest_keymanager:
     needs: build-maven-apitest-keymanager
     if: "${{ github.event_name != 'pull_request' }}"
+    permissions:
+      contents: read
     uses: mosip/kattu/.github/workflows/maven-sonar-analysis.yml@master-java21
     with:
       SERVICE_LOCATION: ./api-test
@@ -124,6 +128,8 @@ jobs:
   build-apitest-keymanager-local:
     needs: build-maven-apitest-keymanager
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       NAMESPACE: ${{ secrets.dev_namespace_docker_hub }}
       SERVICE_NAME: apitest-keymanager
@@ -151,12 +157,12 @@ jobs:
           cp -r ${{ env.SERVICE_LOCATION}}/target/classes/config ${{ env.SERVICE_LOCATION}}/target/config
           cp -r ${{ env.SERVICE_LOCATION}}/testNgXmlFiles ${{ env.SERVICE_LOCATION}}/target/testNgXmlFiles
       - name: Ready the springboot artifacts
-        if: ${{ !contains(github.ref, 'master') || !contains(github.ref, 'main') }}
+        if: ${{ !contains(github.ref, 'master') && !contains(github.ref, 'main') }}
         run: |
           ## FIND JARS & COPY ONLY EXECUTABLE JARs STORED UNDER TARGET DIRECTORY
           find ${{ env.SERVICE_LOCATION }} -path '*/target/*' -exec zip ${{ env.BUILD_ARTIFACT }}.zip {} +
       - name: Upload the springboot jars
-        if: ${{ !contains(github.ref, 'master') || !contains(github.ref, 'main') }}
+        if: ${{ !contains(github.ref, 'master') && !contains(github.ref, 'main') }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUILD_ARTIFACT }}
@@ -172,6 +178,8 @@ jobs:
 
   build-dockers-apitest-keymanager:
     needs: build-apitest-keymanager-local
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:

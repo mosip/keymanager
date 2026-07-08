@@ -78,7 +78,15 @@ public class KeyManagerUtil extends AdminTestUtil {
 
 			String csrPem = resp.getString("certSignRequest");
 			try (PEMParser parser = new PEMParser(new StringReader(csrPem))) {
-				Object obj = parser.readObject();
+				Object obj;
+				try {
+					obj = parser.readObject();
+				} catch (Exception e) {
+					logger.warn("CSR parsing failed: " + e.getMessage());
+					resp.put("csrIsValid", "false");
+					resp.put("csrSignatureValid", "false");
+					return json.toString();
+				}
 				if (!(obj instanceof PKCS10CertificationRequest)) {
 					resp.put("csrIsValid", "false");
 					resp.put("csrSignatureValid", "false");
