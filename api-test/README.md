@@ -148,21 +148,22 @@ mvn clean install -Dgpg.skip=true -Dmaven.gitcommitid.skip=true -Dmodules=keyman
 ### Using IntelliJ IDEA
 
 1. Open the `api-test` folder (or the `keymanager` repo root) in IntelliJ IDEA as a Maven project and let it import.
-2. A shared run configuration named **KeyManager API Tests** is checked in under `.idea/runConfigurations/` and should appear automatically in the Run/Debug configurations dropdown.
-3. Edit that configuration (or create your own `Application` configuration) and replace `<env_name>` / `<base_env>` in the **VM options** field with your target environment:
+2. Create an `Application` run configuration with the following settings and replace `<env_name>` / `<base_env>` in the **VM options** field with your target environment:
    ```
    -Dmodules=keymanager -Denv.user=<env_name> -Denv.endpoint=<base_env> -Denv.testLevel=smokeAndRegression -Xmx2G
    ```
    - Main class: `io.mosip.testrig.apirig.keymanager.testrunner.MosipTestRunner`
    - Working directory: `api-test`
-4. Click **Run** or **Debug**.
+3. Click **Run** or **Debug**.
 
 ### Using VS Code
 
 1. Open the `api-test` folder in VS Code with the **Extension Pack for Java** installed.
-2. A launch configuration named **KeyManager API Tests** is checked in under `.vscode/launch.json`.
-3. Update the `<env_name>` / `<base_env>` placeholders in `vmArgs` to match your target environment.
-4. Use the **Run and Debug** panel to launch or debug `KeyManager API Tests`.
+2. Create a launch configuration for the main class `io.mosip.testrig.apirig.keymanager.testrunner.MosipTestRunner` with `vmArgs` set to your target environment:
+   ```
+   -Dmodules=keymanager -Denv.user=<env_name> -Denv.endpoint=<base_env> -Denv.testLevel=smokeAndRegression -Xmx2G
+   ```
+3. Use the **Run and Debug** panel to launch or debug the configuration.
 
 ---
 
