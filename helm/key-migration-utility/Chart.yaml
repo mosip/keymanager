@@ -2,7 +2,7 @@ apiVersion: v2
 name: key-migration-utility
 description: A Helm chart to migrate keys from any keystore type to any other supported format.
 type: application
-version: 1.4.1-rc.1-develop
+version: 1.4.1-develop
 appVersion: ""
 dependencies:
   - name: common

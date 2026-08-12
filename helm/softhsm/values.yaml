@@ -5,7 +5,7 @@
 ## TODO: Multiple replicas are not supported 'cause AWS EBS gp2 storage class does not support ReadWriteMany
 replicaCount: 1
 image:
-  repository: mosipid/softhsm
+  repository: mosipqa/softhsm
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v2"
