@@ -25,7 +25,6 @@ import javax.crypto.SecretKey;
 import io.ipfs.multibase.Multibase;
 import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
-import io.mosip.kernel.signature.constant.SignatureAlgorithmIdentifyEnum;
 import io.mosip.kernel.signature.constant.SignatureProviderEnum;
 import io.mosip.kernel.signature.dto.*;
 import io.mosip.kernel.signature.service.SignatureServicev2;
@@ -39,6 +38,7 @@ import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jws.JsonWebSignatureAlgorithm;
 import org.jose4j.jwx.CompactSerializer;
 import org.jose4j.keys.EllipticCurves;
+import org.jose4j.keys.X509Util;
 import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -522,6 +522,9 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
         // Verify signature (verifySignature handles detached payload when encodedActualData != null)
         final boolean signatureValid = verifySignature(jwtTokens, encodedActualData, certToVerify);
 
+		//cache construction for x5t#S256
+		buildX5tS256cache(signatureValid, jwtTokens[0], certToVerify);
+
 		JWTSignatureVerifyResponseDto responseDto = new JWTSignatureVerifyResponseDto();
 		responseDto.setSignatureValid(signatureValid);
 		responseDto.setMessage(signatureValid ? SignatureConstant.VALIDATION_SUCCESSFUL : SignatureConstant.VALIDATION_FAILED);
@@ -587,16 +590,11 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
             byte[] der = B64_DEC.get().decode(firstCertB64);
             Certificate cert = keymanagerUtil.convertToCertificate(der);
             if (cert != null) {
-                // 2) Seed cache by x5t#S256 (from header or computed)
-                if (x5tS256 == null && cert instanceof X509Certificate) {
-                    x5tS256 = computeX5tS256((X509Certificate) cert);
-                }
-                if (x5tS256 != null) cacheCert(cacheKey("X5T", x5tS256), cert);
-
                 LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
                         "Certificate found in JWT Header.");
                 return cert;
             }
+
             LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
                     "Certificate not found in JWT Header.");
             return null;
@@ -1246,9 +1244,11 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		Certificate certToVerify = certificateExistsInHeader(jwtTokens[0]);
 		if (Objects.nonNull(certToVerify)){
 			signatureValid = verifySignature(jwtTokens, encodedActualData, certToVerify);
+			buildX5tS256cache(signatureValid, jwtTokens[0], certToVerify);
 		} else {
 			Certificate reqCertToVerify = getCertificateToVerify(reqCertData, applicationId, referenceId);
 			signatureValid = verifySignature(jwtTokens, encodedActualData, reqCertToVerify);
+			buildX5tS256cache(signatureValid, jwtTokens[0], reqCertToVerify);
             reqCertData = keymanagerUtil.getPEMFormatedData(reqCertToVerify);
 		}
 
@@ -1327,5 +1327,35 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 		LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
 				"JWT Signature Verification Request - Trust Validation - Completed.");
 		return SignatureConstant.TRUST_NOT_VALID;
+	}
+
+	private void buildX5tS256cache(boolean signatureValid, String joseHeader, Certificate certificate) {
+
+		if (signatureValid) {
+			String x5tS256 = X509Util.x5tS256((X509Certificate) certificate);
+
+			if (x5tS256 != null && !certCache.containsKey(cacheKey("X5T", x5tS256))) {
+				String headerJson = new String(CryptoUtil.decodeURLSafeBase64(joseHeader), StandardCharsets.UTF_8);
+				org.jose4j.jwx.Headers headers = new org.jose4j.jwx.Headers();
+
+				try {
+					headers.setFullHeaderAsJsonString(headerJson);
+				} catch (JoseException e) {
+					LOGGER.error(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN, SignatureConstant.BLANK,
+							"Error parsing JWT header.", e);
+					throw new RequestException(SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorCode(),
+							SignatureErrorCode.INVALID_VERIFY_INPUT.getErrorMessage());
+				}
+
+				//get certificate sha256 thumbprint value from header
+				String headerX5tS256 = headers.getStringHeaderValue("x5t#S256");
+
+				if (x5tS256.equals(headerX5tS256)) {
+					cacheCert(cacheKey("X5T", x5tS256), certificate);
+					LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.JWT_SIGN,
+							x5tS256, "Certificate added to x5t#S256 cache.");
+				}
+			}
+		}
 	}
 }

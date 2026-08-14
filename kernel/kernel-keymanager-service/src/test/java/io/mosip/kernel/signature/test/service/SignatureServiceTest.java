@@ -23,20 +23,25 @@ import io.mosip.kernel.signature.service.impl.EC256SignatureProviderImpl;
 import io.mosip.kernel.signature.service.impl.Ed25519SignatureProviderImpl;
 import io.mosip.kernel.signature.service.impl.PS256SIgnatureProviderImpl;
 import io.mosip.kernel.signature.service.impl.RS256SignatureProviderImpl;
+import io.mosip.kernel.signature.service.impl.SignatureServiceImpl;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.jose4j.keys.X509Util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.*;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -644,6 +649,48 @@ public class SignatureServiceTest {
         Assert.assertNotNull(verifyResponse);
         Assert.assertTrue(verifyResponse.isSignatureValid());
         Assert.assertEquals("Validation Successful", verifyResponse.getMessage());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testJwtVerifyV2UsesX5tS256CertificateCache() {
+        ConcurrentMap<String, X509Certificate> certCache = (ConcurrentMap<String, X509Certificate>)
+                ReflectionTestUtils.getField((SignatureServiceImpl) signatureService, "certCache");
+        certCache.clear();
+
+        KeyPairGenerateRequestDto keyRequest = new KeyPairGenerateRequestDto();
+        keyRequest.setApplicationId("TEST");
+        keyRequest.setReferenceId("");
+        keymanagerService.generateMasterKey("CSR", keyRequest);
+
+        JWTSignatureRequestDtoV2 signRequest = new JWTSignatureRequestDtoV2();
+        signRequest.setApplicationId("TEST");
+        signRequest.setReferenceId("");
+        signRequest.setDataToSign(CryptoUtil.encodeToURLSafeBase64("{\"test\":\"data\"}".getBytes()));
+        signRequest.setIncludePayload(true);
+        signRequest.setIncludeCertificateChain(true);
+        signRequest.setIncludeCertHash(true);
+
+        JWTSignatureVerifyRequestDto verifyRequest = new JWTSignatureVerifyRequestDto();
+        verifyRequest.setApplicationId("TEST");
+        verifyRequest.setReferenceId("");
+        verifyRequest.setJwtSignatureData(signatureService.jwtSignV2(signRequest).getJwtSignedData());
+
+        JWTSignatureVerifyResponseDto firstResponse = signatureService.jwtVerifyV2(verifyRequest);
+        Assert.assertTrue(firstResponse.isSignatureValid());
+
+        Certificate certificate = keymanagerUtil.convertToCertificate(
+                keymanagerService.getCertificate("TEST", Optional.of("")).getCertificate());
+        String cacheKey = "X5T|" + X509Util.x5tS256((X509Certificate) certificate);
+        Assert.assertTrue(certCache.containsKey(cacheKey));
+
+        signRequest.setIncludeCertificateChain(false);
+        verifyRequest.setApplicationId("ROOT");
+        verifyRequest.setJwtSignatureData(signatureService.jwtSignV2(signRequest).getJwtSignedData());
+
+        JWTSignatureVerifyResponseDto cachedResponse = signatureService.jwtVerifyV2(verifyRequest);
+        Assert.assertTrue(cachedResponse.isSignatureValid());
+        Assert.assertEquals("Validation Successful", cachedResponse.getMessage());
     }
 
     @Test
