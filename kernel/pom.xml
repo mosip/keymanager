@@ -25,7 +25,7 @@
 		<maven.sonar.plugin.version>3.7.0.1746</maven.sonar.plugin.version>
 		<maven.javadoc.version>3.6.3</maven.javadoc.version>
 		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
-		<central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
+		<central.publishing.maven.plugin.version>0.11.0</central.publishing.maven.plugin.version>
 
 		<sonar.coverage.exclusions>
 			**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/spi/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/proxy/**"</sonar.coverage.exclusions>
