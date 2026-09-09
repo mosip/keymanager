@@ -4,6 +4,7 @@ package io.mosip.kernel.cryptomanager.service.impl;
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.CACHE_INT_COUNTER;
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_FALSE;
 import static io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant.DEFAULT_INCLUDES_TRUE;
+import static java.util.Arrays.copyOfRange;
 
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
@@ -15,10 +16,14 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.mosip.kernel.core.util.DateUtils2;
+import io.mosip.kernel.cryptomanager.service.EcCryptomanagerService;
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import jakarta.annotation.PostConstruct;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -117,6 +122,9 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 	@Value("${mosip.keymanager.argon2.hash.generate.parallelism:2}")
     private int argon2Parallelism;
 
+	@Value("${mosip.kernel.keygenerator.ecc-curve-name:SECP256R1}")
+	private String ecCurveName;
+
 	private static SecureRandom secureRandom = null;
 
 	/**
@@ -143,7 +151,11 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 	@Autowired
 	KeymanagerUtil keymanagerUtil;
 
+	@Autowired
+	EcCryptomanagerService ecCryptomanagerService;
+
 	private Cache<String, Object> saltGenParamsCache = null;
+
 
 	@PostConstruct
     public void init() {
@@ -179,60 +191,88 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * io.mosip.kernel.cryptography.service.CryptographyService#encrypt(io.mosip.
 	 * kernel.cryptography.dto.CryptographyRequestDto)
 	 */
 	@Override
 	public CryptomanagerResponseDto encrypt(CryptomanagerRequestDto cryptoRequestDto) {
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Request for data encryption.");
-		
+		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+				"Request for data encryption.");
+
 		cryptomanagerUtil.validateKeyIdentifierIds(cryptoRequestDto.getApplicationId(), cryptoRequestDto.getReferenceId());
-		SecretKey secretKey = keyGenerator.getSymmetricKey();
-		final byte[] encryptedData;
-		byte[] headerBytes = new byte[0];
-		if (cryptomanagerUtil.isValidSalt(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt()))) {
-			encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
-							cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt())),
-							cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad())));
-		} else {
-			byte[] aad = cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad()));
-			if (aad == null || aad.length == 0){
-				encryptedData = generateAadAndEncryptData(secretKey, cryptoRequestDto.getData());
-				headerBytes = CryptomanagerConstant.VERSION_RSA_2048;
-			} else {
-				encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
-										aad);
-			}
-		}
 
 		Certificate certificate = cryptomanagerUtil.getCertificate(cryptoRequestDto);
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Found the cerificate, proceeding with session key encryption.");
 		PublicKey publicKey = certificate.getPublicKey();
-		final byte[] encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(publicKey, secretKey.getEncoded());
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT, 
-						"Session key encryption completed.");
-		//boolean prependThumbprint = cryptoRequestDto.getPrependThumbprint() == null ? false : cryptoRequestDto.getPrependThumbprint();
+		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
+
 		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
-		// support of 1.1.3 no thumbprint is configured as true & encryption request with no thumbprint
-		// request thumbprint flag will not be considered if support no thumbprint is set to false.
-		//------------------- 
-		// no thumbprint flag will not be required to consider at the time of encryption. So commented the below code.
-		// from 1.2.0.1 version, support of no thumbprint flag will be removed in case of data encryption.
+
+		if (publicKey.getAlgorithm().equalsIgnoreCase(io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.RSA)) {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant.RSA,
+					"Encrypting the Data Using RSA key.");
+			SecretKey secretKey = keyGenerator.getSymmetricKey();
+			final byte[] encryptedData;
+			byte[] headerBytes = new byte[0];
+			if (cryptomanagerUtil.isValidSalt(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt()))) {
+				encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
+						cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt())),
+						cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad())));
+			} else {
+				byte[] aad = cryptomanagerUtil.decodeBase64Data(CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad()));
+				if (aad == null || aad.length == 0){
+					encryptedData = generateAadAndEncryptData(secretKey, cryptoRequestDto.getData());
+					headerBytes = CryptomanagerConstant.VERSION_RSA_2048;
+				} else {
+					encryptedData = cryptoCore.symmetricEncrypt(secretKey, cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()),
+							aad);
+				}
+			}
+
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"Found the cerificate, proceeding with session key encryption.");
+			final byte[] encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(publicKey, secretKey.getEncoded());
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"Session key encryption completed.");
+			//boolean prependThumbprint = cryptoRequestDto.getPrependThumbprint() == null ? false : cryptoRequestDto.getPrependThumbprint();
+			// support of 1.1.3 no thumbprint is configured as true & encryption request with no thumbprint
+			// request thumbprint flag will not be considered if support no thumbprint is set to false.
+			//-------------------
+			// no thumbprint flag will not be required to consider at the time of encryption. So commented the below code.
+			// from 1.2.0.1 version, support of no thumbprint flag will be removed in case of data encryption.
 		/* if (noThumbprint && !prependThumbprint) {
 			byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, encryptedSymmetricKey);
 			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, finalEncKeyBytes, keySplitter)));
 			return cryptoResponseDto;
-		} */ 
-		//---------------------
-		byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(certificate);
-		byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
-		byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
-		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData, 
-							finalEncKeyBytes, keySplitter)));
+		} */
+			//---------------------
+			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedSymmetricKey);
+			byte[] finalEncKeyBytes = cryptomanagerUtil.concatByteArrays(headerBytes, concatedData);
+			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(CryptoUtil.combineByteArray(encryptedData,
+					finalEncKeyBytes, keySplitter)));
+		} else {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, KeymanagerConstant.EC_KEY_TYPE,
+					"Encrypting the Data Using ECC key.");
+
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"Found the cerificate, proceeding with ecc key encryption.");
+
+			byte[] aad = cryptomanagerUtil.generateRandomBytes(CryptomanagerConstant.GCM_AAD_LENGTH);
+			String curveName = keymanagerUtil.getEcCurveName(publicKey);
+			byte[] encryptedData = ecCryptomanagerService.asymmetricEcEncrypt(publicKey,
+					cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData()), null, aad, curveName);
+			byte[] encryptedDataWithIv = cryptomanagerUtil.concatByteArrays(aad, encryptedData);
+
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"ECC key encryption completed.");
+
+			byte[] headerBytes = cryptomanagerUtil.getHeaderByte(curveName);
+
+			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedDataWithIv);
+			byte[] finalEncKeyBytes = CryptoUtil.combineByteArray(concatedData, headerBytes, keySplitter);
+			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(finalEncKeyBytes));
+		}
 		return cryptoResponseDto;
 	}
 
@@ -249,14 +289,14 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * io.mosip.kernel.cryptography.service.CryptographyService#decrypt(io.mosip.
 	 * kernel.cryptography.dto.CryptographyRequestDto)
 	 */
 	@Override
 	public CryptomanagerResponseDto decrypt(CryptomanagerRequestDto cryptoRequestDto) {
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
+		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT,
 						"Request for data decryption.");
 
 		boolean hasAcccess = cryptomanagerUtil.hasKeyAccess(cryptoRequestDto.getApplicationId());
@@ -269,51 +309,78 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
         byte[] encryptedHybridData = cryptomanagerUtil.decodeBase64Data(cryptoRequestDto.getData());
         int keyDelimiterIndex = CryptoUtil.getSplitterIndex(encryptedHybridData, 0, keySplitter);
 
-        byte[] encryptedKey = new byte[keyDelimiterIndex];
-        System.arraycopy(encryptedHybridData, 0, encryptedKey, 0, keyDelimiterIndex);
+		String algorithmName = cryptomanagerUtil.getAlgorithmNameFromHeader(encryptedHybridData);
 
-        int dataStartIndex = keyDelimiterIndex + keySplitter.length();
-        int encryptedDataLength = encryptedHybridData.length - dataStartIndex;
-        byte[] encryptedData = new byte[encryptedDataLength];
-        System.arraycopy(encryptedHybridData, dataStartIndex, encryptedData, 0, encryptedDataLength);
+		if (algorithmName.equalsIgnoreCase(KeymanagerConstant.RSA)) {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, KeymanagerConstant.RSA,
+					"Decrypting the data with RSA key.");
 
-        byte[] headerBytes = cryptomanagerUtil.parseEncryptKeyHeader(encryptedKey);
+			byte[] encryptedKey = new byte[keyDelimiterIndex];
+			System.arraycopy(encryptedHybridData, 0, encryptedKey, 0, keyDelimiterIndex);
 
-        // Set only the actual key bytes (excluding header) into the DTO
-        int headerLength = headerBytes.length;
-        byte[] rawKey = new byte[encryptedKey.length - headerLength];
-        System.arraycopy(encryptedKey, headerLength, rawKey, 0, rawKey.length);
-        cryptoRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(rawKey));
+			int dataStartIndex = keyDelimiterIndex + keySplitter.length();
+			int encryptedDataLength = encryptedHybridData.length - dataStartIndex;
+			byte[] encryptedData = new byte[encryptedDataLength];
+			System.arraycopy(encryptedHybridData, dataStartIndex, encryptedData, 0, encryptedDataLength);
 
-        SecretKey decryptedSymmetricKey = cryptomanagerUtil.getDecryptedSymmetricKey(cryptoRequestDto);
-        LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT,
-                CryptomanagerConstant.DECRYPT, "Session Key Decryption completed.");
+			byte[] headerBytes = cryptomanagerUtil.parseEncryptKeyHeader(encryptedKey);
 
-        final byte[] decryptedData;
-        String salt = CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt());
-        String aad = CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad());
+			// Set only the actual key bytes (excluding header) into the DTO
+			int headerLength = headerBytes.length;
+			byte[] rawKey = new byte[encryptedKey.length - headerLength];
+			System.arraycopy(encryptedKey, headerLength, rawKey, 0, rawKey.length);
+			cryptoRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(rawKey));
 
-        if (cryptomanagerUtil.isValidSalt(salt)) {
-            decryptedData = cryptoCore.symmetricDecrypt(
-                    decryptedSymmetricKey,
-                    encryptedData,
-                    cryptomanagerUtil.decodeBase64Data(salt),
-                    cryptomanagerUtil.decodeBase64Data(aad));
-        } else {
-            if (Arrays.equals(headerBytes, CryptomanagerConstant.VERSION_RSA_2048)) {
-                decryptedData = splitAadAndDecryptData(decryptedSymmetricKey, encryptedData);
-            } else {
-                decryptedData = cryptoCore.symmetricDecrypt(
-                        decryptedSymmetricKey,
-                        encryptedData,
-                        cryptomanagerUtil.decodeBase64Data(aad));
-            }
-        }
-		LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT, 
-						"Data decryption completed.");
-		CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
-		cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData));
-		return cryptoResponseDto;
+			SecretKey decryptedSymmetricKey = cryptomanagerUtil.getDecryptedSymmetricKey(cryptoRequestDto);
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT,
+					CryptomanagerConstant.DECRYPT, "Session Key Decryption completed.");
+
+			final byte[] decryptedData;
+			String salt = CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getSalt());
+			String aad = CryptomanagerUtils.nullOrTrim(cryptoRequestDto.getAad());
+
+			if (cryptomanagerUtil.isValidSalt(salt)) {
+				decryptedData = cryptoCore.symmetricDecrypt(
+						decryptedSymmetricKey,
+						encryptedData,
+						cryptomanagerUtil.decodeBase64Data(salt),
+						cryptomanagerUtil.decodeBase64Data(aad));
+			} else {
+				if (Arrays.equals(headerBytes, CryptomanagerConstant.VERSION_RSA_2048)) {
+					decryptedData = splitAadAndDecryptData(decryptedSymmetricKey, encryptedData);
+				} else {
+					decryptedData = cryptoCore.symmetricDecrypt(
+							decryptedSymmetricKey,
+							encryptedData,
+							cryptomanagerUtil.decodeBase64Data(aad));
+				}
+			}
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, CryptomanagerConstant.DECRYPT,
+					"Data decryption completed.");
+			CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
+			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData));
+			return cryptoResponseDto;
+
+		} else {
+			LOGGER.info(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.DECRYPT, KeymanagerConstant.EC_KEY_TYPE,
+					"Decrypting the Data Using ECC key.");
+			String ecCurveName = cryptomanagerUtil.getAlgorithmNameFromHeader(encryptedHybridData);
+			byte[] thumbprint = copyOfRange(encryptedHybridData, keyDelimiterIndex + keySplitter.length(), keyDelimiterIndex + keySplitter.length() + CryptomanagerConstant.THUMBPRINT_LENGTH);
+			byte[] encryptedDataWithIv = copyOfRange(encryptedHybridData, keyDelimiterIndex + keySplitter.length() + CryptomanagerConstant.THUMBPRINT_LENGTH,
+					encryptedHybridData.length);
+
+			String certThumbprintHex = Hex.toHexString(thumbprint).toUpperCase();
+			PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getPrivateKeyForDecryption(cryptoRequestDto.getApplicationId(),
+					Optional.ofNullable(cryptoRequestDto.getReferenceId()), certThumbprintHex)[0];
+
+			byte[] aad = Arrays.copyOfRange(encryptedDataWithIv, 0, CryptomanagerConstant.GCM_AAD_LENGTH);
+			byte[] encryptedData = Arrays.copyOfRange(encryptedDataWithIv, CryptomanagerConstant.GCM_AAD_LENGTH,encryptedDataWithIv.length);
+
+			byte[] decryptedData = ecCryptomanagerService.asymmetricEcDecrypt(privateKey, encryptedData, aad, ecCurveName);
+			CryptomanagerResponseDto cryptoResponseDto = new CryptomanagerResponseDto();
+			cryptoResponseDto.setData(CryptoUtil.encodeToURLSafeBase64(decryptedData));
+			return cryptoResponseDto;
+		}
 	}
 
 	private byte[] splitAadAndDecryptData(SecretKey symmetricKey, byte[] encryptedData) {
@@ -441,7 +508,15 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		cryptomanagerUtil.validateEncKeySize(encCertificate);
 		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
 						"Key Size validated, validing input data.");
-		
+
+		String algorithm = encCertificate.getPublicKey().getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA)
+				? KeymanagerConstant.RSA : keymanagerUtil.getEcCurveName(encCertificate.getPublicKey());
+		if (algorithm.equalsIgnoreCase(ECCurves.SECP256K1.name())) {
+			throw new CryptoManagerSerivceException(
+					CryptomanagerErrorCode.JWE_ENCRYPTION_NOT_SUPPORTED.getErrorCode(),
+					String.format(CryptomanagerErrorCode.JWE_ENCRYPTION_NOT_SUPPORTED.getErrorMessage(), algorithm));
+		}
+
 		String dataToEncrypt = jwtEncryptRequestDto.getData();
 		cryptomanagerUtil.validateEncryptData(dataToEncrypt);
 
@@ -477,12 +552,17 @@ public class CryptomanagerServiceImpl implements CryptomanagerService {
 		
 		LOGGER.info(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT, 
 					"JWE Encryption Started.");
-		
+		String algName = certificate.getPublicKey().getAlgorithm();
+
 		JsonWebEncryption jsonWebEncrypt = new JsonWebEncryption();
 
 		jsonWebEncrypt.setHeader(CryptomanagerConstant.JSON_CONTENT_TYPE_KEY, CryptomanagerConstant.JSON_CONTENT_TYPE_VALUE);
 		jsonWebEncrypt.setHeader(CryptomanagerConstant.JSON_HEADER_TYPE_KEY, CryptomanagerConstant.JSON_CONTENT_TYPE_VALUE);
-		jsonWebEncrypt.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.RSA_OAEP_256);
+		if (algName.equalsIgnoreCase(KeymanagerConstant.RSA))
+			jsonWebEncrypt.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.RSA_OAEP_256);
+		else
+			jsonWebEncrypt.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.ECDH_ES_A256KW);
+
 		jsonWebEncrypt.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_GCM);
 		jsonWebEncrypt.setKey(certificate.getPublicKey());
 		String certThumbprint = CryptoUtil.encodeToURLSafeBase64(cryptomanagerUtil.getCertificateThumbprint(certificate));

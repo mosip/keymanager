@@ -63,6 +63,18 @@ public class CryptomanagerConstant {
 	public static final String CACHE_AES_KEY = "cacheAESKey";
 
 	public static final String CACHE_INT_COUNTER = "cacheIntCounter";
+
+	public static final byte[] VERSION_EC256_R1 = "VER_E2".getBytes(); // secp256R1 curve header
+
+	public static final byte[] VERSION_EC256_K1 = "VER_K2".getBytes(); // secp256K1 curve header
+
+	public static final byte[] VERSION_EC_X25519 = "VER_X2".getBytes(); // X25519 curve header
+
+	public static final String EC_SECP256R1 = "SECP256R1";
+
+	public static final String EC_SECP256K1 = "SECP256K1";
+
+	public static final String EC_X25519 = "X25519";
 	
 }
 

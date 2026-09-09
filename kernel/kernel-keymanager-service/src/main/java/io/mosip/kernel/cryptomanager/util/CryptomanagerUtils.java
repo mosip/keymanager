@@ -7,10 +7,12 @@
 package io.mosip.kernel.cryptomanager.util;
 
 import java.io.IOException;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -23,7 +25,14 @@ import javax.crypto.spec.SecretKeySpec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
+import io.mosip.kernel.core.util.DateUtils2;
+import io.mosip.kernel.keymanagerservice.constant.KeyReferenceIdConsts;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
+import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
+import io.mosip.kernel.keymanagerservice.exception.NoUniqueAliasException;
 import io.mosip.kernel.signature.constant.SignatureConstant;
+import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,6 +107,13 @@ public class CryptomanagerUtils {
 	@Value("${mosip.kernel.keymanager.jwtEncrypt.validate.json:true}")
 	private boolean confValidateJson;
 
+	/** The sign applicationid. */
+	@Value("${mosip.sign.applicationid:KERNEL}")
+	private String signApplicationid;
+
+	@Value("${mosip.sign-certificate-refid:SIGN}")
+	private String certificateSignRefID;
+
 	/** The key manager. */
 	@Autowired
 	private KeymanagerService keyManager;
@@ -107,6 +123,16 @@ public class CryptomanagerUtils {
 
 	@Autowired
 	private KeymanagerDBHelper dbHelper;
+
+	@Autowired
+	private ECKeyStore keyStore;
+
+	@Autowired
+	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;
+
+	/** Flag to generate and store Ed25519 key in real HSM. */
+	@Value("${mosip.kernel.keymanager.ed25519.hsm.support.enabled:false}")
+	private boolean ed25519SupportFlag;
 
 	/**
 	 * Calls Key-Manager-Service to get public key of an application.
@@ -128,7 +154,7 @@ public class CryptomanagerUtils {
 	 * @param refId the ref id
 	 * @return the certificate data from key manager
 	 */
-	private String getCertificateFromKeyManager(String appId, String refId) {
+	public String getCertificateFromKeyManager(String appId, String refId) {
 		return keyManager.getCertificate(appId, Optional.ofNullable(refId)).getCertificate();
 	}
 
@@ -232,12 +258,12 @@ public class CryptomanagerUtils {
         return Hex.toHexString(getCertificateThumbprint(cert)).toUpperCase();
 	}
 
-	public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
-		byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
-		System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
-		System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
-		return finalData;
-	}
+		public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
+			byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
+			System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
+			System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
+			return finalData;
+		}
 
 	public byte[] generateRandomBytes(int size) {
 		byte[] randomBytes = new byte[size];
@@ -271,6 +297,24 @@ public class CryptomanagerUtils {
         byte[] versionHeader = new byte[headerLen];
         System.arraycopy(encryptedKey, 0, versionHeader, 0, headerLen);
         return versionHeader;
+	}
+
+	public String getAlgorithmNameFromHeader(byte[] encryptedData) {
+		int keyDelimiterIndex = 0;
+		keyDelimiterIndex = CryptoUtil.getSplitterIndex(encryptedData, keyDelimiterIndex, keySplitter);
+		byte[] algorithmBytes = Arrays.copyOfRange(encryptedData, 0, keyDelimiterIndex);
+		String algorithmName;
+
+		if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC256_R1)) {
+			algorithmName = CryptomanagerConstant.EC_SECP256R1;
+		} else if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC256_K1)) {
+			algorithmName = CryptomanagerConstant.EC_SECP256K1;
+		} else if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC_X25519)) {
+			algorithmName = CryptomanagerConstant.EC_X25519;
+		} else {
+			algorithmName = KeymanagerConstant.RSA;
+		}
+		return algorithmName;
 	}
 
 	public boolean isDataValid(String anyData) {
@@ -339,12 +383,15 @@ public class CryptomanagerUtils {
 	public void validateEncKeySize(Certificate encCert) {
 
 		if (validateKeySize) {
-			RSAPublicKey rsaPublicKey = (RSAPublicKey) encCert.getPublicKey();
-			if (rsaPublicKey.getModulus().bitLength() != 2048) {
-				LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
-						"Not Allowed to preform encryption with Key size not equal to 2048 bit.");
-				throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
-						CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+			String algorithmName = encCert.getPublicKey().getAlgorithm();
+			if (algorithmName.equalsIgnoreCase(KeymanagerConstant.RSA)) {
+				RSAPublicKey rsaPublicKey = (RSAPublicKey) encCert.getPublicKey();
+				if (rsaPublicKey.getModulus().bitLength() != 2048) {
+					LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+							"Not Allowed to preform encryption with Key size not equal to 2048 bit.");
+					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
+							CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+				}
 			}
 		}
 	}
@@ -413,5 +460,165 @@ public class CryptomanagerUtils {
 			return false;
 		}
 		return true;
+	}
+
+	public Object[] getEncryptedPrivateKey(String appId, Optional<String> refId, String certThumbprint) {
+
+		LocalDateTime localDateTime = DateUtils2.getUTCCurrentDateTime();
+		Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, refId.get(), localDateTime);
+		KeyAlias keyAlias = keyAliasMap.get(KeymanagerConstant.CURRENTKEYALIAS).getFirst();
+		String ksAlias = keyAlias.getAlias();
+
+		if (!refId.isPresent() || refId.get().trim().isEmpty()) {
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+					"Not valid reference Id. Getting private key from HSM.");
+			KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(ksAlias);
+			PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
+			Certificate masterCert = masterKeyEntry.getCertificate();
+			return new Object[] {masterPrivateKey, masterCert};
+
+		} else if ((appId.equalsIgnoreCase(signApplicationid) && refId.isPresent()
+				&& refId.get().equals(certificateSignRefID)) ||
+				(refId.isPresent() && refId.get().equals(KeyReferenceIdConsts.EC_SECP256K1_SIGN.name())) ||
+				(refId.isPresent() && refId.get().equals(KeyReferenceIdConsts.EC_SECP256R1_SIGN.name())) ||
+				(refId.isPresent() && refId.get().equals(KeyReferenceIdConsts.ED25519_SIGN.name())
+						&& ed25519SupportFlag)) {
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+					"Reference Id is present and it is " + refId.get() + " Signature Key ref Id. Getting private key from HSM.");
+			KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(ksAlias);
+			PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
+			Certificate masterCert = masterKeyEntry.getCertificate();
+			return new Object[] {masterPrivateKey, masterCert};
+		} else {
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+					"Reference Id is present. Will get Certificate from DB store");
+
+			String referenceId = refId.get();
+			io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore = privateKeyDecryptorHelper.getDBKeyStoreData(certThumbprint,
+					appId, referenceId);
+			if (dbKeyStore.getAlias().isEmpty()) {
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYFROMDB, dbKeyStore.toString(),
+						"Key in DBStore does not exist for this alias. Throwing exception");
+				throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
+						KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
+			}
+			String masterKeyAlias = dbKeyStore.getMasterAlias();
+			String privateKeyObj = dbKeyStore.getPrivateKey();
+
+			if (ksAlias.equals(masterKeyAlias) || privateKeyObj.equals(KeymanagerConstant.KS_PK_NA)) {
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
+						"Not Allowed to perform decryption with other domain key.");
+				throw new KeymanagerServiceException(KeymanagerErrorConstant.DECRYPTION_NOT_ALLOWED.getErrorCode(),
+						KeymanagerErrorConstant.DECRYPTION_NOT_ALLOWED.getErrorMessage());
+			}
+
+			KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(dbKeyStore.getMasterAlias());
+			PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
+			PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
+			/**
+			 * If the private key is in dbstore, then it will be first decrypted with
+			 * application's master private key from softhsm's/HSM's keystore
+			 */
+			try {
+				return getObjects(dbKeyStore, masterPrivateKey, masterPublicKey);
+			} catch (Exception e) {
+				// need confirm the error message and code
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
+						"Error while decrypting private key from DBStore. Throwing exception", e);
+				throw new KeymanagerServiceException(KeymanagerErrorConstant.NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+						KeymanagerErrorConstant.NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage());
+			}
+		}
+    }
+
+	/**
+	 * Retrieves the private key used to decrypt an encrypted payload. Base keys are
+	 * selected by the certificate thumbprint embedded in the payload, so key
+	 * rotation and expiry do not prevent decryption of historical data.
+	 */
+	public Object[] getPrivateKeyForDecryption(String appId, Optional<String> refId, String certThumbprint) {
+		if (refId.isEmpty() || refId.get().trim().isEmpty()) {
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+					"Not valid reference Id. Getting private key from HSM.");
+			return getKeyFromHSM(appId, KeymanagerConstant.EMPTY);
+		}
+
+		String referenceId = refId.get();
+		if (isSignatureKeyRefId(appId, referenceId)) {
+			LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+					"Reference Id is present and it is " + referenceId
+							+ " Signature Key ref Id. Getting private key from HSM.");
+			return getKeyFromHSM(appId, referenceId);
+		}
+
+		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+				"Reference Id is present. Will get private key from DB store using certificate thumbprint.");
+		io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore = privateKeyDecryptorHelper
+				.getDBKeyStoreData(certThumbprint, appId, referenceId);
+		return privateKeyDecryptorHelper.getKeyObjects(dbKeyStore, false);
+	}
+
+	private Object[] getKeyFromHSM(String appId, String refId) {
+		LocalDateTime localDateTime = DateUtils2.getUTCCurrentDateTime();
+		Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(appId, refId, localDateTime);
+		List<KeyAlias> currentKeyAliases = keyAliasMap.getOrDefault(KeymanagerConstant.CURRENTKEYALIAS,
+				Collections.emptyList());
+		List<KeyAlias> keyAliases = keyAliasMap.getOrDefault(KeymanagerConstant.KEYALIAS,
+				Collections.emptyList());
+
+		if (currentKeyAliases.isEmpty() && keyAliases.isEmpty()) {
+			LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KEYALIAS, KeymanagerConstant.EMPTY,
+					"No key alias found for appId: " + appId + ", refId: " + refId);
+			throw new NoUniqueAliasException(KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorCode(),
+					KeymanagerErrorConstant.NO_UNIQUE_ALIAS.getErrorMessage());
+		}
+
+		String keyStoreAlias = currentKeyAliases.isEmpty() ? keyAliases.getFirst().getAlias()
+				: currentKeyAliases.getFirst().getAlias();
+		KeyStore.PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(keyStoreAlias);
+		return new Object[] { masterKeyEntry.getPrivateKey(), masterKeyEntry.getCertificate() };
+	}
+
+	private boolean isSignatureKeyRefId(String appId, String referenceId) {
+		return (appId.equalsIgnoreCase(signApplicationId) && referenceId.equals(certificateSignRefID))
+				|| referenceId.equals(KeyReferenceIdConsts.EC_SECP256K1_SIGN.name())
+				|| referenceId.equals(KeyReferenceIdConsts.EC_SECP256R1_SIGN.name())
+				|| referenceId.equals(KeyReferenceIdConsts.RSA_2048_SIGN.name())
+				|| (referenceId.equals(KeyReferenceIdConsts.ED25519_SIGN.name()) && ed25519SupportFlag);
+	}
+
+	public Object[] getObjects(io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore, PrivateKey masterPrivateKey, PublicKey masterPublicKey) {
+		byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.getPrivateKey()),
+				masterPrivateKey, masterPublicKey);
+
+		PublicKey publicKey = keymanagerUtil.convertToCertificate(dbKeyStore.getCertificateData()).getPublicKey();
+		String algorithmName = publicKey.getAlgorithm();
+        KeyFactory keyFactory = null;
+		PrivateKey privateKey = null;
+        try {
+            keyFactory = KeyFactory.getInstance(algorithmName);
+            privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.getCertificateData());
+		return new Object[]{privateKey, certificate};
+	}
+
+	public byte[] getHeaderByte(String ecCurveName) {
+		byte[] headerBytes = new byte[0];
+		if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_SECP256R1)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC256_R1;
+		} else if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_SECP256K1)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC256_K1;
+		} else if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_X25519)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC_X25519;
+		} else {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"Unsupported EC Curve Name: " + ecCurveName);
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.UNSUPPORTED_EC_CURVE.getErrorCode(),
+					CryptomanagerErrorCode.UNSUPPORTED_EC_CURVE.getErrorMessage() + ecCurveName);
+		}
+		return headerBytes;
 	}
 }

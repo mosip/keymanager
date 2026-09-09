@@ -1,5 +1,6 @@
 package io.mosip.kernel.keymanagerservice.constant;
 
+import java.security.PublicKey;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -248,4 +249,18 @@ public class KeymanagerConstant {
 	public static final String GET_CERTIFICATE_CHAIN = "Get Certificate Trust Chain";
 
 	public static final String DEFAULT_VALUE = "default";
+
+	public static final String EC_SECP256R1_OID = "1.2.840.10045.3.1.7";
+
+	public static final String EC_SECP256K1_OID = "1.3.132.0.10";
+
+	public static final String X25519_KEY_TYPE = "X25519";
+
+	public static final String XDH_ALGORITHM = "XDH";
+
+	public static final String X25519_ENC_KEY_REF_ID = "X25519_ENC_KEY";
+
+	public static final String GENERATE_RSA_SIGN_KEY = "Request received to generate the RSA Signature Key pair.";
+
+	public static final String BOTH = "BOTH";
 }
