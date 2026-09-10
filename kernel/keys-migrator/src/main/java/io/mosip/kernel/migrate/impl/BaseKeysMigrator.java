@@ -78,8 +78,6 @@ public class BaseKeysMigrator {
 
     private static final Logger LOGGER = KeymanagerLogger.getLogger(BaseKeysMigrator.class);
 
-    private static final String ROOT_APP_ID = "ROOT";
-
     private static final String BLANK_REF_ID = "";
 
     private static final String KERNEL_APP_ID = "KERNEL";
@@ -87,6 +85,9 @@ public class BaseKeysMigrator {
     private static final String IDENTITY_CACHE_REF_ID = "IDENTITY_CACHE";
 
     private static final String PARTNER_APP_ID = "PARTNER";
+
+    @Value("${mosip.root.key.applicationid:ROOT}")
+    private String rootKeyApplicationId;
 
     @Value("${mosip.kernel.keymanager.autogen.appids.list}")
     private String appIdsList;
@@ -297,7 +298,7 @@ public class BaseKeysMigrator {
 
     private List<String> getMasterKeysList() {
         return Stream.of(appIdsList.split(",")).map(String::trim)
-               .filter(appId -> !appId.equalsIgnoreCase(ROOT_APP_ID))
+               .filter(appId -> !appId.equalsIgnoreCase(rootKeyApplicationId))
                .collect(Collectors.toList());
     }
 

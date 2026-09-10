@@ -93,7 +93,5 @@ public interface PartnerCertManagerConstants {
 
 	String FTM_PARTNER_DOMAIN = "FTM";
 
-	String ROOT_APP_ID = "ROOT";
-
 	String AUTH_DOMAIN = "AUTH";
 }

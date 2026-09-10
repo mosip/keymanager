@@ -293,7 +293,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 					}
 				});
 			}
-			if (applicationId.equalsIgnoreCase(KeymanagerConstant.ROOT)){
+			if (applicationId.equalsIgnoreCase(rootKeyApplicationId)){
 				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.APPLICATIONID, null,
 								"Not Allowed to generate Base Key for Root Key.");
 				throw new KeymanagerServiceException(KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorCode(),
@@ -306,7 +306,7 @@ public class KeymanagerServiceImpl implements KeymanagerService {
 								KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorMessage());
 			}
 			if (applicationId.equalsIgnoreCase(KeymanagerConstant.PARTNER_APP_ID)){
-				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.KERNEL_APP_ID, null,
+				LOGGER.error(KeymanagerConstant.SESSIONID, KeymanagerConstant.PARTNER_APP_ID, null,
 								"Not Allowed to generate Keys for PARTNER App Id.");
 				throw new KeymanagerServiceException(KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorCode(),
 								KeymanagerErrorConstant.GENERATION_NOT_ALLOWED.getErrorMessage());

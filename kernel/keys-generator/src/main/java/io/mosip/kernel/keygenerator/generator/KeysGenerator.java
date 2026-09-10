@@ -29,8 +29,6 @@ public class KeysGenerator {
 
     private static final Logger LOGGER = Logger.getLogger(KeysGenerator.class.getName());
 
-    private static final String ROOT_APP_ID = "ROOT";
-
     private static final String BLANK_REF_ID = "";
 
     //private static final String MOSIP_CN = "MOSIP-";
@@ -38,6 +36,9 @@ public class KeysGenerator {
     private static final String DUMMY_RESP_TYPE = "CSR";
 
     private static final String IDENTITY_CACHE_REF_ID = "IDENTITY_CACHE";
+
+    @Value("${mosip.root.key.applicationid:ROOT}")
+    private String rootKeyApplicationId;
 
     @Value("${mosip.kernel.keymanager.autogen.appids.list}")
     private String appIdsList;
@@ -90,9 +91,9 @@ public class KeysGenerator {
     public void generateKeys() throws Exception {
 
         // Not required to check for key exists or not, because keymanager is checking key exists before generating new key.
-        //String rootKeyAlias = getKeyAlias(ROOT_APP_ID, BLANK_REF_ID);
+        //String rootKeyAlias = getKeyAlias(rootKeyApplicationId, BLANK_REF_ID);
         //if (Objects.isNull(rootKeyAlias)) {
-        generateMasterKey(ROOT_APP_ID, BLANK_REF_ID, rootCommonName);
+        generateMasterKey(rootKeyApplicationId, BLANK_REF_ID, rootCommonName);
         LOGGER.info("Generated ROOT Key.");
         //}
 
@@ -144,7 +145,7 @@ public class KeysGenerator {
     
     private List<String> getListKeys() {
         return Stream.of(appIdsList.split(",")).map(String::trim)
-                .filter(appId -> !appId.equalsIgnoreCase(ROOT_APP_ID))
+                .filter(appId -> !appId.equalsIgnoreCase(rootKeyApplicationId))
                 .collect(Collectors.toList());
     }
 
@@ -186,7 +187,7 @@ public class KeysGenerator {
         requestDto.setReferenceId(refId);
         requestDto.setForce(false);
         requestDto.setCommonName(commonName);
-        String componentName = appId.equalsIgnoreCase(ROOT_APP_ID) ? "" : " (" + appId.toUpperCase() + ")";
+        String componentName = appId.equalsIgnoreCase(rootKeyApplicationId) ? "" : " (" + appId.toUpperCase() + ")";
         requestDto.setOrganizationUnit(organizationUnit + componentName);
         requestDto.setOrganization(organization);
         requestDto.setLocation(location);
