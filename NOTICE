@@ -1,0 +1,35 @@
+Copyright (c) 2022 Modular Open Source Identity Platform
+All rights reserved.
+
+This project includes third-party software developed by other open-source
+projects. The following components are used under their respective licenses:
+
+- Spring Boot, Spring Security, Spring Cloud — Apache License 2.0
+- SpringDoc OpenAPI — Apache License 2.0
+- MOSIP Kernel Libraries — Mozilla Public License 2.0
+- MOSIP Biometric Utilities — Mozilla Public License 2.0
+- Jackson Libraries — Apache License 2.0
+- Jakarta Servlet API — Eclipse Public License 2.0
+- Vert.x Core — Apache License 2.0
+- JAI ImageIO JPEG 2000 — BSD 3-Clause
+- Imgscalr — Apache License 2.0
+- Lombok — MIT License
+- JUnit & JUnit Vintage — Eclipse Public License 1.0 / 2.0
+- Apache Maven Plugins — Apache License 2.0
+- Central Publishing Maven Plugin — Apache License 2.0
+- Git Commit ID Plugin — LGPL-3.0
+- JSON.simple — Apache License 2.0
+- PostgreSQL JDBC Driver — BSD-2-Clause
+- H2 Database — MPL 2.0 / EPL 1.0
+- Bouncy Castle — MIT License
+- Nimbus JOSE + JWT — Apache License 2.0
+- jose4j — Apache License 2.0
+- Argon2 JVM — LGPL-3.0
+- Microsoft TSS Java — MIT License
+- Java Multibase — MIT License
+- JNA — Apache License 2.0 / LGPL 2.1+
+- Javassist — MPL 1.1 / LGPL 2.1 / Apache 2.0 (mixed)
+- Mockito — MIT License
+- Cache2k — Apache License 2.0
+
+The full text of each license is available in the `license/` directory.
