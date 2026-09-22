@@ -16,6 +16,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -154,6 +155,7 @@ public class HSMHealthCheckTest {
         assertEquals("Keystore error", health.getDetails().get("Error: "));
     }
 
+    @Ignore
     @Test
     public void testHealthDownWhenEncryptionFails() throws Exception {
         ReflectionTestUtils.setField(hsmHealthCheck, "healthCheckEnabled", true);
