@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.mosip.kernel.cryptomanager.service.EcCryptomanagerService;
 import jakarta.annotation.PostConstruct;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -30,6 +31,7 @@ import javax.crypto.SecretKey;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -163,6 +165,9 @@ public class BaseKeysMigrator {
 	@Autowired
 	CryptomanagerUtils cryptomanagerUtil;
 
+    @Autowired
+    EcCryptomanagerService ecCrypto;
+
 
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
@@ -249,7 +254,9 @@ public class BaseKeysMigrator {
             try {
                 byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeBase64(baseKey.getPrivateKey()), 
                             masterKey, masterPublicKey);
-                KeyFactory keyFactory = KeyFactory.getInstance(KeymanagerConstant.RSA);
+                PublicKey baseKeyPublicKey = keymanagerUtil.convertToCertificate(baseKey.getCertificateData()).getPublicKey();
+
+                KeyFactory keyFactory = KeyFactory.getInstance(baseKeyPublicKey.getAlgorithm());
                 PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
                 String encryptedPrivateKey = CryptoUtil.encodeBase64(keymanagerUtil.encryptKey(privateKey, newKeyMgrPubKey));
                 Optional<KeyAlias> keyAliasObj = keyAliasRepository.findById(baseKeyUuid);
@@ -353,7 +360,8 @@ public class BaseKeysMigrator {
             int keyIndex = zkKey.getId();
             String encryptedKey = zkKey.getKey();
             byte[] decryptedZKKey = decryptRandomKey(encryptedKey, zkMasterKey);
-            byte[] encryptedRandomKey = cryptoCore.asymmetricEncrypt(zkPublicKey, decryptedZKKey);
+            byte[] encryptedRandomKey = zkPublicKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA) ? cryptoCore.asymmetricEncrypt(zkPublicKey, decryptedZKKey) :
+                    ecCrypto.asymmetricEcEncrypt(zkPublicKey, decryptedZKKey, keymanagerUtil.getEcCurveName(zkPublicKey));
             String encodedKey = CryptoUtil.encodeBase64(encryptedRandomKey);
             ZKKeyDataDto keyDataDto = new ZKKeyDataDto();
             keyDataDto.setKeyIndex(keyIndex);

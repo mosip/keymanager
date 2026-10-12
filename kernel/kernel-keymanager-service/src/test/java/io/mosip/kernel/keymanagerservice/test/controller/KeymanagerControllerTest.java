@@ -596,7 +596,8 @@ public class KeymanagerControllerTest {
         mockMvc.perform(get("/getCertificateChain")
                         .param("applicationId", "KERNEL")
                         .param("referenceId", "SIGN"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.certificatesTrustPath").isNotEmpty());
     }
 
     // Negative test cases for validation errors
@@ -745,9 +746,9 @@ public class KeymanagerControllerTest {
     @Test
     public void testGetCertificateChainWithNullReferenceId() throws Exception {
         mockMvc.perform(get("/getCertificateChain")
-                        .param("applicationId", "KERNEL")
-                        .param("referenceId", "SIGN"))
-                .andExpect(status().isInternalServerError());
+                        .param("applicationId", "ROOT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.certificatesTrustPath").isNotEmpty());
     }
 
     // Test different EC key types

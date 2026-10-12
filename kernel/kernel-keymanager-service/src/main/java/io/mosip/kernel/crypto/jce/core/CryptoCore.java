@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import io.mosip.kernel.signature.util.SignatureUtil;
 import jakarta.annotation.PostConstruct;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -468,10 +469,12 @@ public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, Pub
 	@Override
 	public String sign(byte[] data, PrivateKey privateKey) {
 		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+		String algorithm = privateKey.getAlgorithm();
+		String signAlgo = SignatureUtil.getSigningAlgorithm(algorithm);
 		CryptoUtils.verifyData(data);
 		JsonWebSignature jws = new JsonWebSignature();
 		jws.setPayloadBytes(data);
-		jws.setAlgorithmHeaderValue(signAlgorithm);
+		jws.setAlgorithmHeaderValue(signAlgo);
 		jws.setKey(privateKey);
 		jws.setDoKeyValidation(false);
 		try {

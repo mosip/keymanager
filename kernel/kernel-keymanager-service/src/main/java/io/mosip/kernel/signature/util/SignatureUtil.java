@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
+import java.security.PublicKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
@@ -28,6 +29,8 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.keymanagerservice.exception.KeymanagerServiceException;
 import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
@@ -53,6 +56,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.Arrays;
 import com.nimbusds.jose.JOSEObjectType;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.jose4j.jws.AlgorithmIdentifiers;
+
+import java.lang.*;
 
 /**
  * Utility class for Signature Service
@@ -207,7 +215,7 @@ public class SignatureUtil {
 		} catch (DecoderException | NoSuchAlgorithmException e) {
 			// ignore this exception.
 			LOGGER.warn(SignatureConstant.SESSIONID, SignatureConstant.JWS_SIGN, SignatureConstant.BLANK,
-			"Warning thrown when converting hex data to base64 encoded data.");
+					"Warning thrown when converting hex data to base64 encoded data.");
 			// not throwing exception, as this function is added to include kid in jwt signature.
 			// in case any error in conversion kid will not be added in jwt header.
 		}
@@ -604,4 +612,39 @@ public class SignatureUtil {
 
         return certificateChain;
     }
+
+	public static String getJwtSignAlgorithm(X509Certificate x509Certificate) {
+		PublicKey publicKey = x509Certificate.getPublicKey();
+		String algorithm = publicKey.getAlgorithm();
+
+		if (KeymanagerConstant.EC_KEY_TYPE.equalsIgnoreCase(algorithm)) {
+			SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+			ASN1ObjectIdentifier curveOid = (ASN1ObjectIdentifier) subjectPublicKeyInfo.getAlgorithm().getParameters();
+
+			return mapCurveOidToCurveName(curveOid.getId());
+		} else if (KeymanagerConstant.ED25519_KEY_TYPE.equalsIgnoreCase(algorithm) || KeymanagerConstant.EDDSA_KEY_TYPE.equals(algorithm)) {
+			return AlgorithmIdentifiers.EDDSA;
+		}
+		return AlgorithmIdentifiers.RSA_USING_SHA256;
+	}
+
+	private static String mapCurveOidToCurveName(String oid) {
+		return switch (oid) {
+			case KeymanagerConstant.EC_SECP256R1_OID -> AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256;
+			case KeymanagerConstant.EC_SECP256K1_OID -> AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256;
+			default -> throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorCode(),
+					KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorMessage());
+		};
+	}
+
+	public static String getSigningAlgorithm(String algorithm) {
+		return switch (algorithm) {
+			case KeymanagerConstant.RSA ->  AlgorithmIdentifiers.RSA_USING_SHA256;
+			case KeymanagerConstant.EC_KEY_TYPE ->  AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256;
+			case KeymanagerConstant.EDDSA_KEY_TYPE -> AlgorithmIdentifiers.EDDSA;
+			case KeymanagerConstant.ED25519_KEY_TYPE -> AlgorithmIdentifiers.EDDSA;
+			default -> throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(KeymanagerErrorConstant.NO_SUCH_ALGORITHM_EXCEPTION.getErrorCode(),
+					KeymanagerErrorConstant.NO_SUCH_ALGORITHM_EXCEPTION.getErrorMessage());
+		};
+	}
 }

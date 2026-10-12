@@ -152,10 +152,12 @@ public class PrivateKeyDecryptorHelper {
 		PrivateKeyEntry masterKeyEntry = keyStore.getAsymmetricKey(dbKeyStore.getMasterAlias());
 		PrivateKey masterPrivateKey = masterKeyEntry.getPrivateKey();
 		PublicKey masterPublicKey = masterKeyEntry.getCertificate().getPublicKey();
+		String dbStoreCertificateData = dbKeyStore.getCertificateData();
+		Certificate dbCertificate = keymanagerUtil.convertToCertificate(dbStoreCertificateData);
 		try {
 			byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.getPrivateKey()),
 					masterPrivateKey, masterPublicKey);
-			KeyFactory keyFactory = KeyFactory.getInstance(KeymanagerConstant.RSA);
+			KeyFactory keyFactory = KeyFactory.getInstance(dbCertificate.getPublicKey().getAlgorithm());
 			PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
 			Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.getCertificateData());
 			return new Object[] {privateKey, certificate};
