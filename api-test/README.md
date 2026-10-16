@@ -111,7 +111,12 @@ You can execute the test automation code using any of the following methods:
 
 2. Run the automation test suite JAR file:
    ```sh
-   java -Dmodules=keymanager -Denv.user=<env_name> -Denv.endpoint=<base_env> -Denv.testLevel=smokeAndRegression -Xmx2G -jar apitest-keymanager-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+   # Linux / macOS / Git Bash
+   java -Dmodules=keymanager -Denv.user=<env_name> -Denv.endpoint=<base_env> -Denv.testLevel=smokeAndRegression -Xmx2G -jar apitest-keymanager-*-jar-with-dependencies.jar
+   ```
+   ```powershell
+   # Windows PowerShell (does not expand * for java, so resolve the file first)
+   java -Dmodules=keymanager -Denv.user=<env_name> -Denv.endpoint=<base_env> -Denv.testLevel=smokeAndRegression -Xmx2G -jar (Get-ChildItem apitest-keymanager-*-jar-with-dependencies.jar).Name
    ```
 
 ### Using Maven
@@ -191,7 +196,7 @@ This section describes the meaning of each column in the test report:
 - **env.user**: Replace `<env_name>` with the appropriate environment name (e.g., `dev`, `qa`, etc.).
 - **env.endpoint**: The environment where the application under test is deployed. Replace `<base_env>` with the correct base URL for the environment (e.g., `https://api-internal.<env_name>.mosip.net`).
 - **env.testLevel**: Set this to `smoke` to run only smoke test cases, or `smokeAndRegression` to run both smoke and regression tests.
-- **jar**: Specify the name of the JAR file to execute. The version will change according to the development code version — for example, the current version is `apitest-keymanager-1.0.0-SNAPSHOT-jar-with-dependencies.jar`.
+- **jar**: The JAR built in `target/`, named `apitest-keymanager-<version>-jar-with-dependencies.jar`, where `<version>` is the `<version>` in `pom.xml`. The `apitest-keymanager-*-jar-with-dependencies.jar` pattern above picks it up, so the command does not change when the version does.
 
 ### Running a subset of test cases
 

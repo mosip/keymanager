@@ -76,7 +76,7 @@
 		<maven.antrun.plugin.version>3.0.0</maven.antrun.plugin.version>
 		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
 		<git.commit.id.plugin.version>3.0.1</git.commit.id.plugin.version>
-		<fileName>apitest-keymanager-1.0.0-SNAPSHOT-jar-with-dependencies</fileName>
+		<fileName>${project.artifactId}-${project.version}-jar-with-dependencies</fileName>
 	</properties>
 
 	<dependencies>
