@@ -115,9 +115,18 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>${maven.javadoc.version}</version>
+				<version>3.2.0</version>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
 				<configuration>
 					<doclint>none</doclint>
+					<aggregate>true</aggregate>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -152,15 +161,6 @@
 							<Project-Version>${project.version}</Project-Version>
 						</manifestEntries>
 					</archive>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>${maven.javadoc.version}</version>
-				<configuration>
-					<aggregate>true</aggregate>
-					<doclint>none</doclint>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -208,22 +208,6 @@
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.2.0</version>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<doclint>none</doclint>
-				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
