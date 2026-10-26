@@ -160,7 +160,7 @@ public class CryptoCoreTest {
 		assertThat(cryptoCore.sign(data, rsaPair.getPrivate()), isA(String.class));
 	}
 
-	@Test(expected = SignatureException.class)
+	@Test(expected = io.mosip.kernel.core.exception.NoSuchAlgorithmException.class)
 	public void testSignInvalidKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
 		KeyPairGenerator generator = KeyPairGenerator.getInstance("DSA");
 		generator.initialize(2048, random);

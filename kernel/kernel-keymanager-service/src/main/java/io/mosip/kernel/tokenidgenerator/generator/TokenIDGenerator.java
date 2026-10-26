@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
 import io.mosip.kernel.core.logger.spi.Logger;
+import io.mosip.kernel.core.util.HMACUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import io.mosip.kernel.keymanagerservice.logger.KeymanagerLogger;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,8 @@ public class TokenIDGenerator {
 		try {
 			String uinHash = HMACUtils2.digestAsPlainText((uin + uinSalt).getBytes(StandardCharsets.UTF_8));
 			String hash = HMACUtils2.digestAsPlainText((partnerCodeSalt + partnerCode + uinHash).getBytes(StandardCharsets.UTF_8));
+			String uinHashHMAC = HMACUtils.digestAsPlainText(HMACUtils.generateHash((uin + uinSalt).getBytes(StandardCharsets.UTF_8)));
+			String hashHMAC = HMACUtils.digestAsPlainText(HMACUtils.generateHash((partnerCodeSalt + partnerCode + uinHash).getBytes(StandardCharsets.UTF_8)));
 			return new BigInteger(hash.getBytes()).toString().substring(0, tokenIDLength);
 		} catch (java.security.NoSuchAlgorithmException e) {
 			LOGGER.error("Error generating token ID: No such algorithm found", e);

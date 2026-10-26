@@ -5,7 +5,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -25,7 +24,6 @@ import java.util.stream.Stream;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -33,6 +31,8 @@ import javax.crypto.spec.SecretKeySpec;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import io.mosip.kernel.core.util.DateUtils2;
+import io.mosip.kernel.cryptomanager.service.EcCryptomanagerService;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,6 +134,11 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 	@Autowired
 	CryptomanagerUtils cryptomanagerUtil;
 
+	@Autowired
+	EcCryptomanagerService ecCryptomanagerService;
+
+	@Autowired
+	KeyAliasRepository keyAliasRepository;
 
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
@@ -453,7 +458,10 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			String certificateData = dbKeyStore.get().getCertificateData();
 			X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
 			PublicKey publicKey = x509Cert.getPublicKey();
-			byte[] encryptedRandomKey = cryptoCore.asymmetricEncrypt(publicKey, secretRandomKey.getEncoded());
+
+			byte[] encryptedRandomKey = publicKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA) ? cryptoCore.asymmetricEncrypt(publicKey, secretRandomKey.getEncoded()) :
+					ecCryptomanagerService.asymmetricEcEncrypt(publicKey, secretRandomKey.getEncoded(), keymanagerUtil.getEcCurveName(publicKey));
+
 			byte[] certThumbprint = cryptomanagerUtil.getCertificateThumbprint(x509Cert);
 			byte[] concatedData = cryptomanagerUtil.concatCertThumbprint(certThumbprint, encryptedRandomKey);
 			encryptedRandomKeyList.add(CryptoUtil.encodeToURLSafeBase64(concatedData));
@@ -477,29 +485,44 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 			Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(pubKeyApplicationId, pubKeyReferenceId, localDateTimeStamp);
 			keyAliases = keyAliasMap.get(KeymanagerConstant.KEYALIAS);
 		}
+
+		String kyAlias = null;
 		String encRandomKey = null;
+		byte[] encRandomKeyBytes = null;
+		String certificateThumbprint = null;
 		for (String encKey : encryptedKeyArr) {
 			byte[] encKeyBytes = CryptoUtil.decodeURLSafeBase64(encKey);
 			byte[] certThumbprint = Arrays.copyOfRange(encKeyBytes, 0, CryptomanagerConstant.THUMBPRINT_LENGTH);
+			encRandomKeyBytes = Arrays.copyOfRange(encKeyBytes, CryptomanagerConstant.THUMBPRINT_LENGTH, encKeyBytes.length);
 			String certThumbprintHex = Hex.toHexString(certThumbprint).toUpperCase();
 			Optional<KeyAlias> keyAlias = keyAliases.stream().filter(alias -> alias.getCertThumbprint().equals(certThumbprintHex))
 													.findFirst();
-
+			kyAlias = keyAlias.map(KeyAlias::getAlias).orElse(null);
+			certificateThumbprint = certThumbprintHex;
 			if (!keyAlias.isPresent()) {
 				continue;
 			}
 			encRandomKey = encKey;
 			break;
 		}
+
 		if (Objects.isNull(encRandomKey)) {
-			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.RE_ENCRYPT_RANDOM_KEY, 
+			LOGGER.error(ZKCryptoManagerConstants.SESSIONID, ZKCryptoManagerConstants.RE_ENCRYPT_RANDOM_KEY,
 					ZKCryptoManagerConstants.RE_ENCRYPT_RANDOM_KEY, "Thumbprint matching key not found in DB.");
 			throw new ZKCryptoException(ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorCode(),
 						ZKCryptoErrorConstants.INVALID_ENCRYPTED_RANDOM_KEY.getErrorMessage());
 		}
-		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(
-										pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encRandomKey, true);
-		String randomKey = keyManagerService.decryptSymmetricKey(symmetricKeyRequestDto).getSymmetricKey();
+
+		Optional<io.mosip.kernel.keymanagerservice.entity.KeyStore> dbKeyStore = keyStoreRepository.findByAlias(kyAlias);
+		Optional<KeyAlias> keyAliasObj = keyAliasRepository.findById(Objects.requireNonNull(kyAlias));
+		String certificateData = dbKeyStore.get().getCertificateData();
+		X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
+
+		PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getPrivateKeyForDecryption(keyAliasObj.get().getApplicationId(), Optional.ofNullable(keyAliasObj.get().getReferenceId()), certificateThumbprint)[0];
+		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encRandomKey, true);
+
+		String randomKey = x509Cert.getPublicKey().getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA) ? keyManagerService.decryptSymmetricKey(symmetricKeyRequestDto).getSymmetricKey() :
+				CryptoUtil.encodeToURLSafeBase64(ecCryptomanagerService.asymmetricEcDecrypt(privateKey, encRandomKeyBytes, null, keymanagerUtil.getEcCurveName(x509Cert.getPublicKey())));
 		String encryptedRandomKey = getEncryptedRandomKey(Base64.getEncoder().encodeToString(CryptoUtil.decodeURLSafeBase64(randomKey)));
 		ReEncryptRandomKeyResponseDto responseDto = new ReEncryptRandomKeyResponseDto();
 		responseDto.setEncryptedKey(encryptedRandomKey);

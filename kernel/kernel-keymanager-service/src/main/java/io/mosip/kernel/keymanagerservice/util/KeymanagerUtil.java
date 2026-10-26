@@ -8,10 +8,7 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -55,6 +52,8 @@ import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.service.KeymanagerService;
 import io.mosip.kernel.partnercertservice.constant.PartnerCertManagerConstants;
 import jakarta.annotation.PostConstruct;
+import io.mosip.kernel.cryptomanager.service.EcCryptomanagerService;
+import io.mosip.kernel.keymanagerservice.constant.ECCurves;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
@@ -63,6 +62,7 @@ import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -189,6 +189,9 @@ public class KeymanagerUtil {
 	@Value("#{'${mosip.kernel.keymgr.ed25519.allowed.appids:ID_REPO}'.split(',')}")
 	private List<String> allowedAppIds;
 
+	@Value("${mosip.kernel.keygenerator.ecc-curve-name:SECP256R1}")
+	private String ecCurveName;
+
 	// Default to 1440 (24 hours) - can be configured via application properties
 	@Value("${mosip.kernel.keymgr.truststore.cache.expiry.inMins:1440}")
 	private long trustAnchorsCacheExpiryMinutes;
@@ -212,6 +215,9 @@ public class KeymanagerUtil {
 	 */
 	@Autowired
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+
+    @Autowired
+    private EcCryptomanagerService ecCryptomanagerService;
 
 	@Autowired
 	SubjectAlternativeNamesHelper sanService;
@@ -304,10 +310,18 @@ public class KeymanagerUtil {
 	 * @return encrypted key
 	 */
 	public byte[] encryptKey(PrivateKey privateKey, PublicKey masterKey) {
-		SecretKey symmetricKey = keyGenerator.getSymmetricKey();
-		byte[] encryptedPrivateKey = cryptoCore.symmetricEncrypt(symmetricKey, privateKey.getEncoded(), null);
-		byte[] encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(masterKey, symmetricKey.getEncoded());
-		return CryptoUtil.combineByteArray(encryptedPrivateKey, encryptedSymmetricKey, keySplitter);
+		byte[] encryptedSymmetricKey;
+		byte[] encryptedKey = null;
+
+		if (masterKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA)) {
+			SecretKey symmetricKey = keyGenerator.getSymmetricKey();
+			byte[] encryptedPrivateKey = cryptoCore.symmetricEncrypt(symmetricKey, privateKey.getEncoded(), null);
+			encryptedSymmetricKey = cryptoCore.asymmetricEncrypt(masterKey, symmetricKey.getEncoded());
+			encryptedKey = CryptoUtil.combineByteArray(encryptedPrivateKey, encryptedSymmetricKey, keySplitter);
+		} else {
+			encryptedKey = ecCryptomanagerService.asymmetricEcEncrypt(masterKey, privateKey.getEncoded(), getEcCurveName(masterKey));
+		}
+		return encryptedKey;
 	}
 
 	/**
@@ -323,25 +337,29 @@ public class KeymanagerUtil {
 
 	public byte[] decryptKey(byte[] key, PrivateKey privateKey, PublicKey publicKey, String keystoreType) {
 
-        final int keySplitterLength = keySplitter.length();
-        final int keyDelimiterIndex = CryptoUtil.getSplitterIndex(key, 0, keySplitter);
-        if (keyDelimiterIndex < 0 || keyDelimiterIndex + keySplitterLength >= key.length) {
-            throw new IllegalArgumentException("Splitter not found or invalid key format");
-        }
+		if (privateKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA)) {
+			final int keySplitterLength = keySplitter.length();
+			final int keyDelimiterIndex = CryptoUtil.getSplitterIndex(key, 0, keySplitter);
+			if (keyDelimiterIndex < 0 || keyDelimiterIndex + keySplitterLength >= key.length) {
+				throw new IllegalArgumentException("Splitter not found or invalid key format");
+			}
 
-        // Split encrypted key and encrypted data
-        byte[] encryptedKey = new byte[keyDelimiterIndex];
-        System.arraycopy(key, 0, encryptedKey, 0, keyDelimiterIndex);
+			// Split encrypted key and encrypted data
+			byte[] encryptedKey = new byte[keyDelimiterIndex];
+			System.arraycopy(key, 0, encryptedKey, 0, keyDelimiterIndex);
 
-        int encryptedDataLen = key.length - (keyDelimiterIndex + keySplitterLength);
-        byte[] encryptedData = new byte[encryptedDataLen];
-        System.arraycopy(key, keyDelimiterIndex + keySplitterLength, encryptedData, 0, encryptedDataLen);
-        // Decrypt asymmetric key
-        byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
-        SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, symmetricAlgorithmName);
+			int encryptedDataLen = key.length - (keyDelimiterIndex + keySplitterLength);
+			byte[] encryptedData = new byte[encryptedDataLen];
+			System.arraycopy(key, keyDelimiterIndex + keySplitterLength, encryptedData, 0, encryptedDataLen);
+			// Decrypt asymmetric key
+			byte[] decryptedSymmetricKey = cryptoCore.asymmetricDecrypt(privateKey, publicKey, encryptedKey, keystoreType);
+			SecretKey symmetricKey = new SecretKeySpec(decryptedSymmetricKey, symmetricAlgorithmName);
 
-        // Symmetric decryption (AAD = null)
-		return cryptoCore.symmetricDecrypt(symmetricKey, encryptedData, null);
+			// Symmetric decryption (AAD = null)
+			return cryptoCore.symmetricDecrypt(symmetricKey, encryptedData, null);
+		} else {
+			return ecCryptomanagerService.asymmetricEcDecrypt(privateKey, key, null, getEcCurveName(publicKey));
+		}
 	}
 
 	/**
@@ -598,6 +616,12 @@ public class KeymanagerUtil {
 	
 	public String getCSR(PrivateKey privateKey, PublicKey publicKey, CertificateParameters certParams, String keyAlgorithm) {
 
+		if (privateKey.getAlgorithm().equals(KeymanagerConstant.X25519_KEY_TYPE)
+				|| privateKey.getAlgorithm().equalsIgnoreCase(KeymanagerConstant.XDH_ALGORITHM)) {
+			throw new KeymanagerServiceException(KeymanagerErrorConstant.X25519_KEY_CSR_NOT_SUPPORTED.getErrorCode(),
+					KeymanagerErrorConstant.X25519_KEY_CSR_NOT_SUPPORTED.getErrorMessage());
+		}
+
 		try {
 			X500Principal csrSubject = new X500Principal("CN=" + certParams.getCommonName() + ", OU=" + certParams.getOrganizationUnit() +
 												", O=" + certParams.getOrganization() + ", L=" + certParams.getLocation() +
@@ -619,11 +643,12 @@ public class KeymanagerUtil {
 
 	private String getSignatureAlgorithm(String keyAlgorithm) {
 
-		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE)) 
+		if (keyAlgorithm.equals(KeymanagerConstant.EC_KEY_TYPE))
 			return ecSignAlgorithm;
-		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) || 
-				 keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) || 
-				 keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE)) 
+		else if (keyAlgorithm.equals(KeymanagerConstant.ED25519_KEY_TYPE) ||
+				keyAlgorithm.equals(KeymanagerConstant.ED25519_ALG_OID) ||
+				keyAlgorithm.equals(KeymanagerConstant.EDDSA_KEY_TYPE) ||
+				keyAlgorithm.equals(KeymanagerConstant.X25519_KEY_TYPE))
 			return edSignAlgorithm;
 
 		return signAlgorithm;
@@ -784,5 +809,33 @@ public class KeymanagerUtil {
 		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
 				"Purging Key alias Trust Anchors Cache because new key generated or new certificate uploaded.");
 		keyAliasTrustAnchorsCache.expireAt("default", Expiry.NOW);
+	}
+
+	public String getEcCurveName(PublicKey publicKey) {
+		if (publicKey.getAlgorithm().equals(KeymanagerConstant.ED25519_KEY_TYPE) ||
+				publicKey.getAlgorithm().equals(KeymanagerConstant.EDDSA_KEY_TYPE))
+			return KeymanagerConstant.ED25519_KEY_TYPE;
+
+		if (publicKey.getAlgorithm().equals(KeymanagerConstant.X25519_KEY_TYPE) ||
+				publicKey.getAlgorithm().equals(KeymanagerConstant.XDH_ALGORITHM))
+			return KeymanagerConstant.X25519_KEY_TYPE;
+
+		SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+		ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier) subjectPublicKeyInfo.getAlgorithm().getParameters();
+		String curveName;
+		if (KeymanagerConstant.EC_SECP256R1_OID.equals(oid.getId())) {
+			curveName = ECCurves.SECP256R1.name();
+		} else if (KeymanagerConstant.EC_SECP256K1_OID.equals(oid.getId())) {
+			curveName = ECCurves.SECP256K1.name();
+		} else {
+			throw new io.mosip.kernel.core.exception.NoSuchAlgorithmException(
+					KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorCode(),
+					KeymanagerErrorConstant.NOT_SUPPORTED_CURVE_VALUE.getErrorMessage());
+		}
+		return curveName;
+	}
+
+	public static String getTrimmedValue(String value) {
+		return (value == null || value.trim().isEmpty()) ? KeymanagerConstant.EMPTY : value.trim();
 	}
 }

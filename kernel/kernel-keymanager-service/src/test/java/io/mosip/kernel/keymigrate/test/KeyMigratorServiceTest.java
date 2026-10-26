@@ -99,6 +99,7 @@ public class KeyMigratorServiceTest {
     public void setUp() throws Exception {
         ReflectionTestUtils.setField(keyMigratorService, "pmsSignAppId", "PMS");
         ReflectionTestUtils.setField(keyMigratorService, "signAlgorithm", "SHA256withRSA");
+        ReflectionTestUtils.setField(keyMigratorService, "keyAlgorithm", "RSA");
         ReflectionTestUtils.setField(keyMigratorService, "masterKeyAppId", "KERNEL");
         ReflectionTestUtils.setField(keyMigratorService, "masterKeyRefId", "IDENTITY_CACHE");
         ReflectionTestUtils.setField(keyMigratorService, "aesECBTransformation", "AES/ECB/NoPadding");
