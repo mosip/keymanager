@@ -1,9 +1,12 @@
 package io.mosip.kernel.keymanagerservice.test.config;
 
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,6 +43,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class TestSecurityConfig {
 
 	@Bean
+	public MockMvcBuilderCustomizer springSecurityMockMvcBuilderCustomizer() {
+		return builder -> builder.apply(springSecurity());
+	}
+
+	@Bean
 	public HttpFirewall defaultHttpFirewall() {
 		return new DefaultHttpFirewall();
 	}
@@ -50,7 +58,7 @@ public class TestSecurityConfig {
 	}
 
 	private String[] allowedEndPoints() {
-		return new String[] { "/assets/**", "/icons/**", "/screenshots/**", "/favicon**", "/**/favicon**", "/css/**",
+		return new String[] { "/assets/**", "/icons/**", "/screenshots/**", "/favicon**", "/css/**",
 				"/js/**", "/*/error**", "/*/webjars/**", "/*/v2/api-docs", "/*/configuration/ui",
 				"/*/configuration/security", "/*/swagger-resources/**", "/*/swagger-ui.html" };
 	}

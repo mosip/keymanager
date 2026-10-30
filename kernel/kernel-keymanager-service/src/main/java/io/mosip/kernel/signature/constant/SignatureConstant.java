@@ -129,7 +129,11 @@ public class SignatureConstant {
 
     public static final int CWT_SIGN_TAG = 61;
 
+	//x5t cose header paramater label
     public static final int CERTIFICATE_HASH_TAG = 34;
+
+    // COSE Algorithms registry value for SHA-256
+    public static final int COSE_ALG_SHA_256 = -16;
 
     public static final int CERTIFICATE_URL_TAG = 35;
 

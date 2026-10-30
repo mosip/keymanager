@@ -14,9 +14,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -43,11 +43,11 @@ public class CryptographicUtilExceptionTest {
     @Autowired
     CryptomanagerUtils cryptomanagerUtil;
 
-    @MockBean
+    @MockitoBean
     private ECKeyStore keyStore;
 
     /** The key manager. */
-    @MockBean
+    @MockitoBean
     private KeymanagerService keyManagerService;
 
     @Before

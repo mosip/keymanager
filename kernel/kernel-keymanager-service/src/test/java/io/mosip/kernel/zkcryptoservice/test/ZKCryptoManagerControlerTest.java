@@ -13,8 +13,8 @@ import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ContextConfiguration;
@@ -40,10 +40,10 @@ public class ZKCryptoManagerControlerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ZKCryptoManagerService zkCryptoManagerService;
 
-    @MockBean(name = "zkAuthRoles")
+    @MockitoBean(name = "zkAuthRoles")
     private AuthorizedRolesDTO authorizedRolesDTO;
 
     @Autowired

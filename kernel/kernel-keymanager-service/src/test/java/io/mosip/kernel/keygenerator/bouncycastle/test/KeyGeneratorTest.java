@@ -19,7 +19,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
@@ -33,7 +33,7 @@ public class KeyGeneratorTest {
     @Autowired
     KeyGenerator keyGenerator;
 
-    @MockBean
+    @MockitoBean
     private ECKeyStore keyStore;
 
     @Before

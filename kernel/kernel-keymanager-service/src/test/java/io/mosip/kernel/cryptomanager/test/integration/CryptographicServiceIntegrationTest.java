@@ -23,9 +23,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -64,10 +64,10 @@ public class CryptographicServiceIntegrationTest {
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
 	 */
-	@MockBean
+	@MockitoBean
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
-	@MockBean
+	@MockitoBean
 	private CryptomanagerUtils cryptomanagerUtil;
 
 	@Autowired
@@ -79,14 +79,14 @@ public class CryptographicServiceIntegrationTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@MockBean
+	@MockitoBean
 	private ECKeyStore keyStore;
 
 	/** The key manager. */
-	@MockBean
+	@MockitoBean
 	private KeymanagerService keyManagerService;
 
-	@MockBean
+	@MockitoBean
 	private KeymanagerUtil keymanagerUtil;
 
 	private KeyPair keyPair;
@@ -113,7 +113,7 @@ public class CryptographicServiceIntegrationTest {
 
 		keyPair = generator.getAsymmetricKey();
 		cert = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "mosip", "mosip",
-				"mosip", "india", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00),
+				"mosip", "IN", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00),
 				"SHA256withRSA", "BC");
 		certData = keymanagerUtil.getPEMFormatedData(cert);
 		requestWrapper = new RequestWrapper<>();

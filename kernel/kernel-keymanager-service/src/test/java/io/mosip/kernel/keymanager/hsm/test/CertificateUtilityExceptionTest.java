@@ -35,6 +35,6 @@ public class CertificateUtilityExceptionTest {
 		keyGenerator.initialize(2048, random);
 		KeyPair keyPair = keyGenerator.generateKeyPair();
 		CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(),  "commonName", "organizationalUnit",
-				"organization", "country", LocalDateTime.now(), LocalDateTime.now().minusDays(100), "SHA256withRSA", "BC");
+				"organization", "IN", LocalDateTime.now(), LocalDateTime.now().minusDays(100), "SHA256withRSA", "BC");
 	}
 }

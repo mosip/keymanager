@@ -1,5 +1,8 @@
 package io.mosip.kernel.clientcrypto.test;
 
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,6 +23,11 @@ import java.util.List;
 //@EnableWebSecurity
 //@EnableGlobalMethodSecurity(prePostEnabled = true)
 public class TestSecurityConfig {// extends WebSecurityConfigurerAdapter {
+
+	@Bean
+	public MockMvcBuilderCustomizer springSecurityMockMvcBuilderCustomizer() {
+		return builder -> builder.apply(springSecurity());
+	}
 
 	@Bean
 	public HttpFirewall defaultHttpFirewall() {
