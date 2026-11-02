@@ -31,10 +31,10 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -82,22 +82,22 @@ public class KeymanagerIntegrationTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@MockBean
+	@MockitoBean
 	private ECKeyStore keyStore;
 
-	@MockBean
+	@MockitoBean
 	private KeyAliasRepository keyAliasRepository;
 
-	@MockBean
+	@MockitoBean
 	private KeyPolicyRepository keyPolicyRepository;
 
-	@MockBean
+	@MockitoBean
 	private KeyStoreRepository keyStoreRepository;
 
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
 	 */
-	@MockBean
+	@MockitoBean
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
 	@Mock
@@ -108,7 +108,7 @@ public class KeymanagerIntegrationTest {
 
 	private PrivateKeyEntry privateKeyEntry;
 
-	@SpyBean
+	@MockitoSpyBean
 	private KeymanagerUtil keymanagerUtil;
 
 	private KeyPair key;
@@ -179,7 +179,7 @@ public class KeymanagerIntegrationTest {
 		keyGen.initialize(1024);
 		key = keyGen.generateKeyPair();
 		X509Certificate x509Certificate = CertificateUtility.generateX509Certificate(key.getPrivate(), key.getPublic(),
-				"mosip", "mosip", "mosip", "india", LocalDateTime.of(2010, 1, 1, 12, 00),
+				"mosip", "mosip", "mosip", "IN", LocalDateTime.of(2010, 1, 1, 12, 00),
 				LocalDateTime.of(2030, 1, 1, 12, 00), "SHA256withRSA", "BC");
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = x509Certificate;

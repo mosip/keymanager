@@ -4,9 +4,15 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>io.mosip.kernel</groupId>
+		<artifactId>keymanager-parent</artifactId>
+		<version>1.5.1-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
 	<groupId>io.mosip.kernel</groupId>
 	<artifactId>kernel-keymanager-service</artifactId>
-	<version>1.5.0-SNAPSHOT</version>
+	<version>1.5.1-SNAPSHOT</version>
 	<name>kernel-keymanager-service</name>
 	<description>Mosip commons project </description>
 	<url>https://github.com/mosip/keymanager</url>
@@ -17,7 +23,7 @@
 		<!-- maven -->
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
-		<maven.compiler.version>3.9.6</maven.compiler.version>
+		<maven.compiler.version>3.16.0</maven.compiler.version>
 
 		<maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
 		<maven.war.plugin.version>3.1.0</maven.war.plugin.version>
@@ -26,11 +32,8 @@
 		<central.publishing.maven.plugin.version>0.11.0</central.publishing.maven.plugin.version>
 
 		<!-- Kernel -->
-		<kernel.bom.version>1.3.1-rc.1</kernel.bom.version>
-		<kernel.core.version>1.3.1-rc.1</kernel.core.version>
-		<kernel.logger.logback.version>1.3.1-rc.1</kernel.logger.logback.version>
-		<kernel.pdfgenerator.version>1.3.1-rc.1</kernel.pdfgenerator.version>
-		<kernel.dataaccess.hibernate.version>1.3.1-rc.1</kernel.dataaccess.hibernate.version>
+		<kernel.core.version>1.4.1-SNAPSHOT</kernel.core.version>
+		<kernel.auth.adapter.version>1.4.1-SNAPSHOT</kernel.auth.adapter.version>
 
 		<!-- data -->
 		<h2.version>2.2.220</h2.version>
@@ -38,19 +41,18 @@
 		<jose4j.version>0.9.6</jose4j.version>
 		<tss.version>0.3.0</tss.version>
 		<cache2k-version>2.4.1.Final</cache2k-version>
-		<spring.boot.configuration.processor>3.2.3</spring.boot.configuration.processor>
+		<spring.boot.configuration.processor>4.1.1</spring.boot.configuration.processor>
 		<com.nimbusds.nimbus-jose-jwt.version>9.37.2</com.nimbusds.nimbus-jose-jwt.version>
 		<io.projectreactor.reactor-core.version>3.1.7.RELEASE</io.projectreactor.reactor-core.version>
 		<de.mkammerer.argon2-jvm-nolibs.version>2.11</de.mkammerer.argon2-jvm-nolibs.version>
 		<net.java.dev.jna.version>5.13.0</net.java.dev.jna.version>
-		<spring.boot.maven.plugin>3.2.3</spring.boot.maven.plugin>
+		<spring.boot.maven.plugin>4.1.1</spring.boot.maven.plugin>
 		<jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>4.13.2</junit.version>
 		<postgresql.version>42.7.3</postgresql.version>
-		<springdoc.openapi.starter.webmvc.ui.version>2.6.0</springdoc.openapi.starter.webmvc.ui.version>
-		<bcprov.jdk18on.version>1.78.1</bcprov.jdk18on.version>
-		<bcpkix.jdk18on.version>1.78.1</bcpkix.jdk18on.version>
-		<mockito.core.version>3.4.3</mockito.core.version>
+		<springdoc.openapi.starter.webmvc.ui.version>3.1.1</springdoc.openapi.starter.webmvc.ui.version>
+		<bcprov.jdk18on.version>1.85.2</bcprov.jdk18on.version>
+		<bcpkix.jdk18on.version>1.85</bcpkix.jdk18on.version>
 		<cose.java.version>1.1.0</cose.java.version>
 		<cbor.version>1.19</cbor.version>
 	</properties>
@@ -62,19 +64,13 @@
 		</repository>
 	</repositories>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>io.mosip.kernel</groupId>
-				<artifactId>kernel-bom</artifactId>
-				<version>${kernel.bom.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.48</version>
+			<scope>provided</scope>
+		</dependency>
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
 			<artifactId>kernel-core</artifactId>
@@ -99,8 +95,17 @@
 			</exclusions>
 		</dependency>
 		<dependency>
+			<groupId>io.mosip.kernel</groupId>
+			<artifactId>kernel-auth-adapter</artifactId>
+			<version>${kernel.auth.adapter.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-jackson2</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -112,24 +117,20 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-logger-logback</artifactId>
-			<version>${kernel.logger.logback.version}</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-pdfgenerator</artifactId>
-			<version>${kernel.pdfgenerator.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-jdk15on</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-jdk15on</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-micrometer-tracing-brave</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-config</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-bootstrap</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -141,17 +142,15 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>${mockito.core.version}</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
-            <version>${mockito.core.version}</version>
-            <scope>test</scope>
-        </dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
@@ -247,11 +246,6 @@
 			<version>${postgresql.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-dataaccess-hibernate</artifactId>
-			<version>${kernel.dataaccess.hibernate.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>${springdoc.openapi.starter.webmvc.ui.version}</version>
@@ -301,7 +295,6 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<version>${spring.boot.maven.plugin}</version>
 				<configuration>
-					<executable>true</executable>
 					<layout>ZIP</layout>
 				</configuration>
 				<executions>
@@ -432,10 +425,9 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.0</version>
+				<version>${maven.surefire.plugin.version}</version>
 				<configuration>
-					<skipTests>false</skipTests>
-					<skip>false</skip>
+					<skipTests>${skipTests}</skipTests>
 					<argLine>
 						${argLine} --add-opens
 						java.xml/jdk.xml.internal=ALL-UNNAMED
@@ -459,6 +451,25 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>mark-runnable-jar-executable</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<chmod file="${project.build.directory}/${project.build.finalName}.jar" perm="ugo+x"/>
+							</target>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

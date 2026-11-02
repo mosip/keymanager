@@ -21,8 +21,8 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
@@ -168,12 +168,12 @@ public class HSMHealthCheckTest {
 
         when(dbHelper.getKeyAliases(any(), any(), any(LocalDateTime.class))).thenReturn(keyAliasMap);
         // Using a key with a different algorithm to cause an encryption error
-        Key key = new SecretKeySpec(new byte[16], "DES");
+        Key key = new SecretKeySpec(new byte[8], "DES");
         when(keyStore.<Key>getSymmetricKey("test-alias")).thenReturn((SecretKey) key);
 
         Mono<Health> healthMono = hsmHealthCheck.health();
         Health health = healthMono.block();
-        assertEquals(Status.UP, health.getStatus());
+        assertEquals(Status.DOWN, health.getStatus());
     }
 
     @Test

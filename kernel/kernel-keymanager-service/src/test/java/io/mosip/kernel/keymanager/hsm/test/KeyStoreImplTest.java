@@ -74,7 +74,7 @@ public class KeyStoreImplTest {
 		Security.addProvider(provider);
 		random = new SecureRandom();
 		certParams = new CertificateParameters("commonName", "organizationalUnit",
-				"organization", "location", "state", "country", LocalDateTime.now(), LocalDateTime.now().plusDays(100));
+				"organization", "location", "state", "IN", LocalDateTime.now(), LocalDateTime.now().plusDays(100));
 	}
 
 	@Test
@@ -85,7 +85,7 @@ public class KeyStoreImplTest {
 		keyStoreImpl.generateAndStoreAsymmetricKey("alias", null, certParams);
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "commonName", "organizationalUnit",
-				"organization", "country", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
+				"organization", "IN", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
 		PrivateKeyEntry keyEntry = new PrivateKeyEntry(keyPair.getPrivate(), chain);
 		when(keyStore.entryInstanceOf("alias", PrivateKeyEntry.class)).thenReturn(true);
 		when(keyStore.getEntry(Mockito.anyString(), Mockito.any())).thenReturn(keyEntry);
@@ -116,7 +116,7 @@ public class KeyStoreImplTest {
 		KeyPair keyPair = keyGenerator.generateKeyPair();
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "commonName", "organizationalUnit",
-				"organization", "country", LocalDateTime.now(), LocalDateTime.now().plusDays(100),  "SHA256withRSA", "BC");
+				"organization", "IN", LocalDateTime.now(), LocalDateTime.now().plusDays(100),  "SHA256withRSA", "BC");
 		PrivateKeyEntry keyEntry = new PrivateKeyEntry(keyPair.getPrivate(), chain);
 		when(keyStore.entryInstanceOf("alias", PrivateKeyEntry.class)).thenReturn(true);
 		when(keyStore.getEntry(Mockito.anyString(), Mockito.any())).thenReturn(keyEntry);
@@ -130,7 +130,7 @@ public class KeyStoreImplTest {
 		KeyPair keyPair = keyGenerator.generateKeyPair();
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "commonName", "organizationalUnit",
-				"organization", "country", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
+				"organization", "IN", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
 		PrivateKeyEntry keyEntry = new PrivateKeyEntry(keyPair.getPrivate(), chain);
 		when(keyStore.entryInstanceOf("alias", PrivateKeyEntry.class)).thenReturn(true);
 		when(keyStore.getEntry(Mockito.anyString(), Mockito.any())).thenReturn(keyEntry);
@@ -144,7 +144,7 @@ public class KeyStoreImplTest {
 		KeyPair keyPair = keyGenerator.generateKeyPair();
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "commonName", "organizationalUnit",
-				"organization", "country", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
+				"organization", "IN", LocalDateTime.now(), LocalDateTime.now().plusDays(100), "SHA256withRSA", "BC");
 		PrivateKeyEntry keyEntry = new PrivateKeyEntry(keyPair.getPrivate(), chain);
 		when(keyStore.entryInstanceOf("alias", PrivateKeyEntry.class)).thenReturn(true);
 		when(keyStore.getEntry(Mockito.anyString(), Mockito.any())).thenReturn(keyEntry);

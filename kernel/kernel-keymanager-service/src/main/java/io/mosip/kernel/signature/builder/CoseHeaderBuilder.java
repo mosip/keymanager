@@ -63,10 +63,10 @@ public class CoseHeaderBuilder {
             }
         }
 
-        // Certificate hash
+        // Certificate hash: x5t = [hashAlg, hashValue] per RFC 9360
         byte[] certHash = computeCertHashIfRequested(certificateResponse, protectedHeaderMap);
         if (certHash != null) {
-            protectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, certHash);
+            protectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, List.of(SignatureConstant.COSE_ALG_SHA_256, certHash));
         }
 
         // Certificate URL
@@ -132,10 +132,10 @@ public class CoseHeaderBuilder {
         }
 
 
-        // Certificate hash
+        // Certificate hash: x5t = [hashAlg, hashValue] per RFC 9360
         byte[] certHash = computeCertHashIfRequested(certificateResponse, unprotectedHeaderMap);
         if (certHash != null) {
-            unprotectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, certHash);
+            unprotectedHeaderBuilder.put(SignatureConstant.CERTIFICATE_HASH_TAG, List.of(SignatureConstant.COSE_ALG_SHA_256, certHash));
         }
 
         // Certificate URL

@@ -1,5 +1,6 @@
 package io.mosip.kernel.keymanagerservice.test;
 
+import io.mosip.kernel.TestAutoConfigurationExclusions;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @since 1.0.0
  *
  */
+@TestAutoConfigurationExclusions
 @SpringBootApplication(scanBasePackages = { "io.mosip.kernel.keymanagerservice.*","io.mosip.kernel.cryptomanager.*",
 											"io.mosip.kernel.signature.*","io.mosip.kernel.tokenidgenerator.*", "io.mosip.kernel.lkeymanager.*",
 											"io.mosip.kernel.keymanager.hsm.*", "io.mosip.kernel.keygenerator.*", 

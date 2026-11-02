@@ -23,9 +23,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -61,11 +61,11 @@ public class CryptographicServiceIntegrationExceptionTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@MockBean
+	@MockitoBean
 	private ECKeyStore keyStore;
 
 	/** The key manager. */
-	@MockBean
+	@MockitoBean
 	private KeymanagerService keyManagerService;
 
 	@Autowired
@@ -84,7 +84,7 @@ public class CryptographicServiceIntegrationExceptionTest {
 	/**
 	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
 	 */
-	@MockBean
+	@MockitoBean
 	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
 
 	private static final String ID = "mosip.crypto.service";

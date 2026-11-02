@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
@@ -155,9 +154,8 @@ public class KeyStoreImpl implements ECKeyStore, InitializingBean {
 		}
 		LOGGER.info("ksSessionId", "KeyStoreImpl-Main", "KeyStoreImpl", "Found Clazz to load for Keystore Impl: " + clazzName);
 		Class<?> object = Class.forName(clazzName);
-		Optional<Constructor<?>> resConstructor = ReflectionUtils.findConstructor(object, keystoreParams);
-		if (resConstructor.isPresent()) {
-			Constructor<?> constructor = resConstructor.get();
+		Constructor<?> constructor = ReflectionUtils.findConstructor(object, keystoreParams);
+		if (constructor != null) {
 			constructor.setAccessible(true);
 			keyStore = (ECKeyStore) constructor.newInstance(keystoreParams);
 		} else {

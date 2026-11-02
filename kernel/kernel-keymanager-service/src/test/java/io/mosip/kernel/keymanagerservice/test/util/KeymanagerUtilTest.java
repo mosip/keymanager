@@ -30,7 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -50,13 +50,13 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class KeymanagerUtilTest {
 
-    @MockBean
+    @MockitoBean
     private KeyAliasRepository keyAliasRepository;
 
-    @MockBean
+    @MockitoBean
     private KeyPolicyRepository keyPolicyRepository;
 
-    @MockBean
+    @MockitoBean
     private KeyStoreRepository keyStoreRepository;
 
     @Autowired
@@ -79,7 +79,7 @@ public class KeymanagerUtilTest {
         keyPairMaster = keyGen.generateKeyPair();
         keyPair = keyGen.generateKeyPair();
         X509Certificate x509Certificate = CertificateUtility.generateX509Certificate(keyPair.getPrivate(), keyPair.getPublic(), "mosip", "mosip", "mosip",
-                "india", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00), "SHA256withRSA", "BC");
+                "IN", LocalDateTime.of(2010, 1, 1, 12, 00), LocalDateTime.of(2011, 1, 1, 12, 00), "SHA256withRSA", "BC");
         chain = new X509Certificate[1];
         chain[0] = x509Certificate;
     }
