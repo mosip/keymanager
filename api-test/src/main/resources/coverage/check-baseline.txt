@@ -1,0 +1,10 @@
+# Accepted coverage-matrix gaps — `CoverageCli check` reports these as accepted instead of failing.
+#
+# One per line:   <gap-type> <key>  # reason
+# The reason is mandatory (a line without one is itself a gap), and an entry that no longer
+# matches any gap is reported as stale — so this file can't silently rot.
+# `check --keys` prints the exact line for every open gap. Prefer fixing over baselining:
+# only add a line when the gap is intentional (internal-only or deprecated endpoint, a path routed
+# by a filter instead of a controller, ...), and say why.
+possible-duplicate-row keymanager/GenerateECSignKey.md#TC_KeyManager_GenerateECSignKey_11#TC_KeyManager_GenerateECSignKey_18  # different referenceId value: empty vs SIGN (valid master-key ref, not an EC ref); both expect KER-KMS-030
+possible-duplicate-row keymanager/GenerateECSignKey.md#TC_KeyManager_GenerateECSignKey_12#TC_KeyManager_GenerateECSignKey_18  # different referenceId value: unknown INVALID_CURVE vs SIGN (valid master-key ref, not an EC ref); both expect KER-KMS-030
