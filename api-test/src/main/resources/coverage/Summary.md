@@ -87,7 +87,7 @@ To filter or sort individual test cases across every file, open `coverage.html` 
 
 ## Flagged findings
 
-Rows whose Notes are flagged ⚠️ (fragility/quality concern) or 🛑 (confirmed bug) during the cycle-2 semantic audit — see docs/coverage-matrix/design-record.md (mosip-functional-tests), gotcha 15, for the practice behind this. Pulled mechanically from row Notes, not hand-maintained here.
+Rows whose Notes are flagged ⚠️ (fragility/quality concern) or 🛑 (confirmed bug) during the cycle-2 semantic audit (see the module's AGENTS.md, cycle 2). Pulled mechanically from row Notes, not hand-maintained here.
 
 - ⚠️ **keymanager/GenerateCSR** (`TC_KeyManager_GenerateCSR_07`): ⚠️ Possible bug: a call with no token returns HTTP 500 instead of the 401 (`KER-ATH-401`) the legacy sheet expects — same as GenerateMasterKey row _10; confirm on a live run. Details: `checkOnlyStatusCodeInResponse: true`, output `responseCode` 500. Legacy: KM_GENCSR_TC_02.
 - ⚠️ **keymanager/GenerateCSR** (`TC_KeyManager_GenerateCSR_15`): Expected result: checked in the service source; confirm on the first run. ⚠️ Possible bug: after building the CSR the service evaluates `refId.isPresent() OR !refId.get().trim().isEmpty()` (an OR where AND was meant) (KeymanagerServiceImpl.java:890); when `referenceId` is absent, `refId.get()` throws NoSuchElementException, which the catch-all turns into KER-KMS-500 (KeymanagerExceptionHandler.java:357-365). The automation template always sends `referenceId`, so the suite never sees this.
