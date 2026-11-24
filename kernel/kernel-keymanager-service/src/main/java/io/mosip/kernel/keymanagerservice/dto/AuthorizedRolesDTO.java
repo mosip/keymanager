@@ -31,4 +31,8 @@ public class AuthorizedRolesDTO {
 
 	private List<String> getcertificatechain;
 
+	private List<String> getrsasigncertificate;
+
+	private List<String> getcertificatev2;
+
 }

@@ -69,6 +69,7 @@ public class KeymanagerServiceImplUnitTest {
     public void setUp() {
         certificateParameters = Mockito.mock(CertificateParameters.class);
         ReflectionTestUtils.setField(service, "ed25519SupportFlag", true);
+        ReflectionTestUtils.setField(service, "masterKeyAlgorithm", "RSA");
     }
 
     @Test
