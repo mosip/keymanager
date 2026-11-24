@@ -38,6 +38,8 @@ import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.encodings.OAEPEncoding;
 import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.jose4j.jca.ProviderContext;
+import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwx.CompactSerializer;
 import org.jose4j.lang.JoseException;
@@ -471,8 +473,22 @@ public class CryptoCore implements CryptoCoreSpec<byte[], byte[], SecretKey, Pub
 		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
 		String algorithm = privateKey.getAlgorithm();
 		String signAlgo = SignatureUtil.getSigningAlgorithm(algorithm);
+		return signDetached(data, privateKey, signAlgo, null);
+	}
+
+	public String signDetached(byte[] data, PrivateKey privateKey, X509Certificate certificate, String providerName) {
+		Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
+		return signDetached(data, privateKey, SignatureUtil.getJwtSignAlgorithm(certificate), providerName);
+	}
+
+	private String signDetached(byte[] data, PrivateKey privateKey, String signAlgo, String providerName) {
 		CryptoUtils.verifyData(data);
 		JsonWebSignature jws = new JsonWebSignature();
+		if (AlgorithmIdentifiers.ECDSA_USING_SECP256K1_CURVE_AND_SHA256.equals(signAlgo) && providerName != null) {
+			ProviderContext providerContext = new ProviderContext();
+			providerContext.getSuppliedKeyProviderContext().setSignatureProvider(providerName);
+			jws.setProviderContext(providerContext);
+		}
 		jws.setPayloadBytes(data);
 		jws.setAlgorithmHeaderValue(signAlgo);
 		jws.setKey(privateKey);

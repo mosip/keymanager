@@ -20,8 +20,6 @@ import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import javax.crypto.SecretKey;
-
 import io.ipfs.multibase.Multibase;
 import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.partnercertservice.service.spi.PartnerCertificateManagerService;
@@ -47,7 +45,7 @@ import org.springframework.stereotype.Service;
 
 import com.nimbusds.jose.JWSHeader;
 
-import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import io.mosip.kernel.crypto.jce.core.CryptoCore;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.pdfgenerator.model.Rectangle;
@@ -97,7 +95,7 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 	private KeymanagerService keymanagerService;
 
 	@Autowired
-	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+	private CryptoCore cryptoCore;
 
 	@Value("${mosip.kernel.keygenerator.asymmetric-algorithm-name}")
 	private String asymmetricAlgorithmName;
@@ -242,8 +240,10 @@ public class SignatureServiceImpl implements SignatureService, SignatureServicev
 				DateUtils2.parseUTCToDate(signatureRequestDto.getTimeStamp()));
 		String encryptedSignedData = null;
 		if (certificateResponse.getCertificateEntry() != null) {
-			encryptedSignedData = cryptoCore.sign(signatureRequestDto.getData().getBytes(),
-					certificateResponse.getCertificateEntry().getPrivateKey());
+			var certificateEntry = certificateResponse.getCertificateEntry();
+			encryptedSignedData = cryptoCore.signDetached(signatureRequestDto.getData().getBytes(),
+					certificateEntry.getPrivateKey(), certificateEntry.getChain()[0],
+					certificateResponse.getProviderName());
 		}
 		return new SignatureResponseDto(encryptedSignedData);
 	}
