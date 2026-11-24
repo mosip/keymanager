@@ -71,6 +71,8 @@ public enum CryptomanagerErrorCode {
 
 	JWE_ENCRYPTION_NOT_SUPPORTED("KER-CRY-017", "JWE encryption is not supported for the provided (%S) public key."),
 
+	EC_SIGN_KEY_ENCRYPTION_NOT_SUPPORTED("KER-CRY-018", "Encryption is not supported with %s key. %s is a signing-only key; use an X25519 or EC (SECP256R1/SECP256K1) key for encryption."),
+
 	INTERNAL_SERVER_ERROR("KER-CRY-500", "Internal server error");
 
 

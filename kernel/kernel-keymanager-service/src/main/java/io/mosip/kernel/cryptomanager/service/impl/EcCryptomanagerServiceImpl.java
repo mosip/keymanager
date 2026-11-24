@@ -7,6 +7,8 @@ import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.crypto.jce.constant.SecurityExceptionCodeConstant;
 import io.mosip.kernel.crypto.jce.util.CryptoUtils;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
+import io.mosip.kernel.cryptomanager.constant.CryptomanagerErrorCode;
+import io.mosip.kernel.cryptomanager.exception.CryptoManagerSerivceException;
 import io.mosip.kernel.cryptomanager.service.EcCryptomanagerService;
 import io.mosip.kernel.keymanager.hsm.impl.KeyStoreImpl;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -67,6 +69,7 @@ public class EcCryptomanagerServiceImpl implements EcCryptomanagerService {
 
     @Override
     public byte[] asymmetricEcEncrypt(PublicKey key, byte[] data, byte[] randomIV, byte[] aad, String curveName) {
+        validateEncryptionKey(key, curveName);
         byte[] output;
         Cipher cipher;
         SecretKey aesKey = null;
@@ -139,6 +142,7 @@ public class EcCryptomanagerServiceImpl implements EcCryptomanagerService {
     public byte[] asymmetricEcDecrypt(PrivateKey privateKey, byte[] data, byte[] aad, String algorithmName) {
         Objects.requireNonNull(privateKey, SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage());
         CryptoUtils.verifyData(data);
+        validateEncryptionKey(privateKey, algorithmName);
         byte[] decryptedData;
         byte[] aesKeyBytes = null;
         byte[] sharedSecret = null;
@@ -328,6 +332,29 @@ public class EcCryptomanagerServiceImpl implements EcCryptomanagerService {
             throw new InvalidKeyException(
                     SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorCode(),
                     SecurityExceptionCodeConstant.MOSIP_INVALID_KEY_EXCEPTION.getErrorMessage(), e);
+        }
+    }
+
+    /**
+     * Ed25519/EdDSA keys are signing-only and cannot be used for ECDH key agreement.
+     * Reject them up front with a clear error instead of failing later with an
+     * "unknown curve name" exception while generating the ephemeral key pair.
+     */
+    private static void validateEncryptionKey(Key key, String curveName) {
+        String signOnlyAlgorithm = null;
+        if (KeymanagerConstant.ED25519_KEY_TYPE.equalsIgnoreCase(curveName)
+                || KeymanagerConstant.EDDSA_KEY_TYPE.equalsIgnoreCase(curveName)) {
+            signOnlyAlgorithm = KeymanagerConstant.ED25519_KEY_TYPE;
+        } else if (key != null && (KeymanagerConstant.ED25519_KEY_TYPE.equalsIgnoreCase(key.getAlgorithm())
+                || KeymanagerConstant.EDDSA_KEY_TYPE.equalsIgnoreCase(key.getAlgorithm()))) {
+            signOnlyAlgorithm = KeymanagerConstant.ED25519_KEY_TYPE;
+        }
+        if (signOnlyAlgorithm != null) {
+            LOGGER.error(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, signOnlyAlgorithm,
+                    "Signing-only key provided for ECDH encryption/decryption.");
+            throw new CryptoManagerSerivceException(CryptomanagerErrorCode.EC_SIGN_KEY_ENCRYPTION_NOT_SUPPORTED.getErrorCode(),
+                    String.format(CryptomanagerErrorCode.EC_SIGN_KEY_ENCRYPTION_NOT_SUPPORTED.getErrorMessage(),
+                            signOnlyAlgorithm, signOnlyAlgorithm));
         }
     }
 }
