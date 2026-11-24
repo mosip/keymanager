@@ -198,7 +198,7 @@ public class KeysGenerator {
         keymanagerService.generateMasterKey(DUMMY_RESP_TYPE, requestDto);
     }
 
-    private void generateBaseKey(String appId, String refId){
+    private void generateBaseKey(String appId, String refId) {
         keymanagerService.getCertificate(appId, Optional.of(refId));
     }
 }

@@ -60,10 +60,13 @@ public final class KeymanagerConstant {
 
 	public static final String ASYM_KEY_EC_ALGORITHM = "ASYM_KEY_EC_ALGORITHM";
 
-	public static final String EC_CURVE_NAME = "EC_CURVE_NAME";
+	public static final String SUNEC_PROVIDER = "SunEC";
 
 	public static final String ED25519_KEY_TYPE = "Ed25519";
 
-	public static final String ASYM_KEY_ED_ALGORITHM = "ASYM_KEY_ED_ALGORITHM";
+    public static final String RSA_SIGN_ALGORITHM = "SHA256withRSA";
 
+    public static final String EC_SIGN_ALGORITHM = "SHA256withECDSA";
+
+    public static final String ED_SIGN_ALGORITHM = "Ed25519";
 }

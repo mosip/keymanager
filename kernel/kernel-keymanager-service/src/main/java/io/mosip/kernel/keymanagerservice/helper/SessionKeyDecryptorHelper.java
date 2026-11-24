@@ -377,9 +377,9 @@ public class SessionKeyDecryptorHelper {
 			try {
 				byte[] decryptedPrivateKey = keymanagerUtil.decryptKey(CryptoUtil.decodeURLSafeBase64(dbKeyStore.get().getPrivateKey()), 
 													masterPrivateKey, masterPublicKey);
-				KeyFactory keyFactory = KeyFactory.getInstance(KeymanagerConstant.RSA);
-				PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
 				Certificate certificate = keymanagerUtil.convertToCertificate(dbKeyStore.get().getCertificateData());
+				KeyFactory keyFactory = KeyFactory.getInstance(certificate.getPublicKey().getAlgorithm());
+				PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(decryptedPrivateKey));
 				return new Object[] {privateKey, certificate};
 			} catch (InvalidDataException | InvalidKeyException | NullDataException | NullKeyException
 					| NullMethodException | InvalidKeySpecException | NoSuchAlgorithmException e) {
