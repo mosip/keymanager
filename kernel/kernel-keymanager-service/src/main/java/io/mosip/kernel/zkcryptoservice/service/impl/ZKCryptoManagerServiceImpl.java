@@ -482,8 +482,15 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		String[] encryptedKeyArr = encryptedKey.split(ZKCryptoManagerConstants.PERIOD);
 		LocalDateTime localDateTimeStamp = DateUtils2.getUTCCurrentDateTime();
 		if (Objects.isNull(keyAliases)) {
-			Map<String, List<KeyAlias>> keyAliasMap = dbHelper.getKeyAliases(pubKeyApplicationId, pubKeyReferenceId, localDateTimeStamp);
-			keyAliases = keyAliasMap.get(KeymanagerConstant.KEYALIAS);
+			List<KeyAlias> aliases = new ArrayList<>();
+			for (String referenceId : pubKeyReferenceId.split(KeymanagerConstant.COMMA)) {
+				if (!referenceId.isBlank()) {
+					Map<String, List<KeyAlias>> keyAliasMap =
+							dbHelper.getKeyAliases(pubKeyApplicationId, referenceId, localDateTimeStamp);
+					aliases.addAll(keyAliasMap.get(KeymanagerConstant.KEYALIAS));
+				}
+			}
+			keyAliases = aliases;
 		}
 
 		String kyAlias = null;
@@ -519,7 +526,9 @@ public class ZKCryptoManagerServiceImpl implements ZKCryptoManagerService, Initi
 		X509Certificate x509Cert = (X509Certificate) keymanagerUtil.convertToCertificate(certificateData);
 
 		PrivateKey privateKey = (PrivateKey) cryptomanagerUtil.getPrivateKeyForDecryption(keyAliasObj.get().getApplicationId(), Optional.ofNullable(keyAliasObj.get().getReferenceId()), certificateThumbprint)[0];
-		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(pubKeyApplicationId, localDateTimeStamp, pubKeyReferenceId, encRandomKey, true);
+		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(
+				keyAliasObj.get().getApplicationId(), localDateTimeStamp,
+				keyAliasObj.get().getReferenceId(), encRandomKey, true);
 
 		String randomKey = x509Cert.getPublicKey().getAlgorithm().equalsIgnoreCase(KeymanagerConstant.RSA) ? keyManagerService.decryptSymmetricKey(symmetricKeyRequestDto).getSymmetricKey() :
 				CryptoUtil.encodeToURLSafeBase64(ecCryptomanagerService.asymmetricEcDecrypt(privateKey, encRandomKeyBytes, null, keymanagerUtil.getEcCurveName(x509Cert.getPublicKey())));

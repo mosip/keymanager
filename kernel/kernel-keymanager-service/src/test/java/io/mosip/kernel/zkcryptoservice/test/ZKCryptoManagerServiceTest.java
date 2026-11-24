@@ -435,7 +435,8 @@ public class ZKCryptoManagerServiceTest {
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
         // Mock for pub key aliases (first call)
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         // Mock for master key (second call)
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
@@ -476,17 +477,21 @@ public class ZKCryptoManagerServiceTest {
 
         KeyAlias keyAlias = new KeyAlias();
         keyAlias.setAlias("re-encrypt-alias");
-        keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint1).toUpperCase());
+        keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint2).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        // Mock for pub key aliases (first call)
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF2,REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF2"), any(LocalDateTime.class)))
+                .thenReturn(createKeyAliasMapWithKeyAliases(Collections.emptyList()));
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
-        // Mock for master key (second call)
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
 
-        when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
+        when(keyManagerService.decryptSymmetricKey(org.mockito.ArgumentMatchers.argThat(request ->
+                "PUB_KEY_APP".equals(request.getApplicationId())
+                        && "REF1".equals(request.getReferenceId())
+                        && encryptedKey2.equals(request.getEncryptedSymmetricKey()))))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
         stubReEncryptRepositories();
@@ -1276,7 +1281,8 @@ public class ZKCryptoManagerServiceTest {
         keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint1).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
@@ -1322,7 +1328,8 @@ public class ZKCryptoManagerServiceTest {
         keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint2).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
