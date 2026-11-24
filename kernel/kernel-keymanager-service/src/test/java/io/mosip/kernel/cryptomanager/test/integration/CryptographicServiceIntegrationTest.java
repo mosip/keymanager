@@ -8,14 +8,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.lang.reflect.InvocationTargetException;
 import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 
-import javax.crypto.SecretKey;
 
 import io.mosip.kernel.core.util.DateUtils2;
 import org.junit.Before;
@@ -37,7 +34,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
-import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import io.mosip.kernel.crypto.jce.core.CryptoCore;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
@@ -61,11 +58,8 @@ import io.mosip.kernel.keymanagerservice.util.KeymanagerUtil;
 @AutoConfigureMockMvc
 public class CryptographicServiceIntegrationTest {
 
-	/**
-	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
-	 */
 	@MockBean
-	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+	private CryptoCore cryptoCore;
 
 	@MockBean
 	private CryptomanagerUtils cryptomanagerUtil;
@@ -192,7 +186,7 @@ public class CryptographicServiceIntegrationTest {
 		requestDto.setTimeStamp(timeStamp);
 		SymmetricKeyRequestDto symmetricKeyRequestDto = new SymmetricKeyRequestDto(appid, timeStamp, refid, data, true);
 		when(keyManagerService.decryptSymmetricKey(Mockito.any())).thenReturn(symmetricKeyResponseDto);
-		when(cryptomanagerUtil.parseEncryptKeyHeader(Mockito.any())).thenReturn("RSA".getBytes());
+		when(cryptomanagerUtil.parseEncryptKeyHeader(Mockito.any())).thenReturn(new byte[0]);
 		when(cryptomanagerUtil.decodeBase64Data(data))
 				.thenReturn("MOCKENCRYPTEDKEY#KEY_SPLITTER#MOCKENCRYPTEDDATA".getBytes());
 		when(cryptomanagerUtil.hasKeyAccess(Mockito.anyString())).thenReturn(true);
@@ -206,6 +200,10 @@ public class CryptographicServiceIntegrationTest {
 				objectMapper.writeValueAsString(responseWrapper.getResponse()), CryptomanagerResponseDto.class);
 
 		assertThat(cryptomanagerResponseDto.getData(), isA(String.class));
+		String expectedKey = CryptoUtil.encodeToURLSafeBase64(
+				"MOCKENCRYPTEDKEY".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		Mockito.verify(cryptomanagerUtil).getDecryptedSymmetricKey(
+				Mockito.argThat(request -> expectedKey.equals(request.getData())));
 	}
 
 	@WithUserDetails("reg-processor")
