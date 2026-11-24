@@ -75,6 +75,9 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     @Value("${mosip.sign.refid:SIGN}")
     private String signRefid;
 
+    @Value("${mosip.sign-certificate-refid:SIGN}")
+    private String certificateSignRefID;
+
     @Value("${mosip.kernel.keymanager.jwtsign.include.keyid:true}")
     private boolean includeKeyId;
 
@@ -139,7 +142,8 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
             LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
             "cose sign1 process initiated.");
             String algorithm = referenceId;
-            if (!SignatureUtil.isDataValid(referenceId) || referenceId.equals(signRefid)) {
+            if (!SignatureUtil.isDataValid(referenceId) || referenceId.equals(signRefid)
+                    || referenceId.equals(certificateSignRefID)) {
                 X509Certificate cert = certificateResponse.getCertificateEntry().getChain()[0];
                 algorithm = SignatureUtil.getJwtSignAlgorithm(cert);
             }
