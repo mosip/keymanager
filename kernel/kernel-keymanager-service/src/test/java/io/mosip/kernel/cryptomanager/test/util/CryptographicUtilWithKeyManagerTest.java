@@ -3,11 +3,8 @@ package io.mosip.kernel.cryptomanager.test.util;
 
 import static org.mockito.Mockito.when;
 
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.time.LocalDateTime;
 
-import javax.crypto.SecretKey;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -22,7 +19,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import io.mosip.kernel.crypto.jce.core.CryptoCore;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
@@ -54,10 +51,10 @@ public class CryptographicUtilWithKeyManagerTest {
 	private KeyGenerator generator;
 
 	/**
-	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
+	 * {@link CryptoCore} instance for cryptographic functionalities.
 	 */
 	@MockBean
-	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+	private CryptoCore cryptoCore;
 
 	@Before
 	public void setUp() {

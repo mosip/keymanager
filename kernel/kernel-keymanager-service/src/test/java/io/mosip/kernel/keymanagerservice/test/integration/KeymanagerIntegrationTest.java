@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import javax.crypto.SecretKey;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
@@ -48,7 +47,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
-import io.mosip.kernel.core.crypto.spi.CryptoCoreSpec;
+import io.mosip.kernel.crypto.jce.core.CryptoCore;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
@@ -95,10 +94,10 @@ public class KeymanagerIntegrationTest {
 	private KeyStoreRepository keyStoreRepository;
 
 	/**
-	 * {@link CryptoCoreSpec} instance for cryptographic functionalities.
+	 * {@link CryptoCore} instance for cryptographic functionalities.
 	 */
 	@MockBean
-	private CryptoCoreSpec<byte[], byte[], SecretKey, PublicKey, PrivateKey, String> cryptoCore;
+	private CryptoCore cryptoCore;
 
 	@Mock
 	private PublicKey publicKey;
