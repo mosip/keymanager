@@ -47,6 +47,7 @@ import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.cryptomanager.constant.CryptomanagerConstant;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
+import io.mosip.kernel.keymanagerservice.repository.KeyAliasRepository;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyRequestDto;
 import io.mosip.kernel.keymanagerservice.dto.SymmetricKeyResponseDto;
 import io.mosip.kernel.keymanagerservice.entity.KeyAlias;
@@ -86,6 +87,9 @@ public class ZKCryptoManagerServiceTest {
 
     @Mock
     private KeyStoreRepository keyStoreRepository;
+
+    @Mock
+    private KeyAliasRepository keyAliasRepository;
 
     @Mock
     private ECKeyStore keyStore;
@@ -426,11 +430,13 @@ public class ZKCryptoManagerServiceTest {
 
         // Create key alias with matching thumbprint
         KeyAlias keyAlias = new KeyAlias();
+        keyAlias.setAlias("re-encrypt-alias");
         keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
         // Mock for pub key aliases (first call)
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         // Mock for master key (second call)
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
@@ -439,6 +445,7 @@ public class ZKCryptoManagerServiceTest {
         when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+        stubReEncryptRepositories();
 
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
@@ -469,19 +476,25 @@ public class ZKCryptoManagerServiceTest {
         String encryptedKey = encryptedKey1 + "." + encryptedKey2;
 
         KeyAlias keyAlias = new KeyAlias();
-        keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint1).toUpperCase());
+        keyAlias.setAlias("re-encrypt-alias");
+        keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint2).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        // Mock for pub key aliases (first call)
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF2,REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF2"), any(LocalDateTime.class)))
+                .thenReturn(createKeyAliasMapWithKeyAliases(Collections.emptyList()));
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
-        // Mock for master key (second call)
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
 
-        when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
+        when(keyManagerService.decryptSymmetricKey(org.mockito.ArgumentMatchers.argThat(request ->
+                "PUB_KEY_APP".equals(request.getApplicationId())
+                        && "REF1".equals(request.getReferenceId())
+                        && encryptedKey2.equals(request.getEncryptedSymmetricKey()))))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+        stubReEncryptRepositories();
 
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
@@ -673,6 +686,7 @@ public class ZKCryptoManagerServiceTest {
         String thumbprintHex = org.bouncycastle.util.encoders.Hex.toHexString(thumbprint).toUpperCase();
 
         KeyAlias keyAlias = new KeyAlias();
+        keyAlias.setAlias("re-encrypt-alias");
         keyAlias.setCertThumbprint(thumbprintHex); // Set matching thumbprint first
         List<KeyAlias> keyAliasesList = Collections.singletonList(keyAlias);
         ReflectionTestUtils.setField(zkCryptoManagerService, "keyAliases", keyAliasesList);
@@ -690,6 +704,7 @@ public class ZKCryptoManagerServiceTest {
         when(dbHelper.getKeyAliases(anyString(), anyString(), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+        stubReEncryptRepositories();
 
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
@@ -1262,16 +1277,19 @@ public class ZKCryptoManagerServiceTest {
 
         // Create keyAlias with thumbprint that matches first key
         KeyAlias keyAlias = new KeyAlias();
+        keyAlias.setAlias("re-encrypt-alias");
         keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint1).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+        stubReEncryptRepositories();
 
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
@@ -1306,16 +1324,19 @@ public class ZKCryptoManagerServiceTest {
 
         // Create keyAlias with thumbprint that matches second key (not first)
         KeyAlias keyAlias = new KeyAlias();
+        keyAlias.setAlias("re-encrypt-alias");
         keyAlias.setCertThumbprint(org.bouncycastle.util.encoders.Hex.toHexString(thumbprint2).toUpperCase());
         List<KeyAlias> keyAliases = Collections.singletonList(keyAlias);
 
-        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1,REF2"), any(LocalDateTime.class)))
+        ReflectionTestUtils.setField(zkCryptoManagerService, "pubKeyReferenceId", "REF1");
+        when(dbHelper.getKeyAliases(eq("PUB_KEY_APP"), eq("REF1"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMapWithKeyAliases(keyAliases));
         when(keyManagerService.decryptSymmetricKey(any(SymmetricKeyRequestDto.class)))
                 .thenReturn(createSymmetricKeyResponse(CryptoUtil.encodeToURLSafeBase64(new byte[16])));
         when(dbHelper.getKeyAliases(eq("KERNEL"), eq("IDENTITY_CACHE"), any(LocalDateTime.class)))
                 .thenReturn(createKeyAliasMap("master-alias"));
         when(keyStore.getSymmetricKey(anyString())).thenReturn(masterKey);
+        stubReEncryptRepositories();
 
         ReEncryptRandomKeyResponseDto response = zkCryptoManagerService.zkReEncryptRandomKey(encryptedKey);
 
@@ -1542,6 +1563,18 @@ public class ZKCryptoManagerServiceTest {
         KeyStore keyStore = new KeyStore();
         keyStore.setCertificateData("cert-data");
         return Optional.of(keyStore);
+    }
+
+    private void stubReEncryptRepositories() {
+        KeyAlias storedAlias = new KeyAlias();
+        storedAlias.setApplicationId("PUB_KEY_APP");
+        storedAlias.setReferenceId("REF1");
+        when(keyStoreRepository.findByAlias("re-encrypt-alias")).thenReturn(createKeyStoreOptional());
+        when(keyAliasRepository.findById("re-encrypt-alias")).thenReturn(Optional.of(storedAlias));
+        when(keymanagerUtil.convertToCertificate("cert-data")).thenReturn(mockCertificate);
+        when(cryptomanagerUtil.getPrivateKeyForDecryption(
+                eq("PUB_KEY_APP"), eq(Optional.of("REF1")), anyString()))
+                .thenReturn(new Object[] { keyPair.getPrivate() });
     }
 
     private SymmetricKeyResponseDto createSymmetricKeyResponse(String symmetricKey) {

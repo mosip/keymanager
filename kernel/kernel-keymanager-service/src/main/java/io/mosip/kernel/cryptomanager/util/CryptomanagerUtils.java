@@ -7,7 +7,7 @@
 package io.mosip.kernel.cryptomanager.util;
 
 import java.io.IOException;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.interfaces.RSAPublicKey;
@@ -23,7 +23,9 @@ import javax.crypto.spec.SecretKeySpec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+import io.mosip.kernel.keymanagerservice.constant.KeymanagerErrorConstant;
 import io.mosip.kernel.signature.constant.SignatureConstant;
+import io.mosip.kernel.keymanagerservice.helper.PrivateKeyDecryptorHelper;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,6 +110,9 @@ public class CryptomanagerUtils {
 	@Autowired
 	private KeymanagerDBHelper dbHelper;
 
+	@Autowired
+	private PrivateKeyDecryptorHelper privateKeyDecryptorHelper;
+
 	/**
 	 * Calls Key-Manager-Service to get public key of an application.
 	 *
@@ -128,7 +133,7 @@ public class CryptomanagerUtils {
 	 * @param refId the ref id
 	 * @return the certificate data from key manager
 	 */
-	private String getCertificateFromKeyManager(String appId, String refId) {
+	public String getCertificateFromKeyManager(String appId, String refId) {
 		return keyManager.getCertificate(appId, Optional.ofNullable(refId)).getCertificate();
 	}
 
@@ -232,12 +237,12 @@ public class CryptomanagerUtils {
         return Hex.toHexString(getCertificateThumbprint(cert)).toUpperCase();
 	}
 
-	public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
-		byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
-		System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
-		System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
-		return finalData;
-	}
+		public byte[] concatCertThumbprint(byte[] certThumbprint, byte[] encryptedKey){
+			byte[] finalData = new byte[CryptomanagerConstant.THUMBPRINT_LENGTH + encryptedKey.length];
+			System.arraycopy(certThumbprint, 0, finalData, 0, certThumbprint.length);
+			System.arraycopy(encryptedKey, 0, finalData, certThumbprint.length, encryptedKey.length);
+			return finalData;
+		}
 
 	public byte[] generateRandomBytes(int size) {
 		byte[] randomBytes = new byte[size];
@@ -271,6 +276,24 @@ public class CryptomanagerUtils {
         byte[] versionHeader = new byte[headerLen];
         System.arraycopy(encryptedKey, 0, versionHeader, 0, headerLen);
         return versionHeader;
+	}
+
+	public String getAlgorithmNameFromHeader(byte[] encryptedData) {
+		int keyDelimiterIndex = 0;
+		keyDelimiterIndex = CryptoUtil.getSplitterIndex(encryptedData, keyDelimiterIndex, keySplitter);
+		byte[] algorithmBytes = Arrays.copyOfRange(encryptedData, 0, keyDelimiterIndex);
+		String algorithmName;
+
+		if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC256_R1)) {
+			algorithmName = CryptomanagerConstant.EC_SECP256R1;
+		} else if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC256_K1)) {
+			algorithmName = CryptomanagerConstant.EC_SECP256K1;
+		} else if (Arrays.equals(algorithmBytes, CryptomanagerConstant.VERSION_EC_X25519)) {
+			algorithmName = CryptomanagerConstant.EC_X25519;
+		} else {
+			algorithmName = KeymanagerConstant.RSA;
+		}
+		return algorithmName;
 	}
 
 	public boolean isDataValid(String anyData) {
@@ -339,12 +362,15 @@ public class CryptomanagerUtils {
 	public void validateEncKeySize(Certificate encCert) {
 
 		if (validateKeySize) {
-			RSAPublicKey rsaPublicKey = (RSAPublicKey) encCert.getPublicKey();
-			if (rsaPublicKey.getModulus().bitLength() != 2048) {
-				LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
-						"Not Allowed to preform encryption with Key size not equal to 2048 bit.");
-				throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
-						CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+			String algorithmName = encCert.getPublicKey().getAlgorithm();
+			if (algorithmName.equalsIgnoreCase(KeymanagerConstant.RSA)) {
+				RSAPublicKey rsaPublicKey = (RSAPublicKey) encCert.getPublicKey();
+				if (rsaPublicKey.getModulus().bitLength() != 2048) {
+					LOGGER.error(CryptomanagerConstant.SESSIONID, this.getClass().getSimpleName(), CryptomanagerConstant.JWT_ENCRYPT,
+							"Not Allowed to preform encryption with Key size not equal to 2048 bit.");
+					throw new CryptoManagerSerivceException(CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorCode(),
+							CryptomanagerErrorCode.ENCRYPT_NOT_ALLOWED_ERROR.getErrorMessage());
+				}
 			}
 		}
 	}
@@ -413,5 +439,38 @@ public class CryptomanagerUtils {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Retrieves the private key used to decrypt an encrypted payload, resolved by the
+	 * certificate thumbprint embedded in the payload. Mirrors the RSA session-key path
+	 * ({@code SessionKeyDecryptorHelper}): the exact key used at encryption time is
+	 * selected for every reference id, including HSM master/sign keys, so rotated and
+	 * expired keys can still decrypt historical data.
+	 */
+	public Object[] getPrivateKeyForDecryption(String appId, Optional<String> refId, String certThumbprint) {
+		String referenceId = KeymanagerUtil.getTrimmedValue(refId.orElse(null));
+		LOGGER.info(KeymanagerConstant.SESSIONID, KeymanagerConstant.EMPTY, KeymanagerConstant.EMPTY,
+				"Getting private key for decryption using certificate thumbprint.");
+		io.mosip.kernel.keymanagerservice.entity.KeyStore dbKeyStore = privateKeyDecryptorHelper
+				.getDBKeyStoreData(certThumbprint, appId, referenceId);
+		return privateKeyDecryptorHelper.getKeyObjects(dbKeyStore, true);
+	}
+
+	public byte[] getHeaderByte(String ecCurveName) {
+		byte[] headerBytes = new byte[0];
+		if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_SECP256R1)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC256_R1;
+		} else if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_SECP256K1)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC256_K1;
+		} else if (ecCurveName.equalsIgnoreCase(CryptomanagerConstant.EC_X25519)) {
+			headerBytes = CryptomanagerConstant.VERSION_EC_X25519;
+		} else {
+			LOGGER.error(CryptomanagerConstant.SESSIONID, CryptomanagerConstant.ENCRYPT, CryptomanagerConstant.ENCRYPT,
+					"Unsupported EC Curve Name: " + ecCurveName);
+			throw new CryptoManagerSerivceException(CryptomanagerErrorCode.UNSUPPORTED_EC_CURVE.getErrorCode(),
+					CryptomanagerErrorCode.UNSUPPORTED_EC_CURVE.getErrorMessage() + ecCurveName);
+		}
+		return headerBytes;
 	}
 }

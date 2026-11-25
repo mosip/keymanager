@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @SuppressWarnings("java:S5122") // Need CrossOrigin access for all the APIs, added to ignore in sonarCloud Security hotspots.
 @RestController
 @CrossOrigin
-@Tag(name = "cosesigncontroller", description = "Operation related COSE signature")
+@Tag(name = "cosesignaturecontroller", description = "Operation related COSE signature")
 public class CoseSignController {
 
     /**

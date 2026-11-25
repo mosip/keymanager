@@ -7,7 +7,7 @@ import com.authlete.cwt.constants.CWTClaims;
 import io.mosip.kernel.core.keymanager.spi.ECKeyStore;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.cryptomanager.util.CryptomanagerUtils;
 import io.mosip.kernel.keygenerator.bouncycastle.util.KeyGeneratorUtils;
 import io.mosip.kernel.keymanagerservice.constant.KeymanagerConstant;
@@ -75,6 +75,9 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
     @Value("${mosip.sign.refid:SIGN}")
     private String signRefid;
 
+    @Value("${mosip.sign-certificate-refid:SIGN}")
+    private String certificateSignRefID;
+
     @Value("${mosip.kernel.keymanager.jwtsign.include.keyid:true}")
     private boolean includeKeyId;
 
@@ -115,7 +118,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
 
         byte[] payload = CryptoUtil.decodeURLSafeBase64(base64Payload);
 
-        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String timestamp = DateUtils2.getUTCCurrentDateTimeString();
         String applicationId = coseSignRequestDto.getApplicationId();
         String referenceId = coseSignRequestDto.getReferenceId();
         if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -128,7 +131,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
 
         CoseSignResponseDto responseDto = new CoseSignResponseDto();
         responseDto.setSignedData(signedData);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                 "COSE Signature Request - Completed.");
         return responseDto;
@@ -138,9 +141,15 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
         try {
             LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
             "cose sign1 process initiated.");
-            String algorithm = (requestDto.getAlgorithm() == null || requestDto.getAlgorithm().isEmpty()) ?
-                    SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(referenceId) : requestDto.getAlgorithm();
-            COSEProtectedHeaderBuilder protectedHeaderBuilder = coseHeaderBuilder.buildProtectedHeader(certificateResponse, requestDto, getCoseAlgorithm(algorithm), signatureUtil);
+            String algorithm = referenceId;
+            if (!SignatureUtil.isDataValid(referenceId) || referenceId.equals(signRefid)
+                    || referenceId.equals(certificateSignRefID)) {
+                X509Certificate cert = certificateResponse.getCertificateEntry().getChain()[0];
+                algorithm = SignatureUtil.getJwtSignAlgorithm(cert);
+            }
+            String signAlgorithm = (requestDto.getAlgorithm() == null || requestDto.getAlgorithm().isEmpty()) ?
+                    SignatureAlgorithmIdentifyEnum.getAlgorithmIdentifier(algorithm) : requestDto.getAlgorithm();
+            COSEProtectedHeaderBuilder protectedHeaderBuilder = coseHeaderBuilder.buildProtectedHeader(certificateResponse, requestDto, getCoseAlgorithm(signAlgorithm), signatureUtil);
             COSEUnprotectedHeaderBuilder unprotectedHeaderBuilder = coseHeaderBuilder.buildUnprotectedHeader(certificateResponse, requestDto, signatureUtil);
             String keyId = getKeyId(kidPrepend, certificateResponse, requestDto, includeKeyId);
             setKidHeader(keyId, requestDto, protectedHeaderBuilder, unprotectedHeaderBuilder);
@@ -156,7 +165,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                     .payload(cosePayload)
                     .build();
 
-            SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(algorithm);
+            SignatureProvider signatureProvider = SignatureProviderEnum.getSignatureProvider(signAlgorithm);
             if (Objects.isNull(signatureProvider)) {
                 signatureProvider = SignatureProviderEnum.getSignatureProvider(SignatureConstant.JWS_PS256_SIGN_ALGO_CONST);
             }
@@ -468,7 +477,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
                     SignatureErrorCode.INVALID_INPUT.getErrorMessage());
         }
 
-        String timestamp = DateUtils.getUTCCurrentDateTimeString();
+        String timestamp = DateUtils2.getUTCCurrentDateTimeString();
         String applicationId = requestDto.getApplicationId();
         String referenceId = requestDto.getReferenceId();
         if (!keymanagerUtil.isValidApplicationId(applicationId)) {
@@ -491,7 +500,7 @@ public class CoseSignatureServiceImpl implements CoseSignatureService {
 
         CoseSignResponseDto responseDto = new CoseSignResponseDto();
         responseDto.setSignedData(signedData);
-        responseDto.setTimestamp(DateUtils.getUTCCurrentDateTime());
+        responseDto.setTimestamp(DateUtils2.getUTCCurrentDateTime());
         LOGGER.info(SignatureConstant.SESSIONID, SignatureConstant.COSE_SIGN, SignatureConstant.BLANK,
                 "CWT Sign Request Successful.");
         return responseDto;
