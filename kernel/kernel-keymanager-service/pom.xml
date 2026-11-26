@@ -33,7 +33,6 @@
 
 		<!-- Kernel -->
 		<kernel.core.version>1.4.1-SNAPSHOT</kernel.core.version>
-		<kernel.auth.adapter.version>1.4.1-SNAPSHOT</kernel.auth.adapter.version>
 
 		<!-- data -->
 		<h2.version>2.2.220</h2.version>
@@ -93,11 +92,6 @@
 					<artifactId>mockito-junit-jupiter</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>io.mosip.kernel</groupId>
-			<artifactId>kernel-auth-adapter</artifactId>
-			<version>${kernel.auth.adapter.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
