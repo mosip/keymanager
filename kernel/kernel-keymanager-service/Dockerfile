@@ -47,6 +47,8 @@ ENV is_glowroot_env=${is_glowroot}
 
 # environment variable to pass artifactory url, at docker runtime
 ENV artifactory_url_env=${artifactory_url}
+# environment variable to pass iam_adapter url, at docker runtime
+ENV iam_adapter_url_env=${iam_adapter_url}
 
 # environment variable to pass hsm client zip file path, at docker runtime
 ENV hsm_zip_file_path=${hsm_client_zip_path}
